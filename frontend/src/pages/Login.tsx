@@ -1,4 +1,6 @@
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { Loader2, Cpu, ArrowRight } from 'lucide-react';
 
 export const Login: React.FC = () => {
