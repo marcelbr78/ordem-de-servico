@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Cpu, ArrowRight } from 'lucide-react';
 
 export const Login: React.FC = () => {
     const [loading, setLoading] = useState(false);
-    const { signIn } = useAuth();
+    const { signIn, signed } = useAuth();
+    const navigate = useNavigate();
+
+    // Redireciona se já estiver logado
+    React.useEffect(() => {
+        if (signed) {
+            navigate('/');
+        }
+    }, [signed, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -12,6 +19,7 @@ export const Login: React.FC = () => {
         try {
             // Loga automaticamente com o usuário admin padrão
             await signIn({ email: 'admin', password: 'admin' });
+            navigate('/');
         } catch (err: any) {
             console.error('Login error:', err);
             const message = err.response?.data?.message || err.message || 'Erro desconhecido';
