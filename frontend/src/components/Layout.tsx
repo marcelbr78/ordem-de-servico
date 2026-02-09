@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import {
     LayoutDashboard,
     ClipboardList,
@@ -13,8 +14,15 @@ import {
 } from 'lucide-react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { signOut } = useAuth();
+    const { signOut, user } = useAuth();
     const [isOpen, setIsOpen] = React.useState(true);
+    const [showChangePassword, setShowChangePassword] = React.useState(false);
+
+    React.useEffect(() => {
+        if (user?.mustChangePassword) {
+            setShowChangePassword(true);
+        }
+    }, [user]);
 
     const menuItems = [
         { name: 'Início', icon: <LayoutDashboard size={20} />, path: '/' },
@@ -26,6 +34,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+            <ChangePasswordModal
+                isOpen={showChangePassword}
+                onSuccess={() => {
+                    setShowChangePassword(false);
+                    alert('Senha alterada com sucesso! Por favor, faça login novamente.');
+                    signOut();
+                }}
+            />
             {/* Sidebar */}
             <aside style={{
                 width: isOpen ? '260px' : '80px',

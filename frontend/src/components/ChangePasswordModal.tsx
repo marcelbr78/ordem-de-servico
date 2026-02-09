@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Lock, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
