@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: assistencia-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: DB_HOST
+        fromDatabase:
+          name: assistencia-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: assistencia-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: assistencia-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: assistencia-db
+          property: password
+      - key: DB_DATABASE
+        fromDatabase:
+          name: assistencia-db
+          property: database
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
+
+databases:
+  - name: assistencia-db
+    plan: free
