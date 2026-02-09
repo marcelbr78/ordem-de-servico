@@ -11,9 +11,11 @@ export const Login: React.FC = () => {
         setLoading(true);
         try {
             // Loga automaticamente com o usuário admin padrão
-            await signIn({ email: 'admin', password: '1234' });
-        } catch (err) {
-            alert('Erro ao entrar no sistema. Verifique se o backend está rodando.');
+            await signIn({ email: 'admin', password: 'admin' });
+        } catch (err: any) {
+            console.error('Login error:', err);
+            const message = err.response?.data?.message || err.message || 'Erro desconhecido';
+            alert(`Erro ao entrar no sistema: ${message}\nVerifique se o backend está rodando.`);
         } finally {
             setLoading(false);
         }

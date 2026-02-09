@@ -13,7 +13,11 @@ async function bootstrap() {
     }));
 
     // CORS para o frontend (Next.js/PWA)
-    app.enableCors();
+    app.enableCors({
+        origin: true,
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        credentials: true,
+    });
 
     const port = process.env.PORT || 3001;
     await app.listen(port);

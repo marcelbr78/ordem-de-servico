@@ -14,11 +14,11 @@ export class UsersService implements OnModuleInit {
     async onModuleInit() {
         const adminUser = await this.findByEmail('admin');
         if (!adminUser) {
-            console.log('🌱 Semeando usuário administrador padrão (admin/1234)...');
+            console.log('🌱 Semeando usuário administrador padrão (admin/admin)...');
             await this.create({
                 email: 'admin',
                 name: 'Administrador',
-                password: '1234',
+                password: 'admin',
                 role: UserRole.ADMIN,
             });
         }
