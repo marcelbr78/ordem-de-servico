@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UnauthorizedException, HttpCode, HttpStatus, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { AuditService } from '../audit/audit.service';
@@ -61,5 +62,32 @@ export class AuthController {
     @Post('register')
     async register(@Body() registerDto: RegisterDto) {
         return this.usersService.create(registerDto);
+    }
+
+    @Post('change-password')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.OK)
+    async changePassword(@Body() body: { userId: string, newPassword: string }, @Req() req: Request) {
+        if (!body.userId || !body.newPassword) {
+            throw new UnauthorizedException('Dados inválidos');
+        }
+
+        if (body.newPassword.length < 8) {
+            throw new UnauthorizedException('A senha deve ter no mínimo 8 caracteres');
+        }
+
+        await this.usersService.changePassword(body.userId, body.newPassword);
+
+        await this.auditService.log({
+            userId: body.userId,
+            action: 'PASSWORD_CHANGE',
+            entity: 'User',
+            entityId: body.userId,
+            details: 'Troca de senha obrigatória ou voluntária realizada',
+            ip: req.ip,
+            userAgent: req.headers['user-agent'],
+        });
+
+        return { message: 'Senha alterada com sucesso' };
     }
 }

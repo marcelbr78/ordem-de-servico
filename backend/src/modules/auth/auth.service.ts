@@ -13,8 +13,18 @@ export class AuthService {
     ) { }
 
     async validateUser(email: string, pass: string): Promise<any> {
+        console.log(`[AUTH DEBUG] Tentativa de login para: ${email}`);
         const user = await this.usersService.findByEmail(email);
-        if (user && await bcrypt.compare(pass, user.password)) {
+        if (!user) {
+            console.log('[AUTH DEBUG] Usuário não encontrado no banco de dados.');
+            return null;
+        }
+
+        console.log('[AUTH DEBUG] Usuário encontrado. Verificando senha...');
+        const isMatch = await bcrypt.compare(pass, user.password);
+        console.log(`[AUTH DEBUG] Senha confere? ${isMatch}`);
+
+        if (user && isMatch) {
             const { password, ...result } = user;
             return result;
         }
@@ -49,6 +59,7 @@ export class AuthService {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                mustChangePassword: user.mustChangePassword,
             }
         };
     }
