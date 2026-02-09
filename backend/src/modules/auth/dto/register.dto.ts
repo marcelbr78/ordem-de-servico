@@ -2,7 +2,7 @@ import { IsEmail, IsNotEmpty, MinLength, IsEnum, IsOptional } from 'class-valida
 import { UserRole } from '../../users/entities/user.entity';
 
 export class RegisterDto {
-    @IsEmail({}, { message: 'Email inválido' })
+    @IsNotEmpty({ message: 'O e-mail ou usuário é obrigatório' })
     email: string;
 
     @IsNotEmpty({ message: 'O nome é obrigatório' })
