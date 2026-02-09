@@ -12,6 +12,11 @@ export class UsersService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
+        // Regra profissional: admin/admin só em desenvolvimento
+        if (process.env.NODE_ENV === 'production') {
+            return;
+        }
+
         const adminUser = await this.findByEmail('admin');
         if (!adminUser) {
             console.log('🌱 Semeando usuário administrador padrão (admin/admin)...');
@@ -48,5 +53,13 @@ export class UsersService implements OnModuleInit {
         });
 
         return this.usersRepository.save(user);
+    }
+
+    async updateRefreshToken(userId: string, refreshTokenHash: string | null) {
+        await this.usersRepository.update(userId, { refreshTokenHash });
+    }
+
+    async updateLastLogin(userId: string) {
+        await this.usersRepository.update(userId, { lastLogin: new Date() });
     }
 }

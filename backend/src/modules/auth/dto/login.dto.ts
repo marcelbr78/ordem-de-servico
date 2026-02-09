@@ -5,5 +5,6 @@ export class LoginDto {
     email: string;
 
     @IsNotEmpty({ message: 'A senha é obrigatória' })
+    @MinLength(8, { message: 'A senha deve ter pelo menos 8 caracteres' })
     password: string;
 }

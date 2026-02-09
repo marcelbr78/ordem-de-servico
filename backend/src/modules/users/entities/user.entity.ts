@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 export enum UserRole {
     ADMIN = 'admin',
@@ -27,7 +27,15 @@ export class User {
     role: UserRole;
 
     @Column({ default: true })
+    @Index()
     isActive: boolean;
+
+    @Column({ nullable: true })
+    @Index()
+    refreshTokenHash: string;
+
+    @Column({ nullable: true })
+    lastLogin: Date;
 
     @CreateDateColumn()
     createdAt: Date;

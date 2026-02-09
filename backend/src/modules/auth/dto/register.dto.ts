@@ -9,7 +9,7 @@ export class RegisterDto {
     name: string;
 
     @IsNotEmpty({ message: 'A senha é obrigatória' })
-    @MinLength(4, { message: 'A senha deve ter pelo menos 4 caracteres' })
+    @MinLength(8, { message: 'A senha deve ter pelo menos 8 caracteres' })
     password: string;
 
     @IsOptional()
