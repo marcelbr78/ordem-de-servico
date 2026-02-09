@@ -21,6 +21,12 @@ export class UsersService implements OnModuleInit {
                 password: 'admin',
                 role: UserRole.ADMIN,
             });
+        } else {
+            // Garante que a senha seja 'admin' mesmo que já exista no banco (importante para o redeploy no Render)
+            console.log('🔄 Sincronizando senha do administrador para "admin"...');
+            const salt = await bcrypt.genSalt();
+            adminUser.password = await bcrypt.hash('admin', salt);
+            await this.usersRepository.save(adminUser);
         }
     }
 
