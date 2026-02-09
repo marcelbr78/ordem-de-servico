@@ -20,7 +20,7 @@ export const Login: React.FC = () => {
         setLoading(true);
         try {
             // Loga automaticamente com o usuário admin padrão
-            await signIn({ email: 'admin', password: 'admin' });
+            await signIn({ email: 'admin', password: 'admin123' });
             navigate('/');
         } catch (err: any) {
             console.error('Login error:', err);

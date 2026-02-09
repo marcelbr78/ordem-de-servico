@@ -19,18 +19,18 @@ export class UsersService implements OnModuleInit {
 
         const adminUser = await this.findByEmail('admin');
         if (!adminUser) {
-            console.log('🌱 Semeando usuário administrador padrão (admin/admin)...');
+            console.log('🌱 Semeando usuário administrador padrão (admin/admin123)...');
             await this.create({
                 email: 'admin',
                 name: 'Administrador',
-                password: 'admin',
+                password: 'admin123',
                 role: UserRole.ADMIN,
             });
         } else {
-            // Garante que a senha seja 'admin' mesmo que já exista no banco (importante para o redeploy no Render)
-            console.log('🔄 Sincronizando senha do administrador para "admin"...');
+            // Garante que a senha seja 'admin123' mesmo que já exista no banco
+            console.log('🔄 Sincronizando senha do administrador para "admin123"...');
             const salt = await bcrypt.genSalt();
-            adminUser.password = await bcrypt.hash('admin', salt);
+            adminUser.password = await bcrypt.hash('admin123', salt);
             await this.usersRepository.save(adminUser);
         }
     }

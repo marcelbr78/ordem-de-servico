@@ -33,9 +33,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     async function signIn(credentials: any) {
         const response = await api.post('/auth/login', credentials);
-        const { access_token, user: userData } = response.data;
+        const { access_token, refresh_token, user: userData } = response.data;
 
         localStorage.setItem('@OS:token', access_token);
+        localStorage.setItem('@OS:refreshToken', refresh_token);
         localStorage.setItem('@OS:user', JSON.stringify(userData));
 
         setUser(userData);
@@ -43,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     function signOut() {
         localStorage.removeItem('@OS:token');
+        localStorage.removeItem('@OS:refreshToken');
         localStorage.removeItem('@OS:user');
         setUser(null);
     }
