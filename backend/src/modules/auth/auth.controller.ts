@@ -24,13 +24,14 @@ export class AuthController {
         const user = await this.authService.validateUser(loginDto.email, loginDto.password);
         if (!user) {
             // Log de falha de login (Auditoria ERP)
-            await this.auditService.log({
-                action: 'LOGIN_FAILURE',
-                entity: 'User',
-                details: `Tentativa de login falhou para o email: ${loginDto.email}`,
-                ip,
-                userAgent,
-            });
+            await this.auditService.log(
+                null,
+                'LOGIN_FAILURE',
+                'User',
+                null,
+                { details: `Tentativa de login falhou para o email: ${loginDto.email}`, userAgent },
+                ip
+            );
             throw new UnauthorizedException('Credenciais inválidas');
         }
 
@@ -78,15 +79,14 @@ export class AuthController {
 
         await this.usersService.changePassword(body.userId, body.newPassword);
 
-        await this.auditService.log({
-            userId: body.userId,
-            action: 'PASSWORD_CHANGE',
-            entity: 'User',
-            entityId: body.userId,
-            details: 'Troca de senha obrigatória ou voluntária realizada',
-            ip: req.ip,
-            userAgent: req.headers['user-agent'],
-        });
+        await this.auditService.log(
+            body.userId,
+            'PASSWORD_CHANGE',
+            'User',
+            body.userId,
+            { details: 'Troca de senha obrigatória ou voluntária realizada', userAgent: req.headers['user-agent'] },
+            req.ip
+        );
 
         return { message: 'Senha alterada com sucesso' };
     }

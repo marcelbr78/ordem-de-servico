@@ -59,11 +59,13 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
             bottom: 0,
             background: 'rgba(0,0,0,0.7)',
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'center',
-            zIndex: 9999
+            zIndex: 9999,
+            overflowY: 'auto',
+            padding: '20px'
         }}>
-            <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '30px' }}>
+            <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '30px', margin: 'auto' }}>
                 <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                     <div style={{
                         background: '#F59E0B',

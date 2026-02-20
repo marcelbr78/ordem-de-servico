@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
 
-id: string;
-name: string;
-email: string;
-mustChangePassword ?: boolean;
+interface User {
+    id: string;
+    name: string;
+    email: string;
+    mustChangePassword?: boolean;
 }
 
 interface AuthContextData {

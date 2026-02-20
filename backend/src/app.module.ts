@@ -12,16 +12,33 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { User } from './modules/users/entities/user.entity';
 import { Client } from './modules/clients/entities/client.entity';
+import { ClientContact } from './modules/clients/entities/client-contact.entity';
+import { ClientOsHistory } from './modules/clients/entities/client-os-history.entity';
 import { OrderService } from './modules/orders/entities/order-service.entity';
+import { OrderEquipment } from './modules/orders/entities/order-equipment.entity';
+import { OrderHistory } from './modules/orders/entities/order-history.entity';
+import { OrderPhoto } from './modules/orders/entities/order-photo.entity';
+import { OrderPart } from './modules/orders/entities/order-part.entity';
 import { Diagnosis } from './modules/diagnosis/entities/diagnosis.entity';
 import { Product } from './modules/inventory/entities/product.entity';
+import { StockBalance } from './modules/inventory/entities/stock-balance.entity';
+import { StockMovement } from './modules/inventory/entities/stock-movement.entity';
 import { Transaction } from './modules/finance/entities/transaction.entity';
 import { AuditLog } from './modules/audit/entities/audit-log.entity';
+
+import { SmartPartsModule } from './modules/smartparts/smartparts.module';
+import { Supplier } from './modules/smartparts/entities/supplier.entity';
+import { Quote } from './modules/smartparts/entities/quote.entity';
+import { QuoteResponse } from './modules/smartparts/entities/quote-response.entity';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { SystemSetting } from './modules/settings/entities/setting.entity';
 
 @Module({
     imports: [
         ConfigModule.forRoot({
             isGlobal: true,
+            envFilePath: '.env',
         }),
         TypeOrmModule.forRootAsync({
             imports: [ConfigModule],
@@ -37,7 +54,7 @@ import { AuditLog } from './modules/audit/entities/audit-log.entity';
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, OrderService, Diagnosis, Product, Transaction, AuditLog],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting],
                         synchronize: true, // Em prod real deve ser false com migrations
                         ssl: { rejectUnauthorized: false },
                     };
@@ -46,7 +63,7 @@ import { AuditLog } from './modules/audit/entities/audit-log.entity';
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, OrderService, Diagnosis, Product, Transaction, AuditLog],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting],
                     synchronize: true,
                 };
             },
@@ -60,6 +77,9 @@ import { AuditLog } from './modules/audit/entities/audit-log.entity';
         WhatsappModule,
         InventoryModule,
         FinanceModule,
+        SmartPartsModule,
+        CloudinaryModule,
+        SettingsModule,
     ],
 })
 export class AppModule { }

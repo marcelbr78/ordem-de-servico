@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
+import { StockBalance } from './stock-balance.entity';
 
 @Entity('products')
 export class Product {
@@ -8,11 +9,35 @@ export class Product {
     @Column()
     name: string;
 
+    @Column({ nullable: true })
+    description: string;
+
     @Column({ unique: true, nullable: true })
     sku: string;
 
-    @Column({ type: 'int', default: 0 })
-    quantity: number;
+    @Column({ unique: true, nullable: true })
+    barcode: string;
+
+    @Column({ nullable: true })
+    brand: string;
+
+    @Column({ nullable: true })
+    category: string;
+
+    @Column({ default: 'UN' })
+    unit: string; // UN, PÇ, CX, KG, MT, LT
+
+    @Column({ nullable: true })
+    ncm: string; // Nomenclatura Comum do Mercosul
+
+    @Column({ nullable: true })
+    cfop: string; // Código Fiscal de Operações
+
+    @Column({ nullable: true })
+    origin: string; // 0=Nacional, 1=Estrangeira importação direta, 2=Estrangeira adquirida no mercado interno
+
+    @Column({ nullable: true })
+    supplierId: string; // Fornecedor principal (referência a smartparts_suppliers)
 
     @Column({ type: 'int', default: 0 })
     minQuantity: number;
@@ -28,4 +53,7 @@ export class Product {
 
     @UpdateDateColumn()
     updatedAt: Date;
+
+    @OneToOne(() => StockBalance, (balance) => balance.product)
+    balance: StockBalance;
 }

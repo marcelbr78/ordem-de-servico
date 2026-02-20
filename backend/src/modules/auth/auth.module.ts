@@ -8,8 +8,11 @@ import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PermissionsGuard } from './guards/permissions.guard';
 
+import { AuditModule } from '../audit/audit.module';
+
 @Module({
     imports: [
+        AuditModule,
         UsersModule,
         PassportModule,
         JwtModule.registerAsync({

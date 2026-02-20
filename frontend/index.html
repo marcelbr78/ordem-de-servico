@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        var div = document.createElement("div");
+        div.style.position = "fixed";
+        div.style.top = "0";
+        div.style.left = "0";
+        div.style.width = "100%";
+        div.style.height = "100%";
+        div.style.backgroundColor = "white";
+        div.style.color = "red";
+        div.style.zIndex = "9999";
+        div.style.padding = "20px";
+        div.style.whiteSpace = "pre-wrap";
+        div.style.fontFamily = "monospace";
+        div.style.overflow = "auto";
+        div.innerHTML = "<h1>Error Occurred</h1>" +
+          "<strong>Message:</strong> " + msg + "<br>" +
+          "<strong>URL:</strong> " + url + "<br>" +
+          "<strong>Line:</strong> " + line + ":" + col + "<br>" +
+          "<strong>Stack:</strong> " + (error && error.stack ? error.stack : "N/A");
+        document.body.appendChild(div);
+        return false;
+      };
+    </script>
     <title>frontend</title>
   </head>
   <body>

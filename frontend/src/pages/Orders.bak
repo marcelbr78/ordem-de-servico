@@ -1,0 +1,94 @@
+import React, { useEffect, useState } from 'react';
+import api from '../services/api';
+import { Plus } from 'lucide-react';
+import type { Order } from '../types';
+import { OrderList } from '../components/orders/OrderList';
+import { OrderForm } from '../components/orders/OrderForm';
+import { OrderDetails } from '../components/orders/OrderDetails';
+
+export const Orders: React.FC = () => {
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [view, setView] = useState<'list' | 'create'>('list');
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+    const loadOrders = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get('/orders');
+            setOrders(response.data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        console.log('Orders component mounted (v2 Layout Glass)');
+        loadOrders();
+    }, []);
+
+    const handleCreateSuccess = () => {
+        setView('list');
+        loadOrders();
+    };
+
+    const handleViewOrder = (order: Order) => {
+        setSelectedOrder(order);
+    };
+
+    const handleUpdateOrder = () => {
+        loadOrders();
+        // Reload selected order details if needed, or close
+        setSelectedOrder(null); // Simple reload: close modal to force refresh list. Ideally assume reload.
+        loadOrders();
+    };
+
+    return (
+        <div className="p-6 animate-fade">
+            {view === 'list' && (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                                Ordens de Serviço
+                                <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">Novo Layout v2</span>
+                            </h1>
+                            <p className="text-sm text-white/50 mt-1">{orders.length} ordens registradas</p>
+                        </div>
+                        <button
+                            onClick={() => setView('create')}
+                            className="bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-semibold transition-all shadow-lg hover:shadow-blue-500/20"
+                        >
+                            <Plus size={18} /> Nova OS
+                        </button>
+                    </div>
+
+                    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden min-h-[400px]">
+                        <OrderList
+                            orders={orders}
+                            loading={loading}
+                            onViewOrder={handleViewOrder}
+                        />
+                    </div>
+                </>
+            )}
+
+            {view === 'create' && (
+                <OrderForm
+                    onClose={() => setView('list')}
+                    onSuccess={handleCreateSuccess}
+                />
+            )}
+
+            {selectedOrder && (
+                <OrderDetails
+                    order={selectedOrder}
+                    onClose={() => setSelectedOrder(null)}
+                    onUpdate={handleUpdateOrder}
+                />
+            )}
+        </div>
+    );
+};

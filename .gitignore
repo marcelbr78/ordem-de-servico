@@ -1,23 +1,65 @@
-# Dependencies
-node_modules/
-dist/
-build/
-.env
-
-# IDEs
-.vscode/
-.idea/
-
 # OS
 .DS_Store
-thumbs.db
+Thumbs.db
 
-# NestJS
-/backend/dist
-/backend/node_modules
-
-# Vite
-/frontend/dist
-/frontend/node_modules
+# Environments
+.env
 .env.local
-.env.*.local
+.env.production
+.env.development
+*.env
+
+# Database
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build
+dist/
+build/
+*.bak
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+stdout.txt
+stderr.txt
+
+# Tools/Scripts
+backend/test-*.js
+backend/check-*.js
+backend/debug-*.js
+backend/dump-*.js
+backend/setup-*.js
+backend/validate-*.js
+backend/fix-*.js
+backend/cleanup-*.js
+backend/count-sqlite.js
+backend/local_qrcode.html
+backend/qrcode.html
+backend/verify_db.js
+backend/verify_system.ts
+backend/check_db.js
+backend/backend_restart.log
+frontend/check-arrow.*
+
+# IDE
+.vscode/
+.idea/
+.gemini/
+*.swp
+*.swo
+
+# Project specific
+backend_restart.log
+crash.log
+liberar_firewall.bat
+rodar_sistema.bat
+start_dev.bat

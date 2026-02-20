@@ -3,10 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiagnosisService } from './diagnosis.service';
 import { DiagnosisController } from './diagnosis.controller';
 import { Diagnosis } from './entities/diagnosis.entity';
-import { OrderService } from '../orders/entities/order-service.entity';
+import { OrdersModule } from '../orders/orders.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Diagnosis, OrderService])],
+    imports: [
+        TypeOrmModule.forFeature([Diagnosis]),
+        OrdersModule
+    ],
     controllers: [DiagnosisController],
     providers: [DiagnosisService],
     exports: [DiagnosisService],

@@ -24,7 +24,10 @@ export class InventoryService {
     }
 
     async findAll(): Promise<Product[]> {
-        return this.productRepository.find();
+        return this.productRepository.find({
+            relations: ['balance'],
+            order: { name: 'ASC' }
+        });
     }
 
     async findOne(id: string): Promise<Product> {
@@ -35,13 +38,34 @@ export class InventoryService {
         return product;
     }
 
-    async updateQuantity(id: string, quantity: number, type: 'IN' | 'OUT'): Promise<Product> {
-        const product = await this.findOne(id);
-        if (type === 'OUT' && product.quantity < quantity) {
-            throw new ConflictException('Estoque insuficiente');
+    async findOrCreateProduct(name: string, cost: number): Promise<Product> {
+        let product = await this.productRepository.findOne({ where: { name: name.trim() } });
+        if (!product) {
+            const tempSku = `SP-${Date.now().toString().slice(-6)}`;
+            product = this.productRepository.create({
+                name: name.trim(),
+                priceCost: cost,
+                priceSell: cost * 1.5, // Default 50% margin
+                minQuantity: 1,
+                sku: tempSku,
+            });
+            product = await this.productRepository.save(product);
         }
+        return product;
+    }
 
-        product.quantity = type === 'IN' ? product.quantity + quantity : product.quantity - quantity;
+    async update(id: string, updateData: Partial<CreateProductDto>): Promise<Product> {
+        const product = await this.productRepository.findOne({ where: { id } });
+        if (!product) {
+            throw new NotFoundException('Produto não encontrado');
+        }
+        Object.assign(product, updateData);
         return this.productRepository.save(product);
+    }
+
+    async updateQuantity(id: string, quantity: number, type: 'IN' | 'OUT'): Promise<Product> {
+        // Deprecated: Logic moved to StockService
+        // Just return the product for now or throw error if called
+        return this.findOne(id);
     }
 }

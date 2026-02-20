@@ -13,11 +13,6 @@ export class UsersService implements OnModuleInit {
 
     async onModuleInit() {
         console.log('[USERS DEBUG] Verificando usuário admin...');
-        // Regra profissional: admin/admin só em desenvolvimento
-        if (process.env.NODE_ENV === 'production') {
-            console.log('[USERS DEBUG] Ambiente de produção detectado. Log desativado.');
-            return;
-        }
 
         const adminUser = await this.findByEmail('admin');
         if (!adminUser) {
@@ -29,14 +24,24 @@ export class UsersService implements OnModuleInit {
                 role: UserRole.ADMIN,
                 mustChangePassword: true,
             });
+            console.log('[USERS DEBUG] Usuário admin criado com sucesso.');
         } else {
-            // Garante que a senha seja 'admin1234' mesmo que já exista no banco
-            console.log('🔄 Sincronizando senha do administrador para "admin1234"...');
+            // Garante que a senha seja 'admin1234'
+            console.log('🔄 Sincronizando senha do administrador...');
             const salt = await bcrypt.genSalt();
-            adminUser.password = await bcrypt.hash('admin1234', salt);
-            adminUser.mustChangePassword = true; // Força troca de senha para segurança
-            await this.usersRepository.save(adminUser);
-            console.log('[USERS DEBUG] Senha sincronizada com sucesso.');
+            const hashedPassword = await bcrypt.hash('admin1234', salt);
+
+            // Usar update() para evitar side effects do save() com entidade completa
+            await this.usersRepository.update(adminUser.id, {
+                password: hashedPassword,
+                mustChangePassword: true,
+            });
+
+            // Verificar que o hash gravado no banco bate
+            const check = await this.findByEmail('admin');
+            const isValid = await bcrypt.compare('admin1234', check.password);
+            console.log(`[USERS DEBUG] Senha sincronizada. Verificação: ${isValid ? '✅ OK' : '❌ FALHOU'}`);
+            console.log(`[USERS DEBUG] Hash armazenado: ${check.password.substring(0, 20)}...`);
         }
     }
 
@@ -77,5 +82,26 @@ export class UsersService implements OnModuleInit {
             mustChangePassword: false,
             refreshTokenHash: null // Força novo login
         });
+    }
+
+    async findAll(): Promise<User[]> {
+        return this.usersRepository.find();
+    }
+
+    async findOne(id: string): Promise<User> {
+        return this.usersRepository.findOne({ where: { id } });
+    }
+
+    async update(id: string, updateUserDto: any): Promise<User> {
+        if (updateUserDto.password) {
+            const salt = await bcrypt.genSalt();
+            updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
+        }
+        await this.usersRepository.update(id, updateUserDto);
+        return this.findOne(id);
+    }
+
+    async remove(id: string): Promise<void> {
+        await this.usersRepository.delete(id);
     }
 }

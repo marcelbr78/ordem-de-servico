@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('audit_logs')
@@ -7,34 +7,27 @@ export class AuditLog {
     id: string;
 
     @Column({ nullable: true })
-    @Index()
     userId: string;
 
-    @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+    @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn({ name: 'userId' })
     user: User;
 
     @Column()
-    @Index()
-    action: string; // LOGIN, LOGOUT, FAIL_LOGIN, CREATE_USER, etc
+    action: string; // e.g. 'CREATE', 'UPDATE', 'DELETE', 'LOGIN'
 
     @Column()
-    @Index()
-    entity: string; // User, Order, etc
+    resource: string; // e.g. 'Order', 'Client', 'Product'
 
     @Column({ nullable: true })
-    entityId: string;
+    resourceId: string;
 
-    @Column({ type: 'text', nullable: true })
-    details: string;
-
-    @Column({ nullable: true })
-    ip: string;
+    @Column('text', { nullable: true })
+    details: string; // JSON string of changes or details
 
     @Column({ nullable: true })
-    userAgent: string;
+    ipAddress: string;
 
     @CreateDateColumn()
-    @Index()
     createdAt: Date;
 }

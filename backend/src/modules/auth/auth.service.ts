@@ -42,14 +42,14 @@ export class AuthService {
         await this.usersService.updateRefreshToken(user.id, refreshTokenHash);
 
         // Registrar login com sucesso
-        await this.auditService.log({
-            userId: user.id,
-            action: 'LOGIN_SUCCESS',
-            entity: 'User',
-            entityId: user.id,
-            ip,
-            userAgent,
-        });
+        await this.auditService.log(
+            user.id,
+            'LOGIN_SUCCESS',
+            'User',
+            user.id,
+            { userAgent },
+            ip
+        );
 
         return {
             access_token: accessToken,
@@ -79,15 +79,14 @@ export class AuthService {
                 // Possível tentativa de reuso de token (ataque de sequestro)
                 // Invalida todos os tokens do usuário por segurança
                 await this.usersService.updateRefreshToken(user.id, null);
-                await this.auditService.log({
-                    userId: user.id,
-                    action: 'REFRESH_TOKEN_REUSE_ATTEMPT',
-                    entity: 'User',
-                    entityId: user.id,
-                    details: 'Detecção de tentativa de reuso de Refresh Token - Invalidação total',
-                    ip,
-                    userAgent,
-                });
+                await this.auditService.log(
+                    user.id,
+                    'REFRESH_TOKEN_REUSE_ATTEMPT',
+                    'User',
+                    user.id,
+                    { details: 'Detecção de tentativa de reuso de Refresh Token - Invalidação total', userAgent },
+                    ip
+                );
                 throw new UnauthorizedException('Tentativa de reuso de token detectada');
             }
 
@@ -111,11 +110,13 @@ export class AuthService {
 
     async logout(userId: string) {
         await this.usersService.updateRefreshToken(userId, null);
-        await this.auditService.log({
+        await this.auditService.log(
             userId,
-            action: 'LOGOUT',
-            entity: 'User',
-            entityId: userId,
-        });
+            'LOGOUT',
+            'User',
+            userId,
+            {},
+            null
+        );
     }
 }

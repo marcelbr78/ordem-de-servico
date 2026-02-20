@@ -7,21 +7,61 @@ export class CreateProductDto {
 
     @IsString()
     @IsOptional()
+    description?: string;
+
+    @IsString()
+    @IsOptional()
     sku?: string;
+
+    @IsString()
+    @IsOptional()
+    barcode?: string;
+
+    @IsString()
+    @IsOptional()
+    brand?: string;
+
+    @IsString()
+    @IsOptional()
+    category?: string;
+
+    @IsString()
+    @IsOptional()
+    unit?: string;
+
+    @IsString()
+    @IsOptional()
+    ncm?: string;
+
+    @IsString()
+    @IsOptional()
+    cfop?: string;
+
+    @IsString()
+    @IsOptional()
+    origin?: string;
+
+    @IsString()
+    @IsOptional()
+    supplierId?: string;
 
     @IsNumber({}, { message: 'A quantidade deve ser um número' })
     @Min(0)
-    quantity: number;
+    @IsOptional()
+    quantity?: number;
 
     @IsNumber({}, { message: 'A quantidade mínima deve ser um número' })
     @Min(0)
-    minQuantity: number;
+    @IsOptional()
+    minQuantity?: number;
 
     @IsNumber({}, { message: 'O preço de custo deve ser um número' })
     @Min(0)
-    priceCost: number;
+    @IsOptional()
+    priceCost?: number;
 
     @IsNumber({}, { message: 'O preço de venda deve ser um número' })
     @Min(0)
-    priceSell: number;
+    @IsOptional()
+    priceSell?: number;
 }
