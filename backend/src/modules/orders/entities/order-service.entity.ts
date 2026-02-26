@@ -69,6 +69,9 @@ export class OrderService {
     @Column({ type: 'text', nullable: true })
     diagnosis: string;
 
+    @Column({ type: 'text', nullable: true })
+    technicalReport: string;
+
 
     @ManyToOne(() => Client, { eager: true })
     @JoinColumn({ name: 'clientId' })

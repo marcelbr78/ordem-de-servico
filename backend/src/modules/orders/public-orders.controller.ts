@@ -5,6 +5,11 @@ import { OrdersService } from './orders.service';
 export class PublicOrdersController {
     constructor(private readonly ordersService: OrdersService) { }
 
+    @Get('monitor')
+    findMonitor() {
+        return this.ordersService.findAllActive();
+    }
+
     @Get(':id')
     async findOne(@Param('id') id: string) {
         // We reuse the service but should be careful about what we return.

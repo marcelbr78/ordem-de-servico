@@ -35,6 +35,13 @@ export class Transaction {
     @Column({ nullable: true })
     orderId: string;
 
+    @Column({ nullable: true })
+    bankAccountId: string;
+
+    @ManyToOne('BankAccount', { nullable: true })
+    @JoinColumn({ name: 'bankAccountId' })
+    bankAccount: any;
+
     @CreateDateColumn()
     createdAt: Date;
 

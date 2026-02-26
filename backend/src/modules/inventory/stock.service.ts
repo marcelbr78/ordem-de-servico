@@ -80,8 +80,8 @@ export class StockService {
         else await this.dataSource.transaction(run);
     }
 
-    async reverseMovement(orderId: string) {
-        await this.dataSource.transaction(async (em) => {
+    async reverseMovement(orderId: string, manager?: EntityManager) {
+        const run = async (em: EntityManager) => {
             const movements = await em.find(StockMovement, { where: { orderId } });
 
             for (const mov of movements) {
@@ -115,6 +115,9 @@ export class StockService {
                 });
                 await em.save(reverseMov);
             }
-        });
+        };
+
+        if (manager) await run(manager);
+        else await this.dataSource.transaction(run);
     }
 }

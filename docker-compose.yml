@@ -1,15 +1,89 @@
+version: '3.9'
+
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: assistencia-db
+  # ============================================
+  # Banco de dados PostgreSQL
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: os_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: postgres123
       POSTGRES_DB: assistencia_db
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U postgres' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Backend NestJS (principal)
+  # ============================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: os_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3005:3005'
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_DATABASE: assistencia_db
+      JWT_SECRET: ${JWT_SECRET:-secret_producao_muito_seguro}
+      JWT_EXPIRES_IN: 1d
+      PORT: 3005
+      # Fiscal
+      FISCAL_AMBIENTE: ${FISCAL_AMBIENTE:-2}
+      FISCAL_CERT_PATH: /app/certs/certificado.pfx
+      FISCAL_CERT_PASSWORD: ${FISCAL_CERT_PASSWORD}
+      FISCAL_EMITENTE_CNPJ: ${FISCAL_EMITENTE_CNPJ}
+      FISCAL_EMITENTE_RAZAO_SOCIAL: ${FISCAL_EMITENTE_RAZAO_SOCIAL}
+      FISCAL_EMITENTE_UF: ${FISCAL_EMITENTE_UF:-SC}
+      FISCAL_EMITENTE_COD_IBGE: ${FISCAL_EMITENTE_COD_IBGE:-4205407}
+      FISCAL_EMITENTE_MUNICIPIO: ${FISCAL_EMITENTE_MUNICIPIO:-Florianopolis}
+      FISCAL_EMITENTE_IE: ${FISCAL_EMITENTE_IE}
+      FISCAL_EMITENTE_IM: ${FISCAL_EMITENTE_IM}
+      FISCAL_EMITENTE_CRT: ${FISCAL_EMITENTE_CRT:-1}
+      FISCAL_NFSE_URL: ${FISCAL_NFSE_URL}
+      # SMTP
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+    volumes:
+      # Certificado digital — montar o .pfx aqui
+      - ./certs:/app/certs:ro
+    networks:
+      - os_network
+  # ============================================
+  # Frontend (servido pelo Nginx ou Vite)
+  # ============================================
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - '80:80'
+  #   networks:
+  #     - os_network
 
 volumes:
   postgres_data:
+
+
+networks:
+  os_network:
+    driver: bridge

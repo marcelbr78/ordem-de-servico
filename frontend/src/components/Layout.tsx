@@ -11,7 +11,8 @@ import {
     LogOut,
     Truck,
     Settings,
-    Shield
+    Shield,
+    Building2
 } from 'lucide-react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,6 +46,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Estoque', icon: Package, path: '/inventory' },
         { label: 'Fornecedores', icon: Truck, path: '/smartparts/suppliers' },
         { label: 'Financeiro', icon: DollarSign, path: '/finance' },
+        { label: 'Contas Bancárias', icon: Building2, path: '/bank-accounts' },
         { label: 'Auditoria', icon: Shield, path: '/audit' },
         { label: 'Configurações', icon: Settings, path: '/settings' },
     ];

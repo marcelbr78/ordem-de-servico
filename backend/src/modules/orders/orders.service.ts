@@ -1,18 +1,22 @@
 import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, QueryRunner, Like } from 'typeorm';
-import { OrderService, OSStatus } from './entities/order-service.entity';
+import { OrderService, OSStatus, OSPriority } from './entities/order-service.entity';
 import { OrderEquipment } from './entities/order-equipment.entity';
 import { OrderPart } from './entities/order-part.entity';
 import { OrderHistory, HistoryActionType } from './entities/order-history.entity';
 import { OrderPhoto, PhotoCategory } from './entities/order-photo.entity';
 import { CreateOrderServiceDto } from './dto/create-order-service.dto';
+import { UpdateOrderServiceDto } from './dto/update-order-service.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { ClientsService } from '../clients/clients.service';
 import { StockService } from '../inventory/stock.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { SettingsService } from '../settings/settings.service';
+import { LookupService } from './lookup.service';
+import { FinanceService } from '../finance/finance.service';
+import { TransactionType } from '../finance/entities/transaction.entity';
 
 @Injectable()
 export class OrdersService {
@@ -34,7 +38,9 @@ export class OrdersService {
         @Inject(forwardRef(() => StockService))
         private stockService: StockService,
         private cloudinaryService: CloudinaryService,
-        private settingsService: SettingsService
+        private settingsService: SettingsService,
+        private lookupService: LookupService,
+        private financeService: FinanceService
     ) { }
 
     private async getStatusFlow(current: OSStatus): Promise<OSStatus[]> {
@@ -151,15 +157,16 @@ export class OrdersService {
 
         try {
             const previousStatus = order.status;
-            order.status = dto.status;
+            console.log(`[OrdersService] Alterando status da OS ${id}: ${previousStatus} -> ${dto.status}`);
+            // Usar update em vez de save para evitar que o TypeORM tente sincronizar 
+            // e atualizar relações em cascata que podem estar com IDs inconsistentes no objeto carregado
+            await queryRunner.manager.update(OrderService, id, {
+                status: dto.status,
+                ...(dto.status === OSStatus.ENTREGUE || dto.status === OSStatus.CANCELADA ? { exitDate: new Date() } : {})
+            });
 
-            if (dto.status === OSStatus.ENTREGUE || dto.status === OSStatus.CANCELADA) {
-                order.exitDate = new Date();
-            }
-
-            await queryRunner.manager.save(order);
-
-            const history = queryRunner.manager.create(OrderHistory, {
+            console.log(`[OrdersService] Criando registro de histórico para OS ${id}`);
+            await queryRunner.manager.insert(OrderHistory, {
                 orderId: order.id,
                 actionType: HistoryActionType.STATUS_CHANGE,
                 previousStatus: previousStatus,
@@ -167,12 +174,16 @@ export class OrdersService {
                 comments: dto.comments,
                 userId: userId,
             });
-            await queryRunner.manager.save(history);
 
-            // --- STOCK CORE INTEGRATION ---
+            // --- STOCK & FINANCE INTEGRATION ---
             if (dto.status === OSStatus.FINALIZADA) {
                 const parts = await queryRunner.manager.find(OrderPart, { where: { orderId: order.id } });
 
+                // 1. Calculate Total Value
+                const totalValue = parts.reduce((acc, p) => acc + (Number(p.unitPrice) * p.quantity), 0);
+                await queryRunner.manager.update(OrderService, id, { finalValue: totalValue });
+
+                // 2. Consume Stock
                 if (parts.length > 0) {
                     await this.stockService.consumeStock(
                         order.id,
@@ -180,23 +191,47 @@ export class OrdersService {
                         queryRunner.manager
                     );
                 }
+
+                // 3. Register Financial Transaction
+                if (totalValue > 0) {
+                    console.log(`[OrdersService] Registrando transação financeira para OS ${id}. Banco: ${dto.bankAccountId || 'Nenhum'}`);
+                    await this.financeService.create({
+                        type: TransactionType.INCOME,
+                        amount: totalValue,
+                        category: 'Pagamento de OS',
+                        description: `Pagamento da OS #${order.protocol} - Cliente: ${order.client?.nome || 'Cliente'} (${dto.paymentMethod || 'A definir'})`,
+                        orderId: order.id,
+                        paymentMethod: dto.paymentMethod || 'A definir',
+                        bankAccountId: dto.bankAccountId,
+                    }, queryRunner.manager);
+                }
+            }
+
+            if (dto.status === OSStatus.CANCELADA) {
+                console.log(`[OrdersService] Revertendo estoque para OS ${id}`);
+                await this.stockService.reverseMovement(order.id, queryRunner.manager);
             }
 
             await queryRunner.commitTransaction();
-
-            if (dto.status === OSStatus.CANCELADA) {
-                await this.stockService.reverseMovement(order.id);
-            }
+            console.log(`[OrdersService] Transação concluída com sucesso para OS ${id}`);
 
             // Notificar cliente se necessário (implementar depois)
 
             return this.findOne(id);
         } catch (err) {
             await queryRunner.rollbackTransaction();
+            console.error(`[OrdersService] ERRO ao mudar status da OS ${id}:`, err.message);
             throw err;
         } finally {
             await queryRunner.release();
         }
+    }
+
+    async update(id: string, dto: UpdateOrderServiceDto): Promise<OrderService> {
+        const order = await this.findOne(id);
+        const updated = Object.assign(order, dto);
+        await this.ordersRepository.save(updated);
+        return this.findOne(id);
     }
 
     async findAll(withDeleted = false): Promise<OrderService[]> {
@@ -207,6 +242,25 @@ export class OrdersService {
         });
     }
 
+    async findAllActive(): Promise<OrderService[]> {
+        console.log('Fetching all active orders for monitor...');
+        const orders = await this.ordersRepository.createQueryBuilder('order')
+            .leftJoinAndSelect('order.client', 'client')
+            .leftJoinAndSelect('order.equipments', 'equipments')
+            .where('order.status NOT IN (:...statuses)', {
+                statuses: [OSStatus.ENTREGUE, OSStatus.CANCELADA]
+            })
+            .orderBy('CASE WHEN order.priority = :urgente THEN 1 WHEN order.priority = :alta THEN 2 WHEN order.priority = :normal THEN 3 ELSE 4 END', 'ASC')
+            .addOrderBy('order.entryDate', 'ASC') // Older first to avoid being forgotten
+            .setParameter('urgente', OSPriority.URGENTE)
+            .setParameter('alta', OSPriority.ALTA)
+            .setParameter('normal', OSPriority.NORMAL)
+            .getMany();
+
+        console.log(`Found ${orders.length} active orders.`);
+        return orders;
+    }
+
     async findByClient(clientId: string): Promise<OrderService[]> {
         return this.ordersRepository.find({
             where: { clientId },
@@ -215,9 +269,12 @@ export class OrdersService {
         });
     }
 
-    async findOne(id: string): Promise<OrderService> {
+    async findOne(idOrProtocol: string): Promise<OrderService> {
+        // Check if it's a UUID
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrProtocol);
+
         const order = await this.ordersRepository.findOne({
-            where: { id },
+            where: isUuid ? { id: idOrProtocol } : { protocol: idOrProtocol },
             relations: ['client', 'equipments', 'history', 'history.user', 'photos', 'parts', 'parts.product'],
             order: {
                 history: { createdAt: 'DESC' }
@@ -265,11 +322,21 @@ export class OrdersService {
 
     private async notifyClient(client: any, order: OrderService) {
         if (!client || !client.contatos) return;
-        const contact = client.contatos.find(c => c.tipo === 'whatsapp' && c.principal)
-            || client.contatos.find(c => c.tipo === 'whatsapp');
 
-        if (contact) {
-            // await this.whatsappService.sendOSCreated(...)
+        // Find best WhatsApp number
+        const contact = client.contatos.find(c => c.tipo === 'whatsapp' && c.principal)
+            || client.contatos.find(c => c.tipo === 'whatsapp')
+            || client.contatos.find(c => c.principal && c.numero)
+            || client.contatos.find(c => c.numero);
+
+        if (contact && contact.numero) {
+            try {
+                const device = order.equipments?.[0] ? `${order.equipments[0].type} ${order.equipments[0].model}` : 'seu equipamento';
+                await this.whatsappService.sendOSCreated(contact.numero, order.protocol, device);
+                console.log(`[WhatsApp] Initial notification sent to ${contact.numero} for OS ${order.protocol}`);
+            } catch (error) {
+                console.error(`[WhatsApp] Failed to send initial notification for OS ${order.protocol}:`, error);
+            }
         }
     }
 
@@ -316,7 +383,10 @@ export class OrdersService {
 
         let targetNumber = customNumber;
         if (!targetNumber) {
-            const contact = order.client?.contatos?.find(c => c.principal && c.numero)
+            // Priority: WhatsApp + Principal > WhatsApp > Principal > Any number
+            const contact = order.client?.contatos?.find(c => c.tipo === 'whatsapp' && c.principal && c.numero)
+                || order.client?.contatos?.find(c => c.tipo === 'whatsapp' && c.numero)
+                || order.client?.contatos?.find(c => c.principal && c.numero)
                 || order.client?.contatos?.find(c => c.numero);
             targetNumber = contact?.numero;
         }
@@ -347,20 +417,31 @@ export class OrdersService {
         console.log(`[WhatsApp Share] Final Message Length: ${message.length}`);
 
         if (!message) {
-            // Construct status URL - WE NEED IT ABSOLUTE for WhatsApp
             const frontendUrl = origin || process.env.FRONTEND_URL || 'http://localhost:5173';
             const statusUrl = `${frontendUrl}/status/${order.id}`;
 
-            if (type === 'entry') {
-                message = `Ol\u00e1 ${clientName}, confirmamos a entrada do ${device} na ${storeName}.\n\n\ud83d\udcc4 *Protocolo:* ${order.protocol}\n\ud83d\udee0 *Defeito:* ${order.reportedDefect || 'N\u00e3o informado'}\n\nAcompanhe o status em tempo real aqui: ${statusUrl}`;
-            } else if (type === 'exit') {
-                const total = order.finalValue || order.estimatedValue || 0;
-                const totalFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
-                const statusLabel = order.status.toUpperCase().replace('_', ' ');
+            // Calculate total from parts if finalValue is not set (legacy or uncalculated)
+            let total = Number(order.finalValue) || 0;
+            if (total === 0 && order.parts?.length > 0) {
+                total = order.parts.reduce((acc, p) => acc + (Number(p.unitPrice) * p.quantity), 0);
+            }
+            const totalFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
 
-                message = `Ol\u00e1 ${clientName}, o servi\u00e7o no ${device} foi finalizado!\n\n\ud83d\udcc4 *Protocolo:* ${order.protocol}\n\u2705 *Status:* ${statusLabel}\n\ud83d\udcb0 *Total:* ${totalFormatted}\n\nConfira os detalhes e o laudo t\u00e9cnico aqui: ${statusUrl}`;
+            if (type === 'entry') {
+                const defect = order.equipments?.[0]?.reportedDefect || order.reportedDefect || 'não informado';
+                message = `Olá ${clientName}, confirmamos a entrada do ${device} na ${storeName}.\n\n📄 *Protocolo:* ${order.protocol}\n🛠 *Defeito:* ${defect}\n\nAcompanhe o status em tempo real aqui: ${statusUrl}`;
+            } else if (type === 'exit' || (type === 'update' && order.status === OSStatus.FINALIZADA)) {
+                const lastComment = order.history?.find(h => h.comments && h.comments.length > 5)?.comments || order.history?.[0]?.comments || 'Serviço concluído.';
+                message = `Olá ${clientName}, o serviço no ${device} foi finalizado!\n\n📄 *Protocolo:* ${order.protocol}\n✅ *Status:* Finalizada\n💰 *Total:* ${totalFormatted}\n💬 *Observações:* ${lastComment}\n\nAcompanhe o progresso em tempo real aqui: ${statusUrl}`;
+            } else if (type === 'update') {
+                // Try to find the latest status change for detailed info
+                const latestHistory = order.history?.find(h => h.actionType === HistoryActionType.STATUS_CHANGE) || order.history?.[0];
+                const statusLabel = latestHistory?.newStatus ? latestHistory.newStatus.toUpperCase().replace('_', ' ') : order.status.toUpperCase().replace('_', ' ');
+                const comment = latestHistory?.comments || 'Status atualizado.';
+
+                message = `Olá ${clientName}, informamos que o status da sua Ordem de Serviço #${order.protocol} (${device}) foi atualizado para: *${statusLabel}*.\n\n💬 *Observações:* ${comment}\n\nAcompanhe o progresso em tempo real aqui: ${statusUrl}`;
             } else {
-                message = `Ol\u00e1, sua Ordem de Servi\u00e7o #${order.protocol} foi atualizada. Acompanhe o status aqui: ${statusUrl}`;
+                message = `Olá, sua Ordem de Serviço #${order.protocol} foi atualizada. Acompanhe o status aqui: ${statusUrl}`;
             }
         }
 
@@ -420,8 +501,47 @@ export class OrdersService {
         return { success: true, message: 'Mensagem enviada com sucesso!' };
     }
 
+    async lookupBySerial(serial: string): Promise<any | null> {
+        if (!serial || serial.length < 3) return null;
+
+        // 1. Try local database
+        const local = await this.equipmentsRepository.findOne({
+            where: { serialNumber: serial },
+            order: { createdAt: 'DESC' }
+        });
+
+        if (local) return local;
+
+        // 2. Try external API
+        return this.lookupService.lookupExternal(serial);
+    }
+
+    async addPart(orderId: string, partData: any): Promise<OrderPart> {
+        const part = this.partsRepository.create({
+            ...partData,
+            orderId,
+        } as Partial<OrderPart>);
+        return this.partsRepository.save(part);
+    }
+
+    async removePart(partId: string): Promise<void> {
+        await this.dataSource.getRepository(OrderPart).delete(partId);
+    }
+
     async remove(id: string): Promise<void> {
         const order = await this.findOne(id);
         await this.ordersRepository.softDelete(id);
+    }
+
+    async updateEquipment(id: string, data: Partial<OrderEquipment>): Promise<OrderEquipment> {
+        const eq = await this.equipmentsRepository.findOne({ where: { id } });
+        if (!eq) throw new NotFoundException('Equipamento não encontrado');
+
+        // Remove IDs to avoid accidental primary key changes
+        delete (data as any).id;
+        delete (data as any).orderId;
+
+        Object.assign(eq, data);
+        return this.equipmentsRepository.save(eq);
     }
 }

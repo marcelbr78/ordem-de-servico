@@ -43,26 +43,34 @@ interface ClientFormProps {
 const ESTADOS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
 const splitPhone = (fullNumber: string) => {
-    // Tenta encontrar um DDI conhecido no início
-    const clean = fullNumber.replace(/[^\d+]/g, '');
+    // 1. Remove tudo que não é dígito ou '+'
+    let clean = fullNumber.replace(/[^\d+]/g, '');
     if (!clean) return { ddi: '+55', number: '' };
 
-    // Se não tem +, assume BR se tiver tamanho típico, ou adiciona +55
-    if (!clean.includes('+')) {
-        return { ddi: '+55', number: clean };
-    }
-
-    // Com +, tenta casar com a lista
-    // Ordena por tamanho decrescente para pegar +351 antes de +3 se houver conflito
+    // 2. Se o número começa com um DDI conhecido (com ou sem +)
+    // Ordenamos os DDIs por tamanho decrescente para evitar casamentos parciais (ex: +3 associando antes de +351)
     const sortedDDIS = [...DDIS].sort((a, b) => b.code.length - a.code.length);
-    const ddiMatch = sortedDDIS.find(d => clean.startsWith(d.code));
+
+    // Tenta casar com '+' primeiro
+    let ddiMatch = sortedDDIS.find(d => clean.startsWith(d.code));
+
+    // Se não casou com '+', tenta casar sem o '+' (ex: '5511...')
+    if (!ddiMatch) {
+        ddiMatch = sortedDDIS.find(d => clean.startsWith(d.code.replace('+', '')));
+    }
 
     if (ddiMatch) {
-        return { ddi: ddiMatch.code, number: clean.slice(ddiMatch.code.length) };
+        const codeWithPlus = ddiMatch.code;
+        const codeWithoutPlus = ddiMatch.code.replace('+', '');
+        const number = clean.startsWith(codeWithPlus)
+            ? clean.slice(codeWithPlus.length)
+            : clean.slice(codeWithoutPlus.length);
+
+        return { ddi: codeWithPlus, number };
     }
 
-    // Fallback: assume +55 se não achou nada conhecido
-    return { ddi: '+55', number: clean.replace('+55', '') };
+    // 3. Fallback: Se não detectou DDI, assume +55 se o número tiver cara de BR, ou apenas o número
+    return { ddi: '+55', number: clean };
 };
 
 const formatCpfCnpj = (value: string, tipo: 'PF' | 'PJ'): string => {
@@ -232,20 +240,21 @@ export default function ClientForm({ initialData, isEdit, onSubmit, onCancel, lo
         };
         if (form.tipo === 'PJ') payload.nomeFantasia = form.nomeFantasia || undefined;
 
-        const validContacts = form.contatos.filter(c => c.numero.replace(/[^\d+]/g, '').length >= 7).map(c => ({
-            tipo: c.tipo,
-            numero: c.numero.replace(/[^\d+]/g, ''), // Limpa formatação, mantém apenas números e +
-            principal: c.principal,
-        }));
+        const validContacts = form.contatos
+            .filter(c => c.numero.replace(/[^\d+]/g, '').length >= 7)
+            .map(c => ({
+                id: c.id, // IMPORTANTE: Envia o ID para o backend sincronizar
+                tipo: c.tipo,
+                numero: c.numero.replace(/[^\d+]/g, ''),
+                principal: c.principal,
+            }));
 
         if (!isEdit && validContacts.length === 0) {
             alert('Adicione pelo menos um contato válido (mínimo 7 dígitos).');
             return;
         }
 
-        if (!isEdit) {
-            payload.contatos = validContacts;
-        }
+        payload.contatos = validContacts;
         await onSubmit(payload);
     };
 

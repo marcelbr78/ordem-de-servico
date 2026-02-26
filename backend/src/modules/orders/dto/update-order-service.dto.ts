@@ -14,6 +14,10 @@ export class UpdateOrderServiceDto extends PartialType(CreateOrderServiceDto) {
 
     @IsString()
     @IsOptional()
+    technicalReport?: string;
+
+    @IsString()
+    @IsOptional()
     solution?: string;
 
     @IsNumber()

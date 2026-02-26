@@ -26,22 +26,7 @@ export class UsersService implements OnModuleInit {
             });
             console.log('[USERS DEBUG] Usuário admin criado com sucesso.');
         } else {
-            // Garante que a senha seja 'admin1234'
-            console.log('🔄 Sincronizando senha do administrador...');
-            const salt = await bcrypt.genSalt();
-            const hashedPassword = await bcrypt.hash('admin1234', salt);
-
-            // Usar update() para evitar side effects do save() com entidade completa
-            await this.usersRepository.update(adminUser.id, {
-                password: hashedPassword,
-                mustChangePassword: true,
-            });
-
-            // Verificar que o hash gravado no banco bate
-            const check = await this.findByEmail('admin');
-            const isValid = await bcrypt.compare('admin1234', check.password);
-            console.log(`[USERS DEBUG] Senha sincronizada. Verificação: ${isValid ? '✅ OK' : '❌ FALHOU'}`);
-            console.log(`[USERS DEBUG] Hash armazenado: ${check.password.substring(0, 20)}...`);
+            console.log('[USERS DEBUG] Usuário admin já existe. Nenhuma alteração necessária.');
         }
     }
 

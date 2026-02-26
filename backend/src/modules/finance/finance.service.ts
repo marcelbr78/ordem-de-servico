@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { Transaction, TransactionType } from './entities/transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { BankAccount } from '../bank-accounts/entities/bank-account.entity';
 
 @Injectable()
 export class FinanceService {
@@ -11,9 +12,25 @@ export class FinanceService {
         private transactionRepository: Repository<Transaction>,
     ) { }
 
-    async create(createDto: CreateTransactionDto): Promise<Transaction> {
-        const transaction = this.transactionRepository.create(createDto);
-        return this.transactionRepository.save(transaction);
+    async create(createDto: CreateTransactionDto, manager?: EntityManager): Promise<Transaction> {
+        const repo = manager ? manager.getRepository(Transaction) : this.transactionRepository;
+        const transaction = repo.create(createDto);
+        const saved = await repo.save(transaction);
+
+        // Update bank account balance if provided
+        if (createDto.bankAccountId) {
+            const bankRepo = manager ? manager.getRepository(BankAccount) : undefined;
+            if (bankRepo) {
+                const account = await bankRepo.findOne({ where: { id: createDto.bankAccountId } });
+                if (account) {
+                    const amount = createDto.type === TransactionType.INCOME ? Number(createDto.amount) : -Number(createDto.amount);
+                    account.currentBalance = Number(account.currentBalance) + amount;
+                    await bankRepo.save(account);
+                }
+            }
+        }
+
+        return saved;
     }
 
     async findAll(): Promise<Transaction[]> {

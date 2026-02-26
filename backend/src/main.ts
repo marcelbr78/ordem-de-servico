@@ -9,10 +9,10 @@ async function bootstrap() {
 
     // Serve static files (kiosk page for tablet self-registration)
     app.use(express.static(path.join(process.cwd(), 'public')));
+
     // Habilitar validação global
     app.useGlobalPipes(new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true,
         transform: true,
     }));
 
@@ -28,7 +28,7 @@ async function bootstrap() {
     });
 
     const port = process.env.PORT || 3001;
-    await app.listen(port);
-    console.log(`🚀 Sistema de Assistência Técnica rodando em: http://localhost:${port}`);
+    await app.listen(port, '0.0.0.0');
+    console.log(`🚀 Sistema de Assistência Técnica rodando em: http://0.0.0.0:${port}`);
 }
 bootstrap();

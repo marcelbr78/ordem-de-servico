@@ -3,8 +3,9 @@ import api from '../services/api';
 import { OSSettings } from '../components/settings/OSSettings';
 import { PrintingSettings } from '../components/settings/PrintingSettings';
 import { CompanySettings } from '../components/settings/CompanySettings';
+import { FiscalSettings } from '../components/settings/FiscalSettings';
 import { CustomSelect } from '../components/CustomSelect';
-import { Shield, Smartphone, Users, RefreshCw, Edit3, UserX, UserCheck, Wifi, Send, MessageCircle, Trash2, ClipboardList, Printer, Building2 } from 'lucide-react';
+import { Shield, Smartphone, Users, RefreshCw, Edit3, UserX, UserCheck, Wifi, Send, MessageCircle, Trash2, ClipboardList, Printer, Building2, Receipt } from 'lucide-react';
 
 interface SettingsMap { [key: string]: string; }
 interface User {
@@ -51,7 +52,7 @@ const getTabStyle = (active: boolean): React.CSSProperties => ({
 });
 
 export const Settings: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'general' | 'integrations' | 'users' | 'os' | 'printing' | 'company'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'integrations' | 'users' | 'os' | 'printing' | 'company' | 'fiscal'>('general');
     const [settings, setSettings] = useState<SettingsMap>({});
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
@@ -68,7 +69,7 @@ export const Settings: React.FC = () => {
     const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
-        if (activeTab === 'general' || activeTab === 'integrations' || activeTab === 'company' || activeTab === 'printing') fetchSettings();
+        if (activeTab === 'general' || activeTab === 'integrations' || activeTab === 'company' || activeTab === 'printing' || activeTab === 'fiscal') fetchSettings();
         if (activeTab === 'integrations') checkWhatsapp();
         if (activeTab === 'users') fetchUsers();
         return () => { if (qrPollRef.current) clearInterval(qrPollRef.current); };
@@ -609,13 +610,19 @@ export const Settings: React.FC = () => {
                     onClick={() => setActiveTab('printing')}
                     style={getTabStyle(activeTab === 'printing')}
                 >
-                    <Printer size={16} /> Impressão
+                    <Printer size={16} /> Personalizar Impressão
                 </button>
                 <button
                     onClick={() => setActiveTab('integrations')}
                     style={getTabStyle(activeTab === 'integrations')}
                 >
                     <Smartphone size={16} /> Integ.
+                </button>
+                <button
+                    onClick={() => setActiveTab('fiscal')}
+                    style={getTabStyle(activeTab === 'fiscal')}
+                >
+                    <Receipt size={16} /> Fiscal & Pagamentos
                 </button>
             </div>
 
@@ -632,6 +639,7 @@ export const Settings: React.FC = () => {
             {activeTab === 'integrations' && renderIntegrationsTab()}
             {activeTab === 'os' && <OSSettings initialJson={settings.os_custom_workflow} onSave={(json) => handleSave('os_custom_workflow', json)} />}
             {activeTab === 'printing' && <PrintingSettings settings={settings} onSave={handleSave} />}
+            {activeTab === 'fiscal' && <FiscalSettings settings={settings} onSave={handleSave} />}
             {activeTab === 'users' && renderUsersTab()}
         </div>
     );

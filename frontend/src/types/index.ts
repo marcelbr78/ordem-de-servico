@@ -7,6 +7,19 @@ export interface Client {
     contatos?: { numero: string; principal: boolean; tipo?: string }[];
 }
 
+export interface Product {
+    id: string;
+    name: string;
+    description?: string;
+    sku?: string;
+    barcode?: string;
+    brand?: string;
+    category?: string;
+    unit: string;
+    priceCost: number;
+    priceSell: number;
+}
+
 export interface OrderEquipment {
     id?: string; // Optional for new creation forms
     type: string;
@@ -16,6 +29,7 @@ export interface OrderEquipment {
     reportedDefect: string;
     accessories?: string;
     condition?: string;
+    functionalChecklist?: string;
     isMain: boolean;
 }
 
@@ -36,6 +50,16 @@ export interface OrderPhoto {
     description?: string;
 }
 
+export interface OrderPart {
+    id: string;
+    orderId: string;
+    productId: string;
+    product: Product;
+    quantity: number;
+    unitPrice: number;
+    unitCost: number;
+}
+
 export interface Order {
     id: string;
     protocol: string;
@@ -52,6 +76,8 @@ export interface Order {
     estimatedValue?: number;
     finalValue?: number;
     initialObservations?: string;
+    technicalReport?: string;
+    parts?: OrderPart[];
 }
 
 export interface User {

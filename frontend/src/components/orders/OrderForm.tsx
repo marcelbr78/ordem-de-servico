@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { Plus, Trash2, Save, Search, X, UserPlus } from 'lucide-react';
 import { CustomSelect } from '../CustomSelect';
 import api from '../../services/api';
@@ -24,10 +24,39 @@ interface OrderFormData {
         reportedDefect: string;
         accessories?: string;
         isMain: boolean;
+        functionalChecklist?: string;
     }[];
 }
 
 const steps = ['Cliente', 'Equipamentos', 'Fotos', 'Detalhes'];
+
+const COMMON_BRANDS = ['Apple', 'Samsung', 'Motorola', 'Xiaomi', 'Asus', 'LG', 'Nokia', 'Realme', 'Huawei', 'Positivo', 'Lenovo', 'Dell', 'HP', 'Acer'];
+const COMMON_MODELS: Record<string, string[]> = {
+    'Apple': ['iPhone 11', 'iPhone 12', 'iPhone 13', 'iPhone 14', 'iPhone 15', 'iPhone Pro Max', 'Macbook Air', 'Macbook Pro', 'iPad Pro', 'iPad Air', 'iPad mini', 'Apple Watch'],
+    'Samsung': ['Galaxy S20', 'Galaxy S21', 'Galaxy S22', 'Galaxy S23', 'Galaxy S24', 'Galaxy A10', 'Galaxy A54', 'Galaxy Tab S9', 'Galaxy Book'],
+    'Motorola': ['Moto G', 'Moto G20', 'Moto G30', 'Moto G60', 'Moto Edge', 'Moto One'],
+    'Xiaomi': ['Redmi Note 11', 'Redmi Note 12', 'Redmi Note 13', 'Poco X5', 'Poco F5', 'Mi 13', 'Pad 6'],
+    'Dell': ['Inspiron', 'Vostro', 'Latitude', 'XPS', 'G15'],
+    'HP': ['Pavilion', 'EliteBook', 'ProBook', 'Omen'],
+    'Acer': ['Aspire 3', 'Aspire 5', 'Nitro 5', 'Predator', 'Swift'],
+    'Asus': ['Vivobook', 'Zenbook', 'ROG', 'TUF'],
+    'Lenovo': ['Ideapad', 'ThinkPad', 'Legion', 'Yoga'],
+};
+
+const CHECKLIST_ITEMS = [
+    { id: 'cam_front', label: 'Câmera Frontal' },
+    { id: 'cam_rear', label: 'Câmera Traseira' },
+    { id: 'charging', label: 'Carregamento' },
+    { id: 'screen', label: 'Tela' },
+    { id: 'touch', label: 'Touch' },
+    { id: 'audio', label: 'Som/Áudio' },
+    { id: 'calling', label: 'Ligação' },
+    { id: 'wifi', label: 'WiFi' },
+    { id: 'signal', label: 'Sinal/Rede' },
+    { id: 'face_id', label: 'FaceID/Biometria' },
+    { id: 'buttons', label: 'Botões' },
+    { id: 'battery', label: 'Bateria' },
+];
 
 // ─── STYLES FROM CLIENTFORM ───
 const sectionStyle: React.CSSProperties = {
@@ -63,6 +92,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
     const [isRegisteringClient, setIsRegisteringClient] = useState(false);
     const [registerLoading, setRegisterLoading] = useState(false);
     const [photos, setPhotos] = useState<File[]>([]);
+    const [lookupLoading, setLookupLoading] = useState<Record<number, boolean>>({});
 
     const { register, control, handleSubmit, setValue, formState: { isValid, errors } } = useForm<OrderFormData>({
         defaultValues: {
@@ -73,6 +103,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
     });
 
     const { fields, append, remove } = useFieldArray({ control, name: "equipments" });
+    const watchedEquipments = useWatch({ control, name: 'equipments' });
 
     useEffect(() => {
         if (searchClient.length > 2) {
@@ -295,10 +326,150 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
                                     {fields.length > 1 && <button onClick={() => remove(index)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={14} /></button>}
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                                    <div><div style={labelStyle}>Tipo</div><input {...register(`equipments.${index}.type` as const, { required: true })} style={inputStyle} placeholder="Ex: Celular" /></div>
-                                    <div><div style={labelStyle}>Marca</div><input {...register(`equipments.${index}.brand` as const, { required: true })} style={inputStyle} placeholder="Samsung" /></div>
-                                    <div><div style={labelStyle}>Modelo</div><input {...register(`equipments.${index}.model` as const, { required: true })} style={inputStyle} placeholder="S23" /></div>
+                                    <div>
+                                        <div style={labelStyle}>Tipo</div>
+                                        <input {...register(`equipments.${index}.type` as const, { required: true })} style={inputStyle} placeholder="Ex: Celular" list="equipment-types" />
+                                        <datalist id="equipment-types">
+                                            <option value="Celular" />
+                                            <option value="Notebook" />
+                                            <option value="Tablet" />
+                                            <option value="Macbook" />
+                                            <option value="Videogame" />
+                                            <option value="Monitor" />
+                                            <option value="Relógio (Smartwatch)" />
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <div style={labelStyle}>Marca</div>
+                                        <input {...register(`equipments.${index}.brand` as const, { required: true })} style={inputStyle} placeholder="Samsung" list={`brands-${index}`} />
+                                        <datalist id={`brands-${index}`}>
+                                            {COMMON_BRANDS.map(b => <option key={b} value={b} />)}
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <div style={labelStyle}>Modelo</div>
+                                        <input {...register(`equipments.${index}.model` as const, { required: true })} style={inputStyle} placeholder="S23" list={`models-${index}`} />
+                                        <datalist id={`models-${index}`}>
+                                            {(() => {
+                                                const watchedBrand = watchedEquipments?.[index]?.brand;
+                                                const models = (watchedBrand && COMMON_MODELS[watchedBrand])
+                                                    ? COMMON_MODELS[watchedBrand]
+                                                    : Object.values(COMMON_MODELS).flat();
+                                                return Array.from(new Set(models)).map(m => <option key={m} value={m} />);
+                                            })()}
+                                        </datalist>
+                                    </div>
                                 </div>
+
+                                <div style={{ marginBottom: '12px' }}>
+                                    <div style={labelStyle}>Serial / IMEI</div>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            {...register(`equipments.${index}.serialNumber` as const)}
+                                            style={inputStyle}
+                                            placeholder="IMEI ou Serial"
+                                            onBlur={async (e) => {
+                                                const serial = e.target.value;
+                                                if (serial.length >= 3) {
+                                                    try {
+                                                        setLookupLoading(prev => ({ ...prev, [index]: true }));
+                                                        const response = await api.get(`/orders/equipment/lookup/${serial}`);
+                                                        if (response.data) {
+                                                            setValue(`equipments.${index}.type`, response.data.type);
+                                                            setValue(`equipments.${index}.brand`, response.data.brand);
+                                                            setValue(`equipments.${index}.model`, response.data.model);
+                                                        }
+                                                    } catch (error) {
+                                                        console.error("Erro ao buscar equipamento por serial", error);
+                                                    } finally {
+                                                        setLookupLoading(prev => ({ ...prev, [index]: false }));
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={lookupLoading[index]}
+                                            onClick={async () => {
+                                                const serial = watchedEquipments?.[index]?.serialNumber;
+                                                if (serial && serial.length >= 3) {
+                                                    try {
+                                                        setLookupLoading(prev => ({ ...prev, [index]: true }));
+                                                        const response = await api.get(`/orders/equipment/lookup/${serial}`);
+                                                        if (response.data) {
+                                                            setValue(`equipments.${index}.type`, response.data.type);
+                                                            setValue(`equipments.${index}.brand`, response.data.brand);
+                                                            setValue(`equipments.${index}.model`, response.data.model);
+                                                        }
+                                                    } catch (error) {
+                                                        console.error("Erro ao buscar equipamento por serial", error);
+                                                    } finally {
+                                                        setLookupLoading(prev => ({ ...prev, [index]: false }));
+                                                    }
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '0 12px',
+                                                background: lookupLoading[index] ? 'rgba(255, 255, 255, 0.05)' : 'rgba(99, 102, 241, 0.2)',
+                                                border: '1px solid rgba(99, 102, 241, 0.4)',
+                                                borderRadius: '8px',
+                                                color: '#6366f1',
+                                                cursor: lookupLoading[index] ? 'not-allowed' : 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            title="Buscar no histórico ou API"
+                                        >
+                                            {lookupLoading[index] ? (
+                                                <div style={{ width: '14px', height: '14px', border: '2px solid #6366f1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                                            ) : (
+                                                <Search size={14} />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* CHECKLIST DE FUNCIONAMENTO */}
+                                <div style={{ marginBottom: '16px' }}>
+                                    <div style={{ ...labelStyle, marginBottom: '10px', color: 'var(--primary)', fontWeight: 700 }}>VERIFICAÇÃO DE FUNCIONAMENTO (ENTRADA)</div>
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                                        gap: '8px',
+                                        background: 'rgba(255,255,255,0.02)',
+                                        padding: '12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(255,255,255,0.05)'
+                                    }}>
+                                        {CHECKLIST_ITEMS.map((item) => (
+                                            <label key={item.id} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px',
+                                                padding: '6px',
+                                                borderRadius: '4px',
+                                                transition: 'background 0.2s'
+                                            }} className="hover:bg-white/5">
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={(e) => {
+                                                        const currentChecklist = JSON.parse(field.functionalChecklist || '{}');
+                                                        currentChecklist[item.id] = e.target.checked;
+                                                        setValue(`equipments.${index}.functionalChecklist`, JSON.stringify(currentChecklist));
+                                                    }}
+                                                    checked={JSON.parse(field.functionalChecklist || '{}')[item.id] || false}
+                                                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                                                />
+                                                <span style={{ color: 'rgba(255,255,255,0.8)' }}>{item.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <div><div style={labelStyle}>Defeito Relatado *</div><input {...register(`equipments.${index}.reportedDefect` as const, { required: true })} style={inputStyle} placeholder="Descreva o defeito..." /></div>
                             </div>
                         ))}

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, UseGuards, Query } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -20,8 +20,8 @@ export class InventoryController {
     }
 
     @Get()
-    findAll() {
-        return this.inventoryService.findAll();
+    findAll(@Query('search') search?: string) {
+        return this.inventoryService.findAll(search);
     }
 
     @Get(':id')

@@ -174,6 +174,28 @@ const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: a
 const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, settings: any, type: string, isCopy?: boolean }) => {
     const isTerm = type === 'term';
 
+    // Parse detailed fields from settings
+    const defaultFields = {
+        showDefect: true,
+        showItemDescription: true,
+        showFinancials: !isTerm,
+        showSignatures: true,
+        showChecklist: true,
+        showTechnicalReport: true,
+        showEstimatedValue: true,
+        compactHeader: false
+    };
+
+    let fields = { ...defaultFields };
+    try {
+        const key = type === 'client' ? 'print_fields_client' : (type === 'store' ? 'print_fields_store' : 'print_fields_term');
+        if (settings[key]) {
+            fields = { ...fields, ...JSON.parse(settings[key]) };
+        }
+    } catch (e) {
+        console.error('Error parsing print fields:', e);
+    }
+
     // Compact styles for half-page
     const cs = {
         ...s,
@@ -187,7 +209,12 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <HeaderA4 settings={settings} order={order} title={isTerm ? "TERMO DE GARANTIA" : undefined} compact />
+            <HeaderA4
+                settings={settings}
+                order={order}
+                title={isTerm ? (settings.print_header_text || "TERMO DE GARANTIA") : undefined}
+                compact={fields.compactHeader}
+            />
 
             <div style={{ flex: 1 }}>
                 {/* DADOS DO CLIENTE */}
@@ -202,41 +229,51 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                             <span style={{ fontWeight: 'bold' }}>Tel: {getPhone(order.client)}</span>
                         </div>
                         <div style={{ gridColumn: 'span 12', fontSize: '10px', color: '#444' }}>
-                            Endereço: {order.client?.rua || ''}, {order.client?.numero || ''} {order.client?.bairro ? `- ${order.client.bairro}` : ''} {order.client?.cidade ? `- ${order.client.cidade}/${order.client.estado}` : ''}
+                            Endereço: {order.client?.rua || order.client?.endereco || ''}, {order.client?.numero || ''} {order.client?.bairro ? `- ${order.client.bairro}` : ''} {order.client?.cidade ? `- ${order.client.cidade}/${order.client.estado}` : ''}
                         </div>
                     </div>
                 </div>
 
                 {/* EQUIPAMENTO & DEFEITO (Compactado) */}
                 <div style={cs.sectionBox}>
-                    <div style={cs.sectionTitle}>Equipamento & Defeito</div>
+                    <div style={cs.sectionTitle}>Equipamento</div>
                     <div style={{ padding: '5px' }}>
                         {order.equipments?.map((eq: any, i: number) => (
                             <div key={i} style={{ marginBottom: '4px', fontSize: '11px' }}>
                                 <strong>{eq.type} {eq.brand} {eq.model}</strong>
-                                {eq.serial && <span style={{ marginLeft: '10px', fontFamily: 'monospace' }}>SN: {eq.serial}</span>}
-                                <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
-                                    <strong>Defeito:</strong> {order.reportedDefect || '-'}
-                                </div>
+                                {eq.serialNumber && <span style={{ marginLeft: '10px', fontFamily: 'monospace' }}>SN: {eq.serialNumber}</span>}
+
+                                {fields.showDefect && (
+                                    <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
+                                        <strong>Defeito:</strong> {eq.reportedDefect || order.reportedDefect || '-'}
+                                    </div>
+                                )}
+
                                 <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
                                     <strong>Acessórios:</strong> {eq.accessories || 'Nenhum'} | <strong>Condição:</strong> {eq.condition || 'Padrão'}
                                 </div>
+
+                                {fields.showChecklist && eq.functionalChecklist && (
+                                    <div style={{ fontSize: '9px', color: '#888', marginTop: '2px', fontStyle: 'italic' }}>
+                                        Checklist: Identificado em sistema
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
                 </div>
 
                 {/* LAUDO TÉCNICO */}
-                {order.diagnosis && (
+                {fields.showTechnicalReport && (order.diagnosis || order.technicalReport) && (
                     <div style={cs.sectionBox}>
-                        <div style={cs.sectionTitle}  >Diagnóstico Técnico</div>
-                        <div style={{ padding: '5px', fontSize: '11px' }}>{order.diagnosis}</div>
+                        <div style={cs.sectionTitle}>Diagnóstico / Laudo</div>
+                        <div style={{ padding: '5px', fontSize: '11px' }}>{order.technicalReport || order.diagnosis}</div>
                     </div>
                 )}
 
 
                 {/* SERVIÇOS E PEÇAS */}
-                {!isTerm && (
+                {fields.showFinancials && (
                     <div style={cs.sectionBox}>
                         <div style={cs.sectionTitle}>Serviços e Peças</div>
                         <table style={cs.table}>
@@ -251,7 +288,17 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                             <tbody>
                                 {[...(order.services || []), ...(order.parts || [])].map((item: any, i: number) => (
                                     <tr key={i}>
-                                        <td style={cs.td}>{item.name}</td>
+                                        <td style={cs.td}>
+                                            <div style={{ fontWeight: 'bold' }}>
+                                                {item.name || item.product?.name}
+                                                {(item.product?.sku || item.sku) && <span style={{ color: '#666', fontWeight: 'normal', marginLeft: '5px', fontSize: '9px' }}>[{item.product?.sku || item.sku}]</span>}
+                                            </div>
+                                            {fields.showItemDescription && (item.product?.description || item.description) && (
+                                                <div style={{ fontSize: '9px', color: '#666', fontStyle: 'italic' }}>
+                                                    {item.product?.description || item.description}
+                                                </div>
+                                            )}
+                                        </td>
                                         <td style={{ ...cs.td, textAlign: 'right' }}>{item.quantity}</td>
                                         <td style={{ ...cs.td, textAlign: 'right' }}>{formatCurrency(item.unitPrice || item.price)}</td>
                                         <td style={{ ...cs.td, textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency((item.unitPrice || item.price) * (item.quantity || 1))}</td>
@@ -268,6 +315,13 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                     </div>
                 )}
 
+                {/* Valor Estimado apenas se não mostrar financeiros completos */}
+                {!fields.showFinancials && fields.showEstimatedValue && order.estimatedValue > 0 && (
+                    <div style={{ textAlign: 'right', marginBottom: '10px', fontSize: '11px', fontWeight: 'bold' }}>
+                        VALOR ESTIMADO: {formatCurrency(order.estimatedValue)}
+                    </div>
+                )}
+
                 {/* TERMOS RESUMIDOS */}
                 <div style={{ fontSize: '9px', color: '#666', textAlign: 'justify', lineHeight: '1.2', marginBottom: '5px', border: '1px solid #eee', padding: '4px' }}>
                     <strong>Termos e Condições:</strong> {settings?.service_terms?.slice(0, 250) || "Garantia de 90 dias para mão de obra. Equipamentos não retirados em 90 dias serão vendidos para custeio."}...
@@ -275,20 +329,22 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
             </div>
 
             {/* ASSINATURAS */}
-            <div style={{ ...cs.footerGrid, marginTop: 'auto' }}>
-                <div style={cs.signatureLine}>
-                    <p style={{ fontWeight: 'bold', fontSize: '10px', margin: 0 }}>{order.client?.nome || 'Cliente'}</p>
-                    <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>Cliente</p>
+            {fields.showSignatures && (
+                <div style={{ ...cs.footerGrid, marginTop: 'auto' }}>
+                    <div style={cs.signatureLine}>
+                        <p style={{ fontWeight: 'bold', fontSize: '10px', margin: 0 }}>{order.client?.nome || 'Cliente'}</p>
+                        <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>Cliente</p>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ fontSize: '9px', color: '#888' }}>{isCopy ? '2ª VIA (LOJA)' : '1ª VIA (CLIENTE)'}</div>
+                        <div style={{ fontSize: '9px', color: '#ccc' }}>{safeDate(new Date())}</div>
+                    </div>
+                    <div style={cs.signatureLine}>
+                        <p style={{ fontWeight: 'bold', fontSize: '10px', margin: 0 }}>{settings?.storeName || 'Loja'}</p>
+                        <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>Técnico</p>
+                    </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ fontSize: '9px', color: '#888' }}>{isCopy ? '2ª VIA (LOJA)' : '1ª VIA (CLIENTE)'}</div>
-                    <div style={{ fontSize: '9px', color: '#ccc' }}>{safeDate(new Date())}</div>
-                </div>
-                <div style={cs.signatureLine}>
-                    <p style={{ fontWeight: 'bold', fontSize: '10px', margin: 0 }}>{settings?.storeName || 'Loja'}</p>
-                    <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>Técnico</p>
-                </div>
-            </div>
+            )}
         </div>
     );
 };

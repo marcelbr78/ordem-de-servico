@@ -32,4 +32,8 @@ export class CreateOrderEquipmentDto {
     @IsString()
     @IsOptional()
     condition?: string;
+
+    @IsString()
+    @IsOptional()
+    functionalChecklist?: string;
 }

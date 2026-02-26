@@ -10,12 +10,15 @@ import { Client, ClientStatus } from './entities/client.entity';
 import { ClientOsHistory } from './entities/client-os-history.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { ClientContact } from './entities/client-contact.entity';
 
 @Injectable()
 export class ClientsService {
     constructor(
         @InjectRepository(Client)
         private clientsRepository: Repository<Client>,
+        @InjectRepository(ClientContact)
+        private contactsRepository: Repository<ClientContact>,
         @InjectRepository(ClientOsHistory)
         private osHistoryRepository: Repository<ClientOsHistory>,
     ) { }
@@ -116,7 +119,29 @@ export class ClientsService {
 
     async update(id: string, updateClientDto: UpdateClientDto): Promise<Client> {
         const client = await this.findOne(id);
-        const updatedClient = this.clientsRepository.merge(client, updateClientDto);
+        const { contatos: contatosDto, ...clientData } = updateClientDto;
+
+        // 1. Sincronizar contatos se fornecidos
+        if (contatosDto) {
+            // Pegar IDs enviados para saber quem excluir
+            const incomingIds = contatosDto.map(c => c.id).filter(Boolean);
+
+            // Remover os que não estão na nova lista
+            const currentContacts = client.contatos || [];
+            const toDelete = currentContacts.filter(c => !incomingIds.includes(c.id));
+
+            if (toDelete.length > 0) {
+                await this.contactsRepository.remove(toDelete);
+            }
+
+            // Atualizar lista no objeto (TypeORM cascade save lidará com o resto)
+            client.contatos = contatosDto.map(dto => this.contactsRepository.create({
+                ...dto,
+                clienteId: client.id
+            })) as ClientContact[];
+        }
+
+        const updatedClient = this.clientsRepository.merge(client, clientData);
         return this.clientsRepository.save(updatedClient);
     }
 

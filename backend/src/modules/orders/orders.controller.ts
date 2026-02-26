@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards, Req, UseInterceptors, UploadedFile, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, UseGuards, Req, UseInterceptors, UploadedFile, Delete, Query, UsePipes, ValidationPipe, HttpException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { OrdersService } from './orders.service';
 import { CreateOrderServiceDto } from './dto/create-order-service.dto';
@@ -31,6 +31,22 @@ export class OrdersController {
         return this.ordersService.findByClient(id);
     }
 
+    @Get('equipment/lookup/:serial')
+    lookupBySerial(@Param('serial') serial: string) {
+        return this.ordersService.lookupBySerial(serial);
+    }
+
+    @Patch(':id')
+    @UsePipes(new ValidationPipe({ whitelist: false, forbidNonWhitelisted: false, transform: false }))
+    async update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+        try {
+            return await this.ordersService.update(id, body as any);
+        } catch (err: any) {
+            console.error('[Orders PATCH] Error updating order:', err?.message, err?.stack);
+            throw err;
+        }
+    }
+
     @Patch(':id/status')
     changeStatus(
         @Param('id') id: string,
@@ -39,6 +55,7 @@ export class OrdersController {
     ) {
         return this.ordersService.changeStatus(id, changeStatusDto, req.user?.id);
     }
+
     @Post(':id/images')
     @UseInterceptors(FileInterceptor('file'))
     async uploadImage(
@@ -67,6 +84,29 @@ export class OrdersController {
             message: body.message
         });
     }
+
+    @Post(':id/parts')
+    @UsePipes(new ValidationPipe({ whitelist: false, forbidNonWhitelisted: false, transform: false }))
+    async addPart(@Param('id') id: string, @Body() partData: Record<string, unknown>) {
+        try {
+            console.log('[Orders addPart] orderId:', id, 'body:', JSON.stringify(partData));
+            return await this.ordersService.addPart(id, partData);
+        } catch (err: any) {
+            console.error('[Orders addPart] Error:', err?.message, err?.stack);
+            throw err;
+        }
+    }
+
+    @Delete('parts/:id')
+    removePart(@Param('id') id: string) {
+        return this.ordersService.removePart(id);
+    }
+
+    @Patch('equipment/:id')
+    updateEquipment(@Param('id') id: string, @Body() body: any) {
+        return this.ordersService.updateEquipment(id, body);
+    }
+
     @Delete(':id')
     remove(@Param('id') id: string) {
         return this.ordersService.remove(id);

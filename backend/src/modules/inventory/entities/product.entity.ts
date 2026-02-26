@@ -6,6 +6,9 @@ export class Product {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Column({ default: 'product' })
+    type: 'product' | 'service';
+
     @Column()
     name: string;
 

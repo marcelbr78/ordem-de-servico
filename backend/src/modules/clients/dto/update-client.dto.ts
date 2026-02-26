@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsEmail, Matches } from 'class-validator';
+import { IsString, IsOptional, IsEmail, Matches, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateContactDto } from './create-contact.dto';
+
+export class SyncContactDto extends CreateContactDto {
+    @IsString()
+    @IsOptional()
+    id?: string;
+}
 
 export class UpdateClientDto {
     @IsString()
@@ -50,6 +58,12 @@ export class UpdateClientDto {
     @IsString()
     @IsOptional()
     observacoes?: string;
+
+    @IsArray()
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => SyncContactDto)
+    contatos?: SyncContactDto[];
 
     // CPF/CNPJ e tipo NÃO podem ser alterados via update
 }

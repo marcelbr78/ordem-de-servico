@@ -9,6 +9,8 @@ import { DiagnosisModule } from './modules/diagnosis/diagnosis.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
+import { BankAccount } from './modules/bank-accounts/entities/bank-account.entity';
 import { AuditModule } from './modules/audit/audit.module';
 import { User } from './modules/users/entities/user.entity';
 import { Client } from './modules/clients/entities/client.entity';
@@ -33,6 +35,11 @@ import { QuoteResponse } from './modules/smartparts/entities/quote-response.enti
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { SystemSetting } from './modules/settings/entities/setting.entity';
+import { FiscalModule } from './modules/fiscal/fiscal.module';
+import { FiscalNota } from './modules/fiscal/entities/fiscal-nota.entity';
+import { FiscalProduto } from './modules/fiscal/entities/fiscal-produto.entity';
+import { FiscalServico } from './modules/fiscal/entities/fiscal-servico.entity';
+import { FiscalCliente } from './modules/fiscal/entities/fiscal-cliente.entity';
 
 @Module({
     imports: [
@@ -54,7 +61,7 @@ import { SystemSetting } from './modules/settings/entities/setting.entity';
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente],
                         synchronize: true, // Em prod real deve ser false com migrations
                         ssl: { rejectUnauthorized: false },
                     };
@@ -63,7 +70,7 @@ import { SystemSetting } from './modules/settings/entities/setting.entity';
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente],
                     synchronize: true,
                 };
             },
@@ -77,9 +84,11 @@ import { SystemSetting } from './modules/settings/entities/setting.entity';
         WhatsappModule,
         InventoryModule,
         FinanceModule,
+        BankAccountsModule,
         SmartPartsModule,
         CloudinaryModule,
         SettingsModule,
+        FiscalModule,
     ],
 })
 export class AppModule { }

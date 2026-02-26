@@ -1,38 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { X, Save, Package, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { CustomSelect } from '../CustomSelect';
 import api from '../../services/api';
 
+// REFRESH_V4_PURIFIED_CLIENT_PATTERN
 interface ProductModalProps {
     onClose: () => void;
     onSuccess: () => void;
     initialData?: any;
 }
 
+const sectionStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '12px', padding: '20px', marginBottom: '16px',
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px',
+    fontWeight: 600, color: 'var(--primary)', marginBottom: '16px',
+    borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '10px',
+};
+
+const labelStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: '4px' };
+
+const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff',
+    fontSize: '14px', outline: 'none', transition: 'border-color 0.2s',
+};
+
 export const ProductModal: React.FC<ProductModalProps> = ({ onClose, onSuccess, initialData }) => {
+    const [form, setForm] = useState({
+        name: initialData?.name || '',
+        description: initialData?.description || '',
+        sku: initialData?.sku || '',
+        barcode: initialData?.barcode || '',
+        brand: initialData?.brand || '',
+        category: initialData?.category || '',
+        unit: initialData?.unit || 'UN',
+        priceCost: initialData?.priceCost?.toString() || '',
+        priceSell: initialData?.priceSell?.toString() || '',
+        minQuantity: initialData?.minQuantity?.toString() || '5',
+        supplierId: initialData?.supplierId || '',
+        ncm: initialData?.ncm || '',
+        cfop: initialData?.cfop || '',
+        origin: initialData?.origin || '0',
+        type: initialData?.type || 'product',
+    });
+
+    const [loading, setLoading] = useState(false);
     const [lookingUp, setLookingUp] = useState(false);
     const [showFiscal, setShowFiscal] = useState(false);
     const [suppliers, setSuppliers] = useState<any[]>([]);
-
-    const { register, handleSubmit, setValue, control, formState: { isSubmitting } } = useForm({
-        defaultValues: initialData || {
-            name: '',
-            description: '',
-            sku: '',
-            barcode: '',
-            brand: '',
-            category: '',
-            unit: 'UN',
-            ncm: '',
-            cfop: '',
-            origin: '',
-            supplierId: '',
-            minQuantity: 5,
-            priceCost: '',
-            priceSell: '',
-        }
-    });
 
     useEffect(() => {
         api.get('/smartparts/suppliers').then(res => {
@@ -40,13 +59,18 @@ export const ProductModal: React.FC<ProductModalProps> = ({ onClose, onSuccess, 
         }).catch(() => { });
     }, []);
 
-    const handleBarcodeBlur = async (barcode: string) => {
+    const updateField = useCallback((field: string, value: any) => {
+        setForm(prev => ({ ...prev, [field]: value }));
+    }, []);
+
+    const handleBarcodeBlur = async () => {
+        const barcode = form.barcode;
         if (!barcode || barcode.length < 8) return;
         setLookingUp(true);
         try {
             const res = await api.get(`/inventory/barcode/${barcode}`);
             if (res.data && res.data.found) {
-                setValue('name', res.data.name);
+                updateField('name', res.data.name);
             }
         } catch (error) {
             console.error('Barcode lookup failed', error);
@@ -55,14 +79,22 @@ export const ProductModal: React.FC<ProductModalProps> = ({ onClose, onSuccess, 
         }
     };
 
-    const onSubmit = async (data: any) => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!form.name || !form.priceSell) {
+            alert('Por favor, preencha o nome e o preço de venda.');
+            return;
+        }
+
+        setLoading(true);
         try {
             const payload = {
-                ...data,
-                priceCost: parseFloat(data.priceCost) || 0,
-                priceSell: parseFloat(data.priceSell) || 0,
-                minQuantity: parseInt(data.minQuantity) || 0,
-                supplierId: data.supplierId || undefined,
+                ...form,
+                priceCost: parseFloat(form.priceCost) || 0,
+                priceSell: parseFloat(form.priceSell) || 0,
+                minQuantity: parseInt(form.minQuantity) || 0,
+                supplierId: form.supplierId || undefined,
             };
 
             if (initialData?.id) {
@@ -71,9 +103,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({ onClose, onSuccess, 
                 await api.post('/inventory', payload);
             }
             onSuccess();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('Erro ao salvar produto');
+            alert(error?.response?.data?.message || 'Erro ao salvar produto');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -85,239 +119,273 @@ export const ProductModal: React.FC<ProductModalProps> = ({ onClose, onSuccess, 
         { value: '2', label: '2 - Estrangeira (mercado interno)' },
     ];
 
-    const inputStyle: React.CSSProperties = {
-        width: '100%', padding: '10px 12px', borderRadius: '10px',
-        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-        color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-    };
-
-    const labelStyle: React.CSSProperties = {
-        display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)',
-        marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.3px',
-    };
-
-
-
-    const sectionStyle: React.CSSProperties = {
-        marginBottom: '20px',
-    };
-
-    const fieldGap = '12px';
-
     return (
-        <div
-            style={{
-                position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-                padding: '20px',
-            }}
-            onClick={onClose}
-        >
-            <div
-                style={{
-                    background: 'rgba(20,20,35,0.98)', border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '16px', width: '100%', maxWidth: '560px',
-                    maxHeight: '90vh', overflowY: 'auto',
-                    boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
-                }}
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div style={{
-                    padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    position: 'sticky', top: 0, background: 'rgba(20,20,35,0.98)', zIndex: 1, borderRadius: '16px 16px 0 0',
-                }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-                        <Package size={22} color="#3b82f6" />
-                        {initialData ? 'Editar Produto' : 'Novo Produto'}
-                    </h2>
-                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
-                        <X size={20} />
-                    </button>
+        <form onSubmit={handleSubmit} style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '12px' }}>
+            {/* ─── Tipo de Item ─── */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                <button
+                    type="button"
+                    onClick={() => updateField('type', 'product')}
+                    style={{
+                        flex: 1, padding: '10px', borderRadius: '8px',
+                        background: form.type === 'product' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                        color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600,
+                        transition: 'all 0.2s'
+                    }}
+                >
+                    Produto
+                </button>
+                <button
+                    type="button"
+                    onClick={() => updateField('type', 'service')}
+                    style={{
+                        flex: 1, padding: '10px', borderRadius: '8px',
+                        background: form.type === 'service' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                        color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600,
+                        transition: 'all 0.2s'
+                    }}
+                >
+                    Serviço
+                </button>
+            </div>
+
+            {/* ─── 📦 Informações Básicas ─── */}
+            <div style={sectionStyle}>
+                <div style={sectionTitleStyle}>
+                    {form.type === 'product' ? '📦 Dados do Produto' : '🔧 Dados do Serviço'}
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} style={{ padding: '24px' }}>
-                    {/* ─── INFORMAÇÕES BÁSICAS ─── */}
-                    <div style={sectionStyle}>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(99,102,241,0.8)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
-                            Informações Básicas
-                        </div>
-
-                        <div style={{ marginBottom: fieldGap }}>
+                <div className="grid-responsive-2" style={{ marginBottom: '12px' }}>
+                    {form.type === 'product' ? (
+                        <div>
                             <label style={labelStyle}>Código de Barras (EAN/GTIN)</label>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <div style={{ position: 'relative' }}>
                                 <input
-                                    {...register('barcode')}
-                                    onBlur={(e) => handleBarcodeBlur(e.target.value)}
+                                    value={form.barcode}
+                                    onChange={e => updateField('barcode', e.target.value)}
+                                    onBlur={handleBarcodeBlur}
                                     style={inputStyle}
                                     placeholder="Escaneie ou digite..."
                                 />
-                                {lookingUp && <span style={{ color: '#6366f1', fontSize: '12px', whiteSpace: 'nowrap' }}>Buscando...</span>}
+                                {lookingUp && <span style={{ position: 'absolute', right: 12, top: 12, fontSize: '11px', color: 'var(--primary)' }}>Buscando...</span>}
                             </div>
                         </div>
-
-                        <div style={{ marginBottom: fieldGap }}>
-                            <label style={labelStyle}>Nome do Produto *</label>
-                            <input {...register('name', { required: true })} style={inputStyle} placeholder="Ex: Tela iPhone 13" />
-                        </div>
-
-                        <div style={{ marginBottom: fieldGap }}>
-                            <label style={labelStyle}>Descrição</label>
-                            <textarea
-                                {...register('description')}
-                                rows={2}
-                                style={{ ...inputStyle, resize: 'vertical', minHeight: '60px' }}
-                                placeholder="Descrição detalhada do produto..."
+                    ) : (
+                        <div>
+                            <label style={labelStyle}>Nome do Serviço *</label>
+                            <input
+                                value={form.name}
+                                onChange={e => updateField('name', e.target.value)}
+                                style={inputStyle}
+                                placeholder="Ex: Mão de obra Troca de Tela"
+                                required
                             />
                         </div>
+                    )}
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: fieldGap, marginBottom: fieldGap }}>
+                    {form.type === 'product' && (
+                        <div>
+                            <label style={labelStyle}>Nome do Produto *</label>
+                            <input
+                                value={form.name}
+                                onChange={e => updateField('name', e.target.value)}
+                                style={inputStyle}
+                                placeholder="Ex: Tela iPhone 13"
+                                required
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                    <label style={labelStyle}>Descrição</label>
+                    <textarea
+                        value={form.description}
+                        onChange={e => updateField('description', e.target.value)}
+                        rows={2}
+                        style={{ ...inputStyle, resize: 'vertical', minHeight: '60px' }}
+                        placeholder={form.type === 'product' ? "Descrição detalhada do produto..." : "Descrição do serviço..."}
+                    />
+                </div>
+
+                {form.type === 'product' && (
+                    <>
+                        <div className="grid-responsive-2" style={{ marginBottom: '12px' }}>
                             <div>
-                                <label style={labelStyle}>SKU (Código)</label>
-                                <input {...register('sku')} style={inputStyle} placeholder="Ex: TELA-IP13" />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                    <label style={{ ...labelStyle, marginBottom: 0 }}>SKU (Código)</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateField('sku', Math.floor(100000 + Math.random() * 900000).toString())}
+                                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        <RefreshCw size={12} /> Gerar 6 dígitos
+                                    </button>
+                                </div>
+                                <input
+                                    value={form.sku}
+                                    onChange={e => updateField('sku', e.target.value)}
+                                    style={inputStyle}
+                                    placeholder="Ex: TELA-IP13"
+                                />
                             </div>
                             <div>
                                 <label style={labelStyle}>Marca</label>
-                                <input {...register('brand')} style={inputStyle} placeholder="Ex: Apple" />
+                                <input
+                                    value={form.brand}
+                                    onChange={e => updateField('brand', e.target.value)}
+                                    style={inputStyle}
+                                    placeholder="Ex: Apple"
+                                />
                             </div>
                         </div>
+                    </>
+                )}
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: fieldGap }}>
-                            <div>
-                                <label style={labelStyle}>Categoria</label>
-                                <Controller
-                                    name="category"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <CustomSelect
-                                            value={field.value}
-                                            onChange={field.onChange}
-                                            options={[{ label: 'Selecionar...', value: '' }, ...categories.map(c => ({ label: c, value: c }))]}
-                                            placeholder="Selecionar..."
-                                        />
-                                    )}
-                                />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Unidade</label>
-                                <Controller
-                                    name="unit"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <CustomSelect
-                                            value={field.value}
-                                            onChange={field.onChange}
-                                            options={units.map(u => ({ label: u, value: u }))}
-                                        />
-                                    )}
-                                />
-                            </div>
+                <div className="grid-responsive-2">
+                    <div>
+                        <label style={labelStyle}>Categoria</label>
+                        <CustomSelect
+                            value={form.category}
+                            onChange={val => updateField('category', val)}
+                            options={[{ label: 'Selecionar...', value: '' }, ...categories.map(c => ({ label: c, value: c }))]}
+                        />
+                    </div>
+                    {form.type === 'product' && (
+                        <div>
+                            <label style={labelStyle}>Unidade</label>
+                            <CustomSelect
+                                value={form.unit}
+                                onChange={val => updateField('unit', val)}
+                                options={units.map(u => ({ label: u, value: u }))}
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ─── 💰 Preços e Custos ─── */}
+            <div style={sectionStyle}>
+                <div style={sectionTitleStyle}>💰 Preços {form.type === 'product' && 'e Estoque'}</div>
+                <div className="grid-responsive-2" style={{ marginBottom: '12px' }}>
+                    {form.type === 'product' && (
+                        <div>
+                            <label style={labelStyle}>Preço Custo (R$)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={form.priceCost}
+                                onChange={e => updateField('priceCost', e.target.value)}
+                                style={inputStyle}
+                                placeholder="0,00"
+                            />
+                        </div>
+                    )}
+                    <div style={{ gridColumn: form.type === 'service' ? 'span 2' : 'auto' }}>
+                        <label style={labelStyle}>Preço Venda (R$) *</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={form.priceSell}
+                            onChange={e => updateField('priceSell', e.target.value)}
+                            style={inputStyle}
+                            placeholder="0,00"
+                            required
+                        />
+                    </div>
+                </div>
+
+                {form.type === 'product' && (
+                    <div className="grid-responsive-2">
+                        <div>
+                            <label style={labelStyle}>Estoque Mínimo</label>
+                            <input
+                                type="number"
+                                value={form.minQuantity}
+                                onChange={e => updateField('minQuantity', e.target.value)}
+                                style={inputStyle}
+                            />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Fornecedor</label>
+                            <CustomSelect
+                                value={form.supplierId}
+                                onChange={val => updateField('supplierId', val)}
+                                options={[{ label: 'Nenhum', value: '' }, ...suppliers.map(s => ({ label: s.name, value: s.id }))]}
+                                searchable
+                            />
                         </div>
                     </div>
+                )}
+            </div>
 
-                    {/* ─── PREÇOS E ESTOQUE ─── */}
-                    <div style={sectionStyle}>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(52,211,153,0.8)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
-                            Preços e Estoque
-                        </div>
+            {/* ─── 📋 Dados Fiscais ─── */}
+            {form.type === 'product' && (
+                <div style={sectionStyle}>
+                    <button
+                        type="button"
+                        onClick={() => setShowFiscal(!showFiscal)}
+                        style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            width: '100%', background: 'transparent', border: 'none', color: 'var(--primary)',
+                            fontWeight: 600, fontSize: '14px', cursor: 'pointer', outline: 'none'
+                        }}
+                    >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>📋 Dados Fiscais (NCM / CFOP / Origem)</span>
+                        {showFiscal ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: fieldGap, marginBottom: fieldGap }}>
-                            <div>
-                                <label style={labelStyle}>Preço Custo (R$)</label>
-                                <input type="number" step="0.01" {...register('priceCost')} style={inputStyle} placeholder="0,00" />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Preço Venda (R$)</label>
-                                <input type="number" step="0.01" {...register('priceSell')} style={inputStyle} placeholder="0,00" />
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: fieldGap }}>
-                            <div>
-                                <label style={labelStyle}>Estoque Mínimo</label>
-                                <input type="number" {...register('minQuantity')} style={inputStyle} />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Fornecedor</label>
-                                <Controller
-                                    name="supplierId"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <CustomSelect
-                                            value={field.value}
-                                            onChange={field.onChange}
-                                            options={[{ label: 'Nenhum', value: '' }, ...suppliers.map(s => ({ label: s.name, value: s.id }))]}
-                                            placeholder="Nenhum"
-                                            searchable
-                                        />
-                                    )}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ─── DADOS FISCAIS (colapsável) ─── */}
-                    <div style={sectionStyle}>
-                        <button
-                            type="button"
-                            onClick={() => setShowFiscal(!showFiscal)}
-                            style={{
-                                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: '8px', padding: '10px 14px', width: '100%',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: '11px',
-                                fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px',
-                            }}
-                        >
-                            <span>📋 Dados Fiscais (NCM / CFOP / Origem)</span>
-                            {showFiscal ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
-
-                        {showFiscal && (
-                            <div style={{ marginTop: '12px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: fieldGap, marginBottom: fieldGap }}>
-                                    <div>
-                                        <label style={labelStyle}>NCM</label>
-                                        <input {...register('ncm')} style={inputStyle} placeholder="Ex: 8517.12.31" />
-                                    </div>
-                                    <div>
-                                        <label style={labelStyle}>CFOP</label>
-                                        <input {...register('cfop')} style={inputStyle} placeholder="Ex: 5102" />
-                                    </div>
+                    {showFiscal && (
+                        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div className="grid-responsive-2" style={{ marginBottom: '12px' }}>
+                                <div>
+                                    <label style={labelStyle}>NCM</label>
+                                    <input
+                                        value={form.ncm}
+                                        onChange={e => updateField('ncm', e.target.value)}
+                                        style={inputStyle}
+                                        placeholder="Ex: 8517.12.31"
+                                    />
                                 </div>
                                 <div>
-                                    <label style={labelStyle}>Origem</label>
-                                    <Controller
-                                        name="origin"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <CustomSelect
-                                                value={field.value}
-                                                onChange={field.onChange}
-                                                options={[{ label: 'Selecionar...', value: '' }, ...origins]}
-                                                placeholder="Selecionar..."
-                                            />
-                                        )}
+                                    <label style={labelStyle}>CFOP</label>
+                                    <input
+                                        value={form.cfop}
+                                        onChange={e => updateField('cfop', e.target.value)}
+                                        style={inputStyle}
+                                        placeholder="Ex: 5102"
                                     />
                                 </div>
                             </div>
-                        )}
-                    </div>
+                            <div>
+                                <label style={labelStyle}>Origem</label>
+                                <CustomSelect
+                                    value={form.origin}
+                                    onChange={val => updateField('origin', val)}
+                                    options={[{ label: 'Selecionar...', value: '' }, ...origins]}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
-                    {/* ─── BOTÃO SALVAR ─── */}
-                    <button disabled={isSubmitting} type="submit" style={{
-                        width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
-                        background: 'linear-gradient(135deg, var(--primary), #3b82f6)',
-                        color: '#fff', fontWeight: 700, fontSize: '15px', cursor: isSubmitting ? 'wait' : 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                        opacity: isSubmitting ? 0.7 : 1, transition: 'opacity 0.2s',
+            {/* ─── Ações ─── */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '8px' }}>
+                <button type="button" onClick={onClose}
+                    style={{ padding: '10px 24px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#fff', cursor: 'pointer' }}>
+                    Cancelar
+                </button>
+                <button type="submit" disabled={loading}
+                    style={{
+                        padding: '10px 32px', borderRadius: '8px', border: 'none',
+                        background: 'linear-gradient(135deg, var(--primary), #7c3aed)',
+                        color: '#fff', fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
+                        opacity: loading ? 0.7 : 1,
                     }}>
-                        <Save size={18} />
-                        {isSubmitting ? 'Salvando...' : 'Salvar Produto'}
-                    </button>
-                </form>
+                    {loading ? 'Salvando...' : `Salvar ${form.type === 'product' ? 'Produto' : 'Serviço'}`}
+                </button>
             </div>
-        </div>
+        </form>
     );
 };

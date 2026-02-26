@@ -26,4 +26,8 @@ export class CreateTransactionDto {
     @IsUUID()
     @IsOptional()
     orderId?: string;
+
+    @IsUUID()
+    @IsOptional()
+    bankAccountId?: string;
 }

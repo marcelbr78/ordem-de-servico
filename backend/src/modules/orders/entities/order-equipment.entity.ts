@@ -37,6 +37,9 @@ export class OrderEquipment {
     @Column({ type: 'text', nullable: true })
     condition: string;
 
+    @Column({ type: 'text', nullable: true })
+    functionalChecklist: string;
+
     @CreateDateColumn()
     createdAt: Date;
 

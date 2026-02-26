@@ -8,7 +8,9 @@ import { Clients } from './pages/Clients';
 import { Inventory } from './pages/Inventory';
 import { Finance } from './pages/Finance';
 import { AuditLogs } from './pages/AuditLogs';
+import { BankAccounts } from './pages/BankAccounts';
 import { PublicStatus } from './pages/PublicStatus';
+import { MonitorDashboard } from './pages/MonitorDashboard';
 import { SupplierManager } from './pages/smartparts/SupplierManager';
 import { Settings } from './pages/Settings';
 import { Layout } from './components/Layout';
@@ -114,6 +116,16 @@ function App() {
             }
           />
           <Route
+            path="/bank-accounts"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <BankAccounts />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/audit"
             element={
               <PrivateRoute>
@@ -125,6 +137,7 @@ function App() {
           />
           <Route path="/status" element={<PublicStatus />} />
           <Route path="/status/:id" element={<PublicStatus />} />
+          <Route path="/monitor" element={<MonitorDashboard />} />
           <Route path="/kiosk" element={<Kiosk />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

@@ -17,15 +17,15 @@ const badge = (color: string): React.CSSProperties => ({
 });
 
 const statusConfig: Record<string, { label: string, color: string, icon: any }> = {
-    ABERTA: { label: 'Aberta', color: '#9ca3af', icon: Clock },
-    EM_DIAGNOSTICO: { label: 'Em Diagnóstico', color: '#3b82f6', icon: Settings },
-    AGUARDANDO_APROVACAO: { label: 'Aguardando Aprovação', color: '#eab308', icon: AlertTriangle },
-    AGUARDANDO_PECA: { label: 'Aguardando Peça', color: '#f97316', icon: Clock },
-    EM_REPARO: { label: 'Em Reparo', color: '#a855f7', icon: Wrench },
-    TESTES: { label: 'Em Testes', color: '#06b6d4', icon: Settings },
-    FINALIZADA: { label: 'Finalizada', color: '#22c55e', icon: CheckCircle },
-    ENTREGUE: { label: 'Entregue', color: '#10b981', icon: CheckCircle },
-    CANCELADA: { label: 'Cancelada', color: '#ef4444', icon: XCircle },
+    aberta: { label: 'Aberta', color: '#9ca3af', icon: Clock },
+    em_diagnostico: { label: 'Em Diagnóstico', color: '#3b82f6', icon: Settings },
+    aguardando_aprovacao: { label: 'Aguardando Aprovação', color: '#eab308', icon: AlertTriangle },
+    aguardando_peca: { label: 'Aguardando Peça', color: '#f97316', icon: Clock },
+    em_reparo: { label: 'Em Reparo', color: '#a855f7', icon: Wrench },
+    testes: { label: 'Em Testes', color: '#06b6d4', icon: Settings },
+    finalizada: { label: 'Finalizada', color: '#22c55e', icon: CheckCircle },
+    entregue: { label: 'Entregue', color: '#10b981', icon: CheckCircle },
+    cancelada: { label: 'Cancelada', color: '#ef4444', icon: XCircle },
 };
 
 export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrder, onDelete, showDeleted }) => {
@@ -79,7 +79,7 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrd
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
                                         {mainEquipment ? (
                                             <>
-                                                {mainEquipment.type.toLowerCase().includes('celular') ? <Smartphone size={14} /> : <Laptop size={14} />}
+                                                {mainEquipment.type?.toLowerCase().includes('celular') ? <Smartphone size={14} /> : <Laptop size={14} />}
                                                 <span>{mainEquipment.brand} {mainEquipment.model}</span>
                                                 {otherEquipmentsCount > 0 && (
                                                     <span style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' }}>+{otherEquipmentsCount}</span>

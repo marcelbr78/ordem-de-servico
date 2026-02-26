@@ -1,9 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsEnum } from 'class-validator';
 
 export class CreateProductDto {
     @IsString()
     @IsNotEmpty({ message: 'O nome do produto é obrigatório' })
     name: string;
+
+    @IsString()
+    @IsEnum(['product', 'service'], { message: 'Tipo inválido' })
+    @IsOptional()
+    type?: 'product' | 'service';
 
     @IsString()
     @IsOptional()

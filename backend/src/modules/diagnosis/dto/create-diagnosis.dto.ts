@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsUUID, IsNumber, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateDiagnosisDto {
     @IsUUID('4', { message: 'ID da Ordem de Serviço inválido' })
@@ -15,8 +16,13 @@ export class CreateDiagnosisDto {
     @IsOptional()
     partsNeeded?: any;
 
+    @Transform(({ value }) => {
+        if (value === undefined || value === null || value === '') return 0;
+        const n = parseFloat(String(value));
+        return isNaN(n) ? 0 : n;
+    })
     @IsNumber({}, { message: 'Valor da mão de obra deve ser um número' })
     @Min(0)
-    @IsNotEmpty({ message: 'O valor da mão de obra é obrigatório' })
-    laborValue: number;
+    @IsOptional()
+    laborValue?: number;
 }

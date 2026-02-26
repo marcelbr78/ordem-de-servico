@@ -40,4 +40,8 @@ export class CreateOrderServiceDto {
   @IsString()
   @IsOptional()
   diagnosis?: string;
+
+  @IsString()
+  @IsOptional()
+  technicalReport?: string;
 }
