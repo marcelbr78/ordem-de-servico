@@ -10,6 +10,7 @@ import {
     Query,
     HttpCode,
     HttpStatus,
+    Req,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { ContactsService } from './contacts.service';
@@ -36,8 +37,8 @@ export class ClientsController {
 
     @Post()
     @RequirePermissions(Permission.CLIENT_CREATE)
-    create(@Body() createClientDto: CreateClientDto) {
-        return this.clientsService.create(createClientDto);
+    create(@Body() createClientDto: CreateClientDto, @Req() req) {
+        return this.clientsService.create(createClientDto, req.user?.tenantId);
     }
 
     @Get()
@@ -46,14 +47,15 @@ export class ClientsController {
         @Query('search') search?: string,
         @Query('tipo') tipo?: string,
         @Query('status') status?: string,
+        @Req() req?: any,
     ) {
-        return this.clientsService.findAll(search, tipo, status);
+        return this.clientsService.findAll(search, tipo, status, req?.user?.tenantId);
     }
 
     @Get(':id')
     @RequirePermissions(Permission.CLIENT_READ)
-    findOne(@Param('id') id: string) {
-        return this.clientsService.findOne(id);
+    findOne(@Param('id') id: string, @Req() req) {
+        return this.clientsService.findOne(id, req.user?.tenantId);
     }
 
     @Patch(':id')

@@ -43,6 +43,11 @@ import { FiscalProduto } from './modules/fiscal/entities/fiscal-produto.entity';
 import { FiscalServico } from './modules/fiscal/entities/fiscal-servico.entity';
 import { FiscalCliente } from './modules/fiscal/entities/fiscal-cliente.entity';
 import { TenantMiddleware } from './modules/tenants/tenant.middleware';
+import { SaasModule as SaasModuleEntity } from './modules/tenants/entities/saas-module.entity';
+import { TenantModule as TenantModuleEntity } from './modules/tenants/entities/tenant-module.entity';
+import { Plan } from './modules/tenants/entities/plan.entity';
+import { Subscription } from './modules/tenants/entities/subscription.entity';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
     imports: [
@@ -64,7 +69,7 @@ import { TenantMiddleware } from './modules/tenants/tenant.middleware';
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription],
                         synchronize: true, // Em prod real deve ser false com migrations
                         ssl: { rejectUnauthorized: false },
                     };
@@ -73,7 +78,7 @@ import { TenantMiddleware } from './modules/tenants/tenant.middleware';
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription],
                     synchronize: true,
                 };
             },
@@ -93,6 +98,7 @@ import { TenantMiddleware } from './modules/tenants/tenant.middleware';
         SettingsModule,
         FiscalModule,
         TenantsModule,
+        EventsModule,
     ],
 })
 export class AppModule implements NestModule {

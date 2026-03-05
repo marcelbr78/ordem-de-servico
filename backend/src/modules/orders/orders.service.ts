@@ -17,6 +17,9 @@ import { SettingsService } from '../settings/settings.service';
 import { LookupService } from './lookup.service';
 import { FinanceService } from '../finance/finance.service';
 import { TransactionType } from '../finance/entities/transaction.entity';
+import { PlansService } from '../tenants/plans.service';
+import { EventDispatcher } from '../events/event-dispatcher.service';
+import { AppEvent } from '../events/event-types';
 
 @Injectable()
 export class OrdersService {
@@ -40,7 +43,9 @@ export class OrdersService {
         private cloudinaryService: CloudinaryService,
         private settingsService: SettingsService,
         private lookupService: LookupService,
-        private financeService: FinanceService
+        private financeService: FinanceService,
+        private plansService: PlansService,
+        private eventDispatcher: EventDispatcher
     ) { }
 
     private async getStatusFlow(current: OSStatus): Promise<OSStatus[]> {
@@ -81,7 +86,13 @@ export class OrdersService {
         }
     }
 
-    async create(dto: CreateOrderServiceDto, userId?: string): Promise<OrderService> {
+    async create(dto: CreateOrderServiceDto, userId?: string, tenantId?: string): Promise<OrderService> {
+        // 0. Verificar limite de OS do plano
+        if (tenantId) {
+            const currentCount = await this.ordersRepository.count({ where: { tenantId } });
+            await this.plansService.checkOsLimit(tenantId, currentCount);
+        }
+
         // 1. Validar Cliente
         const client = await this.clientsService.findOne(dto.clientId);
         if (client.status !== 'ativo') {
@@ -102,6 +113,7 @@ export class OrdersService {
                 estimatedValue: dto.estimatedValue || 0,
                 protocol,
                 status: OSStatus.ABERTA,
+                tenantId,
             });
             const savedOrder = await queryRunner.manager.save(order);
 
@@ -122,6 +134,7 @@ export class OrdersService {
                 newStatus: OSStatus.ABERTA,
                 comments: dto.initialObservations || 'Ordem de Serviço criada',
                 userId: userId,
+                tenantId,
             });
             await queryRunner.manager.save(history);
 
@@ -129,6 +142,17 @@ export class OrdersService {
 
             // 5. Notificar WhatsApp (fora da transação para não bloquear)
             this.notifyClient(client, savedOrder);
+
+            // 6. Emitir evento de OS criada
+            this.eventDispatcher.emit(AppEvent.WORK_ORDER_CREATED, {
+                orderId: savedOrder.id,
+                protocol: savedOrder.protocol,
+                clientId: dto.clientId,
+                technicianId: dto.technicianId,
+                tenantId,
+                userId,
+                timestamp: new Date(),
+            });
 
             return this.findOne(savedOrder.id);
 
@@ -140,7 +164,7 @@ export class OrdersService {
         }
     }
 
-    async changeStatus(id: string, dto: ChangeStatusDto, userId?: string): Promise<OrderService> {
+    async changeStatus(id: string, dto: ChangeStatusDto, userId?: string, tenantId?: string): Promise<OrderService> {
         const order = await this.findOne(id);
         // Validacao de fluxo removida a pedido (Modo Liberdade)
         // const allowed = await this.getStatusFlow(order.status);
@@ -173,6 +197,7 @@ export class OrdersService {
                 newStatus: dto.status,
                 comments: dto.comments,
                 userId: userId,
+                tenantId,
             });
 
             // --- STOCK & FINANCE INTEGRATION ---
@@ -215,7 +240,17 @@ export class OrdersService {
             await queryRunner.commitTransaction();
             console.log(`[OrdersService] Transação concluída com sucesso para OS ${id}`);
 
-            // Notificar cliente se necessário (implementar depois)
+            // Emitir evento de mudança de status
+            this.eventDispatcher.emit(AppEvent.WORK_ORDER_STATUS_CHANGED, {
+                orderId: order.id,
+                protocol: order.protocol,
+                previousStatus,
+                newStatus: dto.status,
+                comments: dto.comments,
+                tenantId,
+                userId,
+                timestamp: new Date(),
+            });
 
             return this.findOne(id);
         } catch (err) {
@@ -234,24 +269,31 @@ export class OrdersService {
         return this.findOne(id);
     }
 
-    async findAll(withDeleted = false): Promise<OrderService[]> {
+    async findAll(withDeleted = false, tenantId?: string): Promise<OrderService[]> {
         return this.ordersRepository.find({
+            where: tenantId ? { tenantId } : undefined,
             relations: ['client', 'equipments'],
             order: { entryDate: 'DESC' },
             withDeleted,
         });
     }
 
-    async findAllActive(): Promise<OrderService[]> {
+    async findAllActive(tenantId?: string): Promise<OrderService[]> {
         console.log('Fetching all active orders for monitor...');
-        const orders = await this.ordersRepository.createQueryBuilder('order')
+        const qb = this.ordersRepository.createQueryBuilder('order')
             .leftJoinAndSelect('order.client', 'client')
             .leftJoinAndSelect('order.equipments', 'equipments')
             .where('order.status NOT IN (:...statuses)', {
                 statuses: [OSStatus.ENTREGUE, OSStatus.CANCELADA]
-            })
+            });
+
+        if (tenantId) {
+            qb.andWhere('order.tenantId = :tenantId', { tenantId });
+        }
+
+        const orders = await qb
             .orderBy('CASE WHEN order.priority = :urgente THEN 1 WHEN order.priority = :alta THEN 2 WHEN order.priority = :normal THEN 3 ELSE 4 END', 'ASC')
-            .addOrderBy('order.entryDate', 'ASC') // Older first to avoid being forgotten
+            .addOrderBy('order.entryDate', 'ASC')
             .setParameter('urgente', OSPriority.URGENTE)
             .setParameter('alta', OSPriority.ALTA)
             .setParameter('normal', OSPriority.NORMAL)
@@ -261,9 +303,9 @@ export class OrdersService {
         return orders;
     }
 
-    async findByClient(clientId: string): Promise<OrderService[]> {
+    async findByClient(clientId: string, tenantId?: string): Promise<OrderService[]> {
         return this.ordersRepository.find({
-            where: { clientId },
+            where: tenantId ? { clientId, tenantId } : { clientId },
             relations: ['equipments'],
             order: { entryDate: 'DESC' },
         });

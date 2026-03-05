@@ -1,10 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, Index } from 'typeorm';
 import { StockBalance } from './stock-balance.entity';
 
 @Entity('products')
 export class Product {
     @PrimaryGeneratedColumn('uuid')
     id: string;
+
+    @Column({ nullable: true })
+    @Index()
+    tenantId: string;
 
     @Column({ default: 'product' })
     type: 'product' | 'service';

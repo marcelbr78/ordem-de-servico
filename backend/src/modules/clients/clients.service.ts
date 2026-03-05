@@ -41,7 +41,7 @@ export class ClientsService {
         return '***';
     }
 
-    async create(createClientDto: CreateClientDto): Promise<Client> {
+    async create(createClientDto: CreateClientDto, tenantId?: string): Promise<Client> {
         const cleaned = this.cleanCpfCnpj(createClientDto.cpfCnpj);
 
         // Validar cruzamento tipo x documento
@@ -52,9 +52,9 @@ export class ClientsService {
             throw new BadRequestException('Pessoa Jurídica deve ter CNPJ com 14 dígitos');
         }
 
-        // Verificar duplicidade (inclui soft-deleted)
+        // Verificar duplicidade dentro do mesmo tenant
         const existing = await this.clientsRepository.findOne({
-            where: { cpfCnpj: cleaned },
+            where: tenantId ? { cpfCnpj: cleaned, tenantId } : { cpfCnpj: cleaned },
             withDeleted: true,
         });
 
@@ -69,16 +69,21 @@ export class ClientsService {
             ...clientData,
             cpfCnpj: cleaned,
             contatos: contatosDto || [],
+            tenantId,
         });
 
         return this.clientsRepository.save(client);
     }
 
-    async findAll(search?: string, tipo?: string, status?: string): Promise<any[]> {
+    async findAll(search?: string, tipo?: string, status?: string, tenantId?: string): Promise<any[]> {
         const queryBuilder = this.clientsRepository
             .createQueryBuilder('client')
             .leftJoinAndSelect('client.contatos', 'contato')
             .orderBy('client.nome', 'ASC');
+
+        if (tenantId) {
+            queryBuilder.andWhere('client.tenantId = :tenantId', { tenantId });
+        }
 
         if (search) {
             queryBuilder.andWhere(
@@ -104,9 +109,9 @@ export class ClientsService {
         }));
     }
 
-    async findOne(id: string): Promise<Client> {
+    async findOne(id: string, tenantId?: string): Promise<Client> {
         const client = await this.clientsRepository.findOne({
-            where: { id },
+            where: tenantId ? { id, tenantId } : { id },
             relations: ['contatos', 'osHistorico'],
         });
 

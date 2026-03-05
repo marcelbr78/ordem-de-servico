@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from 'typeorm';
 import { Product } from './product.entity';
 import { OrderService } from '../../orders/entities/order-service.entity';
 
@@ -13,6 +13,10 @@ export enum MovementType {
 export class StockMovement {
     @PrimaryGeneratedColumn('uuid')
     id: string;
+
+    @Column({ nullable: true })
+    @Index()
+    tenantId: string;
 
     @Column()
     productId: string;

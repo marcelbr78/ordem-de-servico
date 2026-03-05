@@ -7,7 +7,8 @@ import {
     DeleteDateColumn,
     ManyToOne,
     OneToMany,
-    JoinColumn
+    JoinColumn,
+    Index
 } from 'typeorm';
 import { Client } from '../../clients/entities/client.entity';
 import { OrderEquipment } from './order-equipment.entity';
@@ -40,6 +41,10 @@ export enum OSPriority {
 export class OrderService {
     @PrimaryGeneratedColumn('uuid')
     id: string;
+
+    @Column({ nullable: true })
+    @Index()
+    tenantId: string;
 
     @Column({ unique: true })
     protocol: string; // Ex: 202402-0001

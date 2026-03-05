@@ -22,34 +22,42 @@ export class InventoryService {
         private productRepository: Repository<Product>,
     ) { }
 
-    async create(createProductDto: CreateProductDto): Promise<Product> {
+    async create(createProductDto: CreateProductDto, tenantId?: string): Promise<Product> {
         const data = sanitise(createProductDto);
 
         if (data.sku) {
-            const existing = await this.productRepository.findOne({ where: { sku: data.sku } });
+            const existing = await this.productRepository.findOne({ where: tenantId ? { sku: data.sku, tenantId } : { sku: data.sku } });
             if (existing) {
                 throw new ConflictException('Já existe um produto com este SKU');
             }
         }
 
         if (data.barcode) {
-            const existing = await this.productRepository.findOne({ where: { barcode: data.barcode } });
+            const existing = await this.productRepository.findOne({ where: tenantId ? { barcode: data.barcode, tenantId } : { barcode: data.barcode } });
             if (existing) {
                 throw new ConflictException('Já existe um produto com este Código de Barras');
             }
         }
 
-        // Use Object.assign to avoid TypeORM overload resolution issues
-        const product = Object.assign(new Product(), data);
+        const product = Object.assign(new Product(), { ...data, tenantId });
         return this.productRepository.save(product);
     }
 
-    async findAll(search?: string): Promise<Product[]> {
+    async findAll(search?: string, tenantId?: string): Promise<Product[]> {
         const query = this.productRepository.createQueryBuilder('product')
             .leftJoinAndSelect('product.balance', 'balance');
 
+        if (tenantId) {
+            query.where('product.tenantId = :tenantId', { tenantId });
+        }
+
         if (search) {
-            query.where('product.name LIKE :search OR product.sku LIKE :search', { search: `%${search}%` });
+            const condition = 'product.name LIKE :search OR product.sku LIKE :search';
+            if (tenantId) {
+                query.andWhere(condition, { search: `%${search}%` });
+            } else {
+                query.where(condition, { search: `%${search}%` });
+            }
         }
 
         return query.orderBy('product.name', 'ASC').getMany();

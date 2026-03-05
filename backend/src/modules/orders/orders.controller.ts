@@ -13,12 +13,12 @@ export class OrdersController {
 
     @Post()
     create(@Body() createOrderDto: CreateOrderServiceDto, @Req() req) {
-        return this.ordersService.create(createOrderDto, req.user?.id);
+        return this.ordersService.create(createOrderDto, req.user?.id, req.user?.tenantId);
     }
 
     @Get()
-    findAll(@Query('deleted') deleted?: string) {
-        return this.ordersService.findAll(deleted === 'true');
+    findAll(@Query('deleted') deleted?: string, @Req() req?) {
+        return this.ordersService.findAll(deleted === 'true', req?.user?.tenantId);
     }
 
     @Get(':id')
@@ -27,8 +27,8 @@ export class OrdersController {
     }
 
     @Get('client/:id')
-    findByClient(@Param('id') id: string) {
-        return this.ordersService.findByClient(id);
+    findByClient(@Param('id') id: string, @Req() req) {
+        return this.ordersService.findByClient(id, req.user?.tenantId);
     }
 
     @Get('equipment/lookup/:serial')
@@ -53,7 +53,7 @@ export class OrdersController {
         @Body() changeStatusDto: ChangeStatusDto,
         @Req() req
     ) {
-        return this.ordersService.changeStatus(id, changeStatusDto, req.user?.id);
+        return this.ordersService.changeStatus(id, changeStatusDto, req.user?.id, req.user?.tenantId);
     }
 
     @Post(':id/images')

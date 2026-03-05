@@ -26,6 +26,10 @@ export class Client {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Column({ nullable: true })
+    @Index()
+    tenantId: string;
+
     @Column({ type: 'text', default: ClientType.PF })
     tipo: ClientType;
 
