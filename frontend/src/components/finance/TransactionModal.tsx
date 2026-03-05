@@ -2,6 +2,7 @@ import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { X, Save } from 'lucide-react';
 import { CustomSelect } from '../CustomSelect';
+import { CurrencyInput } from '../common/CurrencyInput';
 import api from '../../services/api';
 
 interface TransactionModalProps {
@@ -91,7 +92,19 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onS
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <div>
                             <label style={labelStyle}>Valor (R$)</label>
-                            <input type="number" step="0.01" {...register('amount', { required: true })} style={inputStyle} placeholder="0,00" />
+                            <Controller
+                                name="amount"
+                                control={control}
+                                rules={{ required: true }}
+                                render={({ field }) => (
+                                    <CurrencyInput
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        placeholder="R$ 0,00"
+                                        style={inputStyle}
+                                    />
+                                )}
+                            />
                         </div>
                         <div>
                             <label style={labelStyle}>Método</label>

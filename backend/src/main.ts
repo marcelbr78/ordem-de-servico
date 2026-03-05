@@ -22,7 +22,16 @@ async function bootstrap() {
 
     // CORS para o frontend (Next.js/PWA)
     app.enableCors({
-        origin: true,
+        origin: [
+            'https://os4u.com.br',
+            'https://www.os4u.com.br',
+            'https://api.os4u.com.br',
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://100.114.52.65:5173',
+            'http://192.168.100.28:5173',
+            'http://192.168.100.28:5174'
+        ],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
     });

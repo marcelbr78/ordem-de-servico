@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from './entities/user.entity';
 
@@ -12,22 +12,41 @@ export class UsersService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
-        console.log('[USERS DEBUG] Verificando usuário admin...');
+        console.log('[USERS DEBUG] Verificando usuários mestres...');
 
+        // 1. Super Admin Global (Você)
+        const superAdmin = await this.findByEmail('master@os4u.com.br');
+        if (!superAdmin) {
+            console.log('💎 Semeando Super Admin Global (master@os4u.com.br / master123)...');
+            await this.create({
+                email: 'master@os4u.com.br',
+                name: 'CEO OS4U',
+                password: 'master123',
+                role: UserRole.SUPER_ADMIN,
+                mustChangePassword: false,
+            });
+        }
+
+        // 2. Legado Admin (Compatibilidade)
         const adminUser = await this.findByEmail('admin');
         if (!adminUser) {
-            console.log('🌱 Semeando usuário administrador padrão (admin/admin1234)...');
+            console.log('🌱 Semeando usuário administrador legado...');
             await this.create({
                 email: 'admin',
-                name: 'Administrador',
+                name: 'Administrador Demo',
                 password: 'admin1234',
                 role: UserRole.ADMIN,
                 mustChangePassword: true,
             });
-            console.log('[USERS DEBUG] Usuário admin criado com sucesso.');
-        } else {
-            console.log('[USERS DEBUG] Usuário admin já existe. Nenhuma alteração necessária.');
         }
+    }
+
+    async createAdminUserForTenant(data: any): Promise<User> {
+        return this.create({
+            ...data,
+            role: UserRole.ADMIN,
+            mustChangePassword: true,
+        });
     }
 
     async findByEmail(email: string): Promise<User | undefined> {
@@ -69,8 +88,15 @@ export class UsersService implements OnModuleInit {
         });
     }
 
-    async findAll(): Promise<User[]> {
-        return this.usersRepository.find();
+    async findAll(tenantId?: string, excludeSuperAdmin: boolean = false): Promise<User[]> {
+        const where: any = {};
+        if (tenantId) {
+            where.tenantId = tenantId;
+        }
+        if (excludeSuperAdmin) {
+            where.role = Not(UserRole.SUPER_ADMIN);
+        }
+        return this.usersRepository.find({ where });
     }
 
     async findOne(id: string): Promise<User> {

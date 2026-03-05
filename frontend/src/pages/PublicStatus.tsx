@@ -35,6 +35,22 @@ export const PublicStatus: React.FC = () => {
         if (searchTerm) fetchOrder(searchTerm);
     };
 
+    const handleWhatsAppAction = (approved: boolean) => {
+        if (!order || !order.shopPhone) {
+            alert('Não foi possível identificar o contato da loja. Por favor, tente falar conosco pelos meios tradicionais.');
+            return;
+        }
+
+        const phone = order.shopPhone.replace(/\D/g, '');
+        const protocol = order.protocol;
+        const device = order.equipments?.[0] ? `${order.equipments[0].brand} ${order.equipments[0].model}` : 'meu equipamento';
+        const decision = approved ? '✅ APROVADO' : '❌ NÃO APROVADO';
+
+        const message = `Olá, estou acompanhando minha OS #${protocol} (${device}) pelo sistema e selecionei: *${decision}*.\n\nPoderiam me dar os próximos passos?`;
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
     const getStatusInfo = (status: string) => {
         switch (status) {
             case 'aberta': return { color: 'text-blue-500', bg: 'bg-blue-500/10', icon: FileText, label: 'Aberta' };
@@ -136,6 +152,41 @@ export const PublicStatus: React.FC = () => {
                                 </div>
                             )}
                         </div>
+
+                        {order.status === 'aguardando_aprovacao' && (
+                            <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <p style={{ textAlign: 'center', fontSize: '14px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+                                    O que deseja fazer?
+                                </p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <button
+                                        onClick={() => handleWhatsAppAction(true)}
+                                        style={{
+                                            padding: '16px', borderRadius: '12px', border: 'none',
+                                            background: '#22c55e', color: '#fff', fontWeight: 700,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                            boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+                                        }}
+                                    >
+                                        <CheckCircle size={20} /> Aprovar
+                                    </button>
+                                    <button
+                                        onClick={() => handleWhatsAppAction(false)}
+                                        style={{
+                                            padding: '16px', borderRadius: '12px', border: 'none',
+                                            background: '#ef4444', color: '#fff', fontWeight: 700,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                                        }}
+                                    >
+                                        <XCircle size={20} /> Rejeitar
+                                    </button>
+                                </div>
+                                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: '4px' }}>
+                                    Ao clicar, uma mensagem será preparada no seu WhatsApp
+                                </p>
+                            </div>
+                        )}
 
                         {id && (
                             <Link to="/status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '24px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)' }}>

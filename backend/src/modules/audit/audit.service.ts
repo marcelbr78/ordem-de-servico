@@ -36,6 +36,14 @@ export class AuditService {
         });
     }
 
+    async findGlobal(limit: number = 500) {
+        return this.auditRepository.find({
+            take: limit,
+            order: { createdAt: 'DESC' },
+            relations: ['user', 'user.tenant'],
+        });
+    }
+
     async findByResource(resource: string, resourceId: string) {
         return this.auditRepository.find({
             where: { resource, resourceId: String(resourceId) },

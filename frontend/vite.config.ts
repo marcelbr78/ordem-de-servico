@@ -20,5 +20,10 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts: ['os4u.com.br', 'www.os4u.com.br', 'api.os4u.com.br'],
+  },
+  preview: {
+    host: true,
+    allowedHosts: ['os4u.com.br', 'www.os4u.com.br', 'api.os4u.com.br'],
   },
 })

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { CustomSelect } from '../CustomSelect';
+import { CurrencyInput } from '../common/CurrencyInput';
 import api from '../../services/api';
 
 // REFRESH_V4_PURIFIED_CLIENT_PATTERN
@@ -271,26 +272,21 @@ export const ProductModal: React.FC<ProductModalProps> = ({ onClose, onSuccess, 
                     {form.type === 'product' && (
                         <div>
                             <label style={labelStyle}>Preço Custo (R$)</label>
-                            <input
-                                type="number"
-                                step="0.01"
+                            <CurrencyInput
                                 value={form.priceCost}
-                                onChange={e => updateField('priceCost', e.target.value)}
+                                onChange={val => updateField('priceCost', val)}
                                 style={inputStyle}
-                                placeholder="0,00"
+                                placeholder="R$ 0,00"
                             />
                         </div>
                     )}
                     <div style={{ gridColumn: form.type === 'service' ? 'span 2' : 'auto' }}>
                         <label style={labelStyle}>Preço Venda (R$) *</label>
-                        <input
-                            type="number"
-                            step="0.01"
+                        <CurrencyInput
                             value={form.priceSell}
-                            onChange={e => updateField('priceSell', e.target.value)}
+                            onChange={val => updateField('priceSell', val)}
                             style={inputStyle}
-                            placeholder="0,00"
-                            required
+                            placeholder="R$ 0,00"
                         />
                     </div>
                 </div>

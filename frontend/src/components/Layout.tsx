@@ -49,6 +49,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Contas Bancárias', icon: Building2, path: '/bank-accounts' },
         { label: 'Auditoria', icon: Shield, path: '/audit' },
         { label: 'Configurações', icon: Settings, path: '/settings' },
+        ...(user?.role === 'super_admin' ? [{ label: 'Gestão SaaS (Lojas)', icon: Building2, path: '/portal-gestao/tenants' }] : []),
     ];
 
     const toggleSidebar = () => setIsOpen(!isOpen);

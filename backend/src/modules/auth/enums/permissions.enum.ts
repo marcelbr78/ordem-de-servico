@@ -25,10 +25,15 @@ export enum Permission {
     // Financeiro
     FINANCE_READ = 'finance:read',
     FINANCE_WRITE = 'finance:write',
+
+    // SaaS Master
+    SAAS_MANAGE = 'saas:manage',
+    SAAS_METRICS = 'saas:metrics',
 }
 
 export const RolePermissions: Record<string, Permission[]> = {
-    admin: Object.values(Permission),
+    super_admin: Object.values(Permission),
+    admin: Object.values(Permission).filter(p => !p.startsWith('saas:')),
     technician: [
         Permission.CLIENT_READ,
         Permission.OS_READ,

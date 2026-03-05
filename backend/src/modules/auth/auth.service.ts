@@ -32,7 +32,7 @@ export class AuthService {
     }
 
     async login(user: any, ip?: string, userAgent?: string) {
-        const payload = { email: user.email, sub: user.id, role: user.role };
+        const payload = { email: user.email, sub: user.id, role: user.role, tenantId: user.tenantId };
         const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
         const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
@@ -59,6 +59,7 @@ export class AuthService {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                tenantId: user.tenantId,
                 mustChangePassword: user.mustChangePassword,
             }
         };
@@ -91,7 +92,7 @@ export class AuthService {
             }
 
             // Rotação de Refresh Token
-            const newPayload = { email: user.email, sub: user.id, role: user.role };
+            const newPayload = { email: user.email, sub: user.id, role: user.role, tenantId: user.tenantId };
             const accessToken = this.jwtService.sign(newPayload, { expiresIn: '15m' });
             const newRefreshToken = this.jwtService.sign(newPayload, { expiresIn: '7d' });
 

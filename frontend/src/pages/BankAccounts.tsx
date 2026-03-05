@@ -4,6 +4,7 @@ import {
     Building2, Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp,
     Wallet, CreditCard, Landmark, AlertCircle, RefreshCw, Copy, Eye, EyeOff
 } from 'lucide-react';
+import { CurrencyInput } from '../components/common/CurrencyInput';
 
 /* ─── Types ─────────────────────────────────────────────── */
 type AccountType = 'corrente' | 'poupanca' | 'pagamento' | 'caixa';
@@ -308,16 +309,12 @@ const AccountForm: React.FC<AccountFormProps> = ({ initial, onSave, onClose, sav
 
                 {/* Saldo inicial */}
                 <Field label="Saldo inicial">
-                    <div style={{ position: 'relative' }}>
-                        <span style={{
-                            position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-                            color: 'var(--text-secondary)', fontSize: '14px',
-                        }}>R$</span>
-                        <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft: '36px' }}
-                            value={form.initialBalance}
-                            onChange={e => set('initialBalance', parseFloat(e.target.value) || 0)}
-                            placeholder="0,00" />
-                    </div>
+                    <CurrencyInput
+                        value={form.initialBalance}
+                        onChange={val => set('initialBalance', parseFloat(val) || 0)}
+                        style={inputStyle}
+                        placeholder="R$ 0,00"
+                    />
                 </Field>
 
                 {/* PIX */}
@@ -594,15 +591,28 @@ export const BankAccounts: React.FC = () => {
     const handleSave = async (data: typeof emptyForm) => {
         setSaving(true);
         try {
+            // Limpa campos vazios opcionais antes de enviar
+            const payload: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(data)) {
+                if (v !== '' && v !== undefined) {
+                    payload[k] = v;
+                }
+            }
+
             if (editingAccount) {
-                await api.patch(`/bank-accounts/${editingAccount.id}`, data);
+                await api.patch(`/bank-accounts/${editingAccount.id}`, payload);
             } else {
-                await api.post('/bank-accounts', data);
+                await api.post('/bank-accounts', payload);
             }
             closeModal();
             loadAccounts();
-        } catch {
-            alert('Erro ao salvar conta bancária.');
+        } catch (err: any) {
+            const msg = err?.response?.data?.message;
+            if (Array.isArray(msg)) {
+                alert('Erro ao salvar conta:\n' + msg.join('\n'));
+            } else {
+                alert('Erro ao salvar conta: ' + (msg || err?.message || 'Verifique os campos e tente novamente.'));
+            }
         } finally {
             setSaving(false);
         }

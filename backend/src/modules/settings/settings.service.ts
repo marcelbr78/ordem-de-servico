@@ -45,6 +45,8 @@ export class SettingsService {
             { key: 'os_primary_color', value: '#000000', type: SettingType.STRING, description: 'Cor principal da OS', isPublic: true },
             { key: 'os_secondary_color', value: '#ffffff', type: SettingType.STRING, description: 'Cor secundária da OS', isPublic: true },
             { key: 'company_name', value: 'Minha Assistência', type: SettingType.STRING, description: 'Nome da Empresa', isPublic: true },
+            { key: 'company_phone', value: '', type: SettingType.STRING, description: 'WhatsApp da Empresa (Ex: 5547999999999)', isPublic: true },
+            { key: 'company_url', value: '', type: SettingType.STRING, description: 'URL Pública do Sistema (Ex: https://os4u.com.br)', isPublic: true },
             { key: 'whatsapp_api_url', value: 'https://api.evolution.com', type: SettingType.STRING, description: 'URL da Evolution API', isPublic: false },
             { key: 'whatsapp_api_token', value: '', type: SettingType.STRING, description: 'Token da Evolution API', isPublic: false },
             { key: 'whatsapp_instance_name', value: 'instance', type: SettingType.STRING, description: 'Nome da Instância WhatsApp', isPublic: false },

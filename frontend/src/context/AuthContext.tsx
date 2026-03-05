@@ -5,6 +5,8 @@ interface User {
     id: string;
     name: string;
     email: string;
+    role: string;
+    tenantId?: string;
     mustChangePassword?: boolean;
 }
 
@@ -27,7 +29,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storageUser = localStorage.getItem('@OS:user');
 
         if (storageToken && storageUser) {
-            setUser(JSON.parse(storageUser));
+            const parsedUser = JSON.parse(storageUser);
+            console.log('[Auth] Carregando usuário persistido:', parsedUser.email, 'Role:', parsedUser.role);
+            setUser(parsedUser);
         }
         setLoading(false);
     }, []);

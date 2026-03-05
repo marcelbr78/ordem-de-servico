@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './modules/users/users.module';
@@ -11,6 +11,8 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { BankAccount } from './modules/bank-accounts/entities/bank-account.entity';
+import { TenantsModule } from './modules/tenants/tenants.module';
+import { Tenant } from './modules/tenants/entities/tenant.entity';
 import { AuditModule } from './modules/audit/audit.module';
 import { User } from './modules/users/entities/user.entity';
 import { Client } from './modules/clients/entities/client.entity';
@@ -40,6 +42,7 @@ import { FiscalNota } from './modules/fiscal/entities/fiscal-nota.entity';
 import { FiscalProduto } from './modules/fiscal/entities/fiscal-produto.entity';
 import { FiscalServico } from './modules/fiscal/entities/fiscal-servico.entity';
 import { FiscalCliente } from './modules/fiscal/entities/fiscal-cliente.entity';
+import { TenantMiddleware } from './modules/tenants/tenant.middleware';
 
 @Module({
     imports: [
@@ -61,7 +64,7 @@ import { FiscalCliente } from './modules/fiscal/entities/fiscal-cliente.entity';
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant],
                         synchronize: true, // Em prod real deve ser false com migrations
                         ssl: { rejectUnauthorized: false },
                     };
@@ -70,7 +73,7 @@ import { FiscalCliente } from './modules/fiscal/entities/fiscal-cliente.entity';
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant],
                     synchronize: true,
                 };
             },
@@ -89,6 +92,11 @@ import { FiscalCliente } from './modules/fiscal/entities/fiscal-cliente.entity';
         CloudinaryModule,
         SettingsModule,
         FiscalModule,
+        TenantsModule,
     ],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        consumer.apply(TenantMiddleware).forRoutes('*');
+    }
+}

@@ -6,9 +6,20 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('@OS:token');
+    const shadowTenantId = localStorage.getItem('shadow_tenant_id');
+    const tenantId = localStorage.getItem('tenant_id');
+
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Shadowing mode (Master Admin accessing customer panel) has priority
+    if (shadowTenantId) {
+        config.headers['x-tenant-id'] = shadowTenantId;
+    } else if (tenantId) {
+        config.headers['x-tenant-id'] = tenantId;
+    }
+
     return config;
 });
 
@@ -36,12 +47,14 @@ api.interceptors.response.use(
                     originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
 
                     return api(originalRequest);
-                } catch (refreshError) {
+                } catch {
                     // Se o refresh falhar, desloga o usuário
                     localStorage.removeItem('@OS:token');
                     localStorage.removeItem('@OS:refreshToken');
                     localStorage.removeItem('@OS:user');
-                    window.location.href = '/login';
+
+                    const isMasterRoute = window.location.pathname.startsWith('/masteradmin');
+                    window.location.href = isMasterRoute ? '/masteradmin/login' : '/login';
                 }
             }
         }

@@ -191,20 +191,20 @@ export class OrdersService {
                         queryRunner.manager
                     );
                 }
+            }
 
-                // 3. Register Financial Transaction
-                if (totalValue > 0) {
-                    console.log(`[OrdersService] Registrando transação financeira para OS ${id}. Banco: ${dto.bankAccountId || 'Nenhum'}`);
-                    await this.financeService.create({
-                        type: TransactionType.INCOME,
-                        amount: totalValue,
-                        category: 'Pagamento de OS',
-                        description: `Pagamento da OS #${order.protocol} - Cliente: ${order.client?.nome || 'Cliente'} (${dto.paymentMethod || 'A definir'})`,
-                        orderId: order.id,
-                        paymentMethod: dto.paymentMethod || 'A definir',
-                        bankAccountId: dto.bankAccountId,
-                    }, queryRunner.manager);
-                }
+            if (dto.status === OSStatus.ENTREGUE && dto.paymentAmount && dto.paymentAmount > 0) {
+                // 3. Register Financial Transaction for the remaining balance
+                console.log(`[OrdersService] Registrando transação financeira para OS ${id}. Banco: ${dto.bankAccountId || 'Nenhum'}`);
+                await this.financeService.create({
+                    type: TransactionType.INCOME,
+                    amount: dto.paymentAmount,
+                    category: 'Pagamento de OS',
+                    description: `Liquidação da OS #${order.protocol} - Cliente: ${order.client?.nome || 'Cliente'} (${dto.paymentMethod || 'A definir'})`,
+                    orderId: order.id,
+                    paymentMethod: dto.paymentMethod || 'A definir',
+                    bankAccountId: dto.bankAccountId,
+                }, queryRunner.manager);
             }
 
             if (dto.status === OSStatus.CANCELADA) {
@@ -332,7 +332,14 @@ export class OrdersService {
         if (contact && contact.numero) {
             try {
                 const device = order.equipments?.[0] ? `${order.equipments[0].type} ${order.equipments[0].model}` : 'seu equipamento';
-                await this.whatsappService.sendOSCreated(contact.numero, order.protocol, device);
+
+                // Get public URL for the link
+                const settings = await this.settingsService.findAll();
+                const publicUrl = settings.find(s => s.key === 'company_url')?.value || '';
+                const frontendUrl = publicUrl || process.env.FRONTEND_URL || 'https://os4u.com.br';
+                const statusUrl = `${frontendUrl.replace(/\/+$/, '')}/status/${order.id}`;
+
+                await this.whatsappService.sendOSCreated(contact.numero, order.protocol, device, statusUrl);
                 console.log(`[WhatsApp] Initial notification sent to ${contact.numero} for OS ${order.protocol}`);
             } catch (error) {
                 console.error(`[WhatsApp] Failed to send initial notification for OS ${order.protocol}:`, error);
@@ -408,7 +415,9 @@ export class OrdersService {
         }
 
         const settings = await this.settingsService.findAll();
-        const storeName = settings.find(s => s.key === 'store_name')?.value || 'Nossa Loja';
+        const storeName = settings.find(s => s.key === 'store_name' || s.key === 'company_name')?.value || 'Nossa Loja';
+        const storePhone = settings.find(s => s.key === 'company_phone' || s.key === 'store_phone')?.value || '';
+        const publicUrl = settings.find(s => s.key === 'company_url')?.value || '';
         const clientName = (order.client.nome || 'Cliente').split(' ')[0];
         const device = order.equipments?.[0] ? `${order.equipments[0].type} ${order.equipments[0].model}` : 'seu equipamento';
 
@@ -417,35 +426,54 @@ export class OrdersService {
         console.log(`[WhatsApp Share] Final Message Length: ${message.length}`);
 
         if (!message) {
-            const frontendUrl = origin || process.env.FRONTEND_URL || 'http://localhost:5173';
-            const statusUrl = `${frontendUrl}/status/${order.id}`;
+            const frontendUrl = publicUrl || origin || process.env.FRONTEND_URL || 'https://os4u.com.br';
+            const statusUrl = `${frontendUrl.replace(/\/+$/, '')}/status/${order.id}`;
 
-            // Calculate total from parts if finalValue is not set (legacy or uncalculated)
+            // Calculate total from parts if finalValue is not set
             let total = Number(order.finalValue) || 0;
             if (total === 0 && order.parts?.length > 0) {
                 total = order.parts.reduce((acc, p) => acc + (Number(p.unitPrice) * p.quantity), 0);
             }
             const totalFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
 
+            const buttons = [
+                { type: 'url', displayText: '🔍 Ver Status', url: statusUrl }
+            ];
+
+            let title = 'ATUALIZAÇÃO DE OS';
+            let description = '';
+
             if (type === 'entry') {
+                title = '📦 OS ABERTA';
                 const defect = order.equipments?.[0]?.reportedDefect || order.reportedDefect || 'não informado';
-                message = `Olá ${clientName}, confirmamos a entrada do ${device} na ${storeName}.\n\n📄 *Protocolo:* ${order.protocol}\n🛠 *Defeito:* ${defect}\n\nAcompanhe o status em tempo real aqui: ${statusUrl}`;
+                description = `Olá ${clientName}, confirmamos a entrada do ${device} na ${storeName}.\n\n📄 *Protocolo:* ${order.protocol}\n🛠 *Defeito:* ${defect}`;
             } else if (type === 'exit' || (type === 'update' && order.status === OSStatus.FINALIZADA)) {
+                title = '✅ SERVIÇO CONCLUÍDO';
                 const lastComment = order.history?.find(h => h.comments && h.comments.length > 5)?.comments || order.history?.[0]?.comments || 'Serviço concluído.';
-                message = `Olá ${clientName}, o serviço no ${device} foi finalizado!\n\n📄 *Protocolo:* ${order.protocol}\n✅ *Status:* Finalizada\n💰 *Total:* ${totalFormatted}\n💬 *Observações:* ${lastComment}\n\nAcompanhe o progresso em tempo real aqui: ${statusUrl}`;
+                description = `Olá ${clientName}, o serviço no ${device} foi finalizado!\n\n📄 *Protocolo:* ${order.protocol}\n💰 *Total:* ${totalFormatted}\n💬 *Observações:* ${lastComment}`;
             } else if (type === 'update') {
-                // Try to find the latest status change for detailed info
                 const latestHistory = order.history?.find(h => h.actionType === HistoryActionType.STATUS_CHANGE) || order.history?.[0];
                 const statusLabel = latestHistory?.newStatus ? latestHistory.newStatus.toUpperCase().replace('_', ' ') : order.status.toUpperCase().replace('_', ' ');
                 const comment = latestHistory?.comments || 'Status atualizado.';
 
-                message = `Olá ${clientName}, informamos que o status da sua Ordem de Serviço #${order.protocol} (${device}) foi atualizado para: *${statusLabel}*.\n\n💬 *Observações:* ${comment}\n\nAcompanhe o progresso em tempo real aqui: ${statusUrl}`;
-            } else {
-                message = `Olá, sua Ordem de Serviço #${order.protocol} foi atualizada. Acompanhe o status aqui: ${statusUrl}`;
-            }
-        }
+                description = `Olá ${clientName}, informamos que o status da sua Ordem de Serviço #${order.protocol} (${device}) foi atualizado para: *${statusLabel}*.\n\n💬 *Observações:* ${comment}`;
 
-        await this.whatsappService.sendMessage(targetNumber, message);
+                if (order.status === OSStatus.AGUARDANDO_APROVACAO && storePhone) {
+                    const phone = storePhone.replace(/\D/g, '');
+                    const approveMsg = encodeURIComponent(`Olá, estou acompanhando minha OS #${order.protocol} (${device}) e selecionei: ✅ APROVADO.`);
+                    const rejectMsg = encodeURIComponent(`Olá, estou acompanhando minha OS #${order.protocol} (${device}) e selecionei: ❌ NÃO APROVADO.`);
+
+                    buttons.push({ type: 'url', displayText: '✅ Aprovar', url: `https://wa.me/${phone}?text=${approveMsg}` });
+                    buttons.push({ type: 'url', displayText: '❌ Rejeitar', url: `https://wa.me/${phone}?text=${rejectMsg}` });
+                }
+            } else {
+                description = `Olá, sua Ordem de Serviço #${order.protocol} foi atualizada.`;
+            }
+
+            await this.whatsappService.sendButtons(targetNumber, title, description, buttons, storeName);
+        } else {
+            await this.whatsappService.sendMessage(targetNumber, message);
+        }
 
         // Audit Log
         const queryRunner = this.dataSource.createQueryRunner();

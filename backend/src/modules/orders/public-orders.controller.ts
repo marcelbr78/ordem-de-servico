@@ -1,9 +1,14 @@
-import { Controller, Get, Param, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, Req } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { TenantsService } from '../tenants/tenants.service';
+import { Request } from 'express';
 
 @Controller('orders/public')
 export class PublicOrdersController {
-    constructor(private readonly ordersService: OrdersService) { }
+    constructor(
+        private readonly ordersService: OrdersService,
+        private readonly tenantsService: TenantsService
+    ) { }
 
     @Get('monitor')
     findMonitor() {
@@ -11,7 +16,15 @@ export class PublicOrdersController {
     }
 
     @Get(':id')
-    async findOne(@Param('id') id: string) {
+    async findOne(@Param('id') id: string, @Req() req: Request) {
+        const tenantId = req['tenantId'] || 'default';
+        let tenant = null;
+        try {
+            tenant = await this.tenantsService.findById(tenantId);
+        } catch (e) {
+            console.log(`[PublicOrdersController] Tenant ${tenantId} not found, using generic info`);
+        }
+
         // We reuse the service but should be careful about what we return.
         // For now returning full object but in real app we should filter fields.
         // Assuming the ID is UUID or Protocol.
@@ -30,7 +43,9 @@ export class PublicOrdersController {
                 equipments: order.equipments,
                 total: order.finalValue,
                 diagnosis: order.diagnosis,
-                // Do NOT return client details publicly
+                // Include shop info for WhatsApp redirection
+                shopName: tenant?.name || 'Nossa Loja',
+                shopPhone: tenant?.phone || '',
             };
         } catch (e) {
             // Try searching by protocol if implemented in service, or just fail

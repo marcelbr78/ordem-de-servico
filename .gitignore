@@ -63,3 +63,14 @@ crash.log
 liberar_firewall.bat
 rodar_sistema.bat
 start_dev.bat
+
+# Manual exclusion of temporary/local scripts
+backend/check_user.ts
+backend/check_users_v2.js
+backend/seed_master.js
+backend/src/modules/tenants/
+check_users.js
+liberar_acesso_cliente.bat
+query
+test_login.js
+backup_prod/

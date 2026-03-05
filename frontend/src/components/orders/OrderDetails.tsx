@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Clock, Settings, Printer, FileText, FileCheck, ChevronDown, Timer, ArrowRight, Share2, MessageCircle, Mail, User, RefreshCw, Send, Save, Package, Trash2, Search } from 'lucide-react';
+import { X, Clock, Settings, Printer, FileText, FileCheck, ChevronDown, Timer, ArrowRight, Share2, MessageCircle, Mail, User, RefreshCw, Send, Save, Package, Trash2, Search, DollarSign, CreditCard, Landmark, Plus, CheckCircle } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { OrderPrint } from '../printing/OrderPrint';
 import { useSystemSettings } from '../../hooks/useSystemSettings';
@@ -8,11 +8,14 @@ import api from '../../services/api';
 import { ActiveQuote } from '../smartparts/ActiveQuote';
 import { PhotoGallery } from '../common/PhotoGallery';
 import { FiscalTab } from '../fiscal/FiscalTab';
+import { CurrencyInput } from '../common/CurrencyInput';
 
 interface OrderDetailsProps {
     order: Order;
     onClose: () => void;
     onUpdate: () => void;
+    initialTab?: string;
+    startWithStatusOpen?: boolean;
 }
 
 // ─── Styles for Internal Modals ──────────────────────
@@ -76,14 +79,79 @@ function formatDuration(ms: number): string {
     return `${seconds}s`;
 }
 
-export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUpdate }) => {
-    const [activeTab, setActiveTab] = useState('Histórico');
-    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUpdate, initialTab, startWithStatusOpen }) => {
+    const [activeTab, setActiveTab] = useState(initialTab === 'Impressão' ? 'Histórico' : (initialTab || 'Histórico'));
+
+    // ─── Financeiro State ─────────────────────────────
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [loadingTx, setLoadingTx] = useState(false);
+    const [showAddPayment, setShowAddPayment] = useState(false);
+    const [newPayment, setNewPayment] = useState({ method: 'Dinheiro', amount: '', description: '', bankAccountId: '' });
+    const [savingPayment, setSavingPayment] = useState(false);
+
+    const fetchTransactions = async () => {
+        setLoadingTx(true);
+        try {
+            const res = await api.get(`/finance/order/${order.id}`);
+            setTransactions(res.data || []);
+        } catch (e) {
+            console.error('Erro ao carregar transações', e);
+        } finally {
+            setLoadingTx(false);
+        }
+    };
+
+    React.useEffect(() => {
+        if (activeTab === 'Financeiro 💰') {
+            fetchTransactions();
+            api.get('/bank-accounts').then(res => setBankAccounts(res.data || []));
+        }
+    }, [activeTab]);
+
+    const handleAddPayment = async () => {
+        if (!newPayment.amount || isNaN(parseFloat(newPayment.amount))) {
+            alert('Informe um valor válido.');
+            return;
+        }
+        setSavingPayment(true);
+        try {
+            await api.post('/finance', {
+                type: 'INCOME',
+                amount: parseFloat(newPayment.amount),
+                paymentMethod: newPayment.method,
+                category: 'OS Payment',
+                description: newPayment.description || `Pagamento OS #${order.protocol}`,
+                orderId: order.id,
+                bankAccountId: newPayment.bankAccountId || undefined,
+            });
+            setNewPayment({ method: 'Dinheiro', amount: '', description: '', bankAccountId: '' });
+            setShowAddPayment(false);
+            fetchTransactions();
+        } catch (e: any) {
+            alert('Erro ao registrar pagamento: ' + (e?.response?.data?.message || e.message));
+        } finally {
+            setSavingPayment(false);
+        }
+    };
+    const [showStatusDropdown, setShowStatusDropdown] = useState(!!startWithStatusOpen);
     const [changingStatus, setChangingStatus] = useState(false);
     const [printMenuOpen, setPrintMenuOpen] = useState(false);
     const [shareMenuOpen, setShareMenuOpen] = useState(false);
     const [technicalReport, setTechnicalReport] = useState(order.technicalReport || '');
     const [savingReport, setSavingReport] = useState(false);
+    const { settings } = useSystemSettings();
+
+    const getBaseUrl = () => {
+        if (settings.company_url) {
+            return settings.company_url.replace(/\/+$/, '');
+        }
+        const origin = window.location.origin;
+        // If technical is accessing via internal IP or localhost, don't share that.
+        if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.match(/192\.168\./)) {
+            return 'https://os4u.com.br';
+        }
+        return origin;
+    };
 
     // Peças e Serviços State
     const [searchQuery, setSearchQuery] = useState('');
@@ -191,7 +259,6 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     }, [shareMenuOpen, printMenuOpen]);
 
     // System Settings for Custom Workflow
-    const { settings } = useSystemSettings();
     const [customWorkflow, setCustomWorkflow] = useState<{ labels?: Record<string, string>, flow?: Record<string, string[]> }>({});
 
     React.useEffect(() => {
@@ -235,17 +302,28 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const [bankAccountId, setBankAccountId] = useState('');
     const [bankAccounts, setBankAccounts] = useState<any[]>([]);
     const [expandedWaMsgs, setExpandedWaMsgs] = useState<Set<string>>(new Set());
+    const [balanceToPay, setBalanceToPay] = useState<number>(0);
 
     React.useEffect(() => {
-        if (statusModalOpen && targetStatus === 'finalizada') {
+        if (statusModalOpen && targetStatus === 'entregue') {
             api.get('/bank-accounts').then(res => {
                 setBankAccounts(res.data || []);
                 if (res.data?.length > 0) {
                     setBankAccountId(res.data[0].id);
                 }
             }).catch(err => console.error("Failed to fetch bank accounts", err));
+
+            // Fetch current transactions and calculate remaining
+            api.get(`/finance/order/${order.id}`).then(res => {
+                const txs = res.data || [];
+                const paid = txs.filter((t: any) => t.type === 'INCOME').reduce((acc: number, t: any) => acc + parseFloat(t.amount), 0);
+                const currentTotal = (order.parts || []).reduce((acc: number, part: any) => acc + (Number(part.unitPrice) * part.quantity), 0);
+                setBalanceToPay(Math.max(0, currentTotal - paid));
+            }).catch(err => console.error("Failed to fetch finance to calculate balance", err));
+        } else {
+            setBalanceToPay(0);
         }
-    }, [statusModalOpen, targetStatus]);
+    }, [statusModalOpen, targetStatus, order.id, order.parts]);
     const toggleWaMsg = (id: string) => {
         setExpandedWaMsgs(prev => {
             const next = new Set(prev);
@@ -258,16 +336,6 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const generateStatusMessage = (newStatus: string, currentComment: string) => {
         const clientName = (order.client?.nome || 'Cliente').split(' ')[0];
         const device = order.equipments?.[0] ? `${order.equipments[0].type} ${order.equipments[0].model}` : 'seu equipamento';
-        const getBaseUrl = () => {
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                // Try to use a configured IP if we are on localhost, or just keep localhost
-                // But better: use the IP that the browser might be using if accessed via network
-                // For now, let's keep it simple: if it's localhost, keep it, but warn?
-                // Actually, the user should access via IP.
-                return window.location.origin;
-            }
-            return window.location.origin;
-        };
 
         const base = getBaseUrl();
         const statusUrl = `${base}/status/${order.id}`;
@@ -312,9 +380,10 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             await api.patch(`/orders/${order.id}/status`, {
                 status: targetStatus,
                 comments: statusComment,
-                paymentMethod: targetStatus === 'finalizada' ? paymentMethod : undefined,
-                bankAccountId: targetStatus === 'finalizada' ? bankAccountId : undefined,
-                paymentDate: targetStatus === 'finalizada' ? new Date().toISOString() : undefined
+                paymentMethod: (targetStatus === 'entregue' && balanceToPay > 0) ? paymentMethod : undefined,
+                bankAccountId: (targetStatus === 'entregue' && balanceToPay > 0) ? bankAccountId : undefined,
+                paymentDate: (targetStatus === 'entregue' && balanceToPay > 0) ? new Date().toISOString() : undefined,
+                paymentAmount: (targetStatus === 'entregue' && balanceToPay > 0) ? balanceToPay : undefined
             });
 
             // 2. Send WhatsApp if requested
@@ -326,7 +395,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                     });
                     await api.post(`/orders/${order.id}/share`, {
                         type: 'update',
-                        origin: window.location.origin,
+                        origin: getBaseUrl(),
                         message: customWaMessage
                     });
                 } catch (waError) {
@@ -362,7 +431,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const handleShare = async (type: 'whatsapp_entry' | 'whatsapp_exit' | 'whatsapp_update' | 'email') => {
         // Email sharing remains manual for now (mailto)
         if (type === 'email') {
-            const base = window.location.origin;
+            const base = getBaseUrl();
             const statusUrl = `${base}/status/${order.id}`;
             const message = `Ol\u00e1, sua Ordem de Servi\u00e7o #${order.protocol} foi atualizada. Acompanhe o status aqui: ${statusUrl}`;
 
@@ -388,7 +457,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
 
             await api.post(`/orders/${order.id}/share`, {
                 type: shareType,
-                origin: window.location.origin
+                origin: getBaseUrl()
             });
             alert('Mensagem enviada com sucesso pelo WhatsApp!');
         } catch (error: any) {
@@ -409,7 +478,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
 
                         await api.post(`/orders/${order.id}/share`, {
                             type: shareType,
-                            origin: window.location.origin,
+                            origin: getBaseUrl(),
                             customNumber: manualNumber
                         });
                         alert(`Mensagem enviada com sucesso para ${manualNumber}!`);
@@ -423,12 +492,6 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             }
 
             // 2. Fallback to opening WhatsApp Web manually
-            const getBaseUrl = () => {
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    return window.location.origin;
-                }
-                return window.location.origin;
-            };
             const base = getBaseUrl();
             const statusUrl = `${base}/status/${order.id}`;
             let message = '';
@@ -490,6 +553,12 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             handlePrint();
         }, 100);
     };
+
+    React.useEffect(() => {
+        if (initialTab === 'Impressão') {
+            triggerPrint('client'); // default client print
+        }
+    }, [initialTab]);
 
     const handleSaveReport = async () => {
         setSavingReport(true);
@@ -690,7 +759,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
 
                     {/* Tabs */}
                     <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 24px', background: 'rgba(0,0,0,0.2)' }}>
-                        {['Histórico', 'Laudo Técnico', 'Peças/Serviços', 'Equipamentos', 'Cotações', 'Fotos', 'Nota Fiscal 🧾', 'Detalhes'].map(tab => (
+                        {['Histórico', 'Laudo Técnico', 'Peças/Serviços', 'Equipamentos', 'Cotações', 'Fotos', 'Financeiro 💰', 'Nota Fiscal 🧾', 'Detalhes'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -711,6 +780,140 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                         {activeTab === 'Nota Fiscal 🧾' && (
                             <FiscalTab order={order} />
                         )}
+
+                        {activeTab === 'Financeiro 💰' && (() => {
+                            const totalPago = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + parseFloat(t.amount), 0);
+                            const valorOS = totalParts || parseFloat(String(order.finalValue ?? 0)) || parseFloat(String(order.estimatedValue ?? 0)) || 0;
+                            const saldo = valorOS - totalPago;
+                            const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+                            const PAYMENT_ICONS: Record<string, React.ReactNode> = {
+                                'Dinheiro': <DollarSign size={14} />,
+                                'PIX': <CheckCircle size={14} />,
+                                'Cartão de Crédito': <CreditCard size={14} />,
+                                'Cartão de Débito': <CreditCard size={14} />,
+                                'Transferência': <Landmark size={14} />,
+                                'Boleto': <FileText size={14} />,
+                            };
+                            return (
+                                <div style={{ maxWidth: '860px', margin: '0 auto' }}>
+                                    {/* Resumo financeiro */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
+                                        {[
+                                            { label: 'Valor Total da OS', value: fmt(valorOS), color: '#fff', icon: <FileText size={18} /> },
+                                            { label: 'Total Recebido', value: fmt(totalPago), color: '#10b981', icon: <CheckCircle size={18} /> },
+                                            { label: saldo > 0 ? 'Saldo Pendente' : 'Pago Integralmente', value: fmt(Math.abs(saldo)), color: saldo > 0 ? '#f59e0b' : '#10b981', icon: <DollarSign size={18} /> },
+                                        ].map(card => (
+                                            <div key={card.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '20px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '10px' }}>
+                                                    {card.icon} {card.label}
+                                                </div>
+                                                <div style={{ fontSize: '22px', fontWeight: 700, color: card.color }}>{card.value}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Cabeçalho lançamentos */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#fff' }}>Lançamentos desta OS</h3>
+                                        <button
+                                            onClick={() => setShowAddPayment(!showAddPayment)}
+                                            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', background: 'var(--primary)', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
+                                        >
+                                            <Plus size={15} /> Registrar Pagamento
+                                        </button>
+                                    </div>
+
+                                    {/* Formulário inline de novo pagamento */}
+                                    {showAddPayment && (
+                                        <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
+                                            <h4 style={{ margin: '0 0 16px', color: '#c7d2fe', fontSize: '14px' }}>Novo Lançamento</h4>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                                                <div>
+                                                    <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Forma de Pagamento</label>
+                                                    <select
+                                                        value={newPayment.method}
+                                                        onChange={e => setNewPayment(p => ({ ...p, method: e.target.value }))}
+                                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px' }}
+                                                    >
+                                                        {['Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência', 'Boleto'].map(m => (
+                                                            <option key={m} value={m} style={{ background: '#1a1b26' }}>{m}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Valor (R$)</label>
+                                                    <CurrencyInput
+                                                        value={newPayment.amount}
+                                                        onChange={val => setNewPayment(p => ({ ...p, amount: val }))}
+                                                        placeholder="R$ 0,00"
+                                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                                                    />
+                                                </div>
+                                                {bankAccounts.length > 0 && (
+                                                    <div>
+                                                        <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Conta Bancária</label>
+                                                        <select
+                                                            value={newPayment.bankAccountId}
+                                                            onChange={e => setNewPayment(p => ({ ...p, bankAccountId: e.target.value }))}
+                                                            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px' }}
+                                                        >
+                                                            <option value="" style={{ background: '#1a1b26' }}>Sem conta específica</option>
+                                                            {bankAccounts.map((acc: any) => (
+                                                                <option key={acc.id} value={acc.id} style={{ background: '#1a1b26' }}>{acc.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Observação (opcional)</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ex: Entrada 50%"
+                                                        value={newPayment.description}
+                                                        onChange={e => setNewPayment(p => ({ ...p, description: e.target.value }))}
+                                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                                <button onClick={() => setShowAddPayment(false)} style={{ padding: '8px 16px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
+                                                <button onClick={handleAddPayment} disabled={savingPayment} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 20px', borderRadius: '8px', background: '#10b981', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
+                                                    {savingPayment ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Salvar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Lista de transações */}
+                                    {loadingTx ? (
+                                        <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)' }}>Carregando...</div>
+                                    ) : transactions.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '40px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                                            <DollarSign size={32} style={{ color: 'rgba(255,255,255,0.2)', marginBottom: '12px' }} />
+                                            <p style={{ color: 'rgba(255,255,255,0.4)', margin: 0 }}>Nenhum pagamento registrado ainda.</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            {transactions.map((tx: any) => (
+                                                <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 18px' }}>
+                                                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: tx.type === 'INCOME' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: tx.type === 'INCOME' ? '#10b981' : '#ef4444', flexShrink: 0 }}>
+                                                        {PAYMENT_ICONS[tx.paymentMethod] || <DollarSign size={14} />}
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px' }}>{tx.paymentMethod}</div>
+                                                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', marginTop: '2px' }}>{tx.description || tx.category}{tx.bankAccount?.name ? ` • ${tx.bankAccount.name}` : ''}</div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                                        <div style={{ fontWeight: 700, fontSize: '15px', color: tx.type === 'INCOME' ? '#10b981' : '#ef4444' }}>{tx.type === 'INCOME' ? '+' : '-'}{fmt(parseFloat(tx.amount))}</div>
+                                                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>{new Date(tx.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
 
                         {activeTab === 'Peças/Serviços' && (
                             <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -1316,7 +1519,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 Você está alterando o status para: <strong style={{ color: STATUS_COLORS[targetStatus || ''] }}>{getDynamicStatusLabel(targetStatus || '')}</strong>
                             </p>
 
-                            {targetStatus === 'finalizada' && (
+                            {targetStatus === 'entregue' && balanceToPay > 0 && (
                                 <div style={{
                                     padding: '16px',
                                     background: 'rgba(59,130,246,0.1)',
@@ -1358,9 +1561,9 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total do Serviço</span>
+                                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Valor Restante a Pagar</span>
                                         <div style={{ fontSize: '18px', fontWeight: 800, color: '#10b981' }}>
-                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalParts)}
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(balanceToPay)}
                                         </div>
                                     </div>
                                 </div>

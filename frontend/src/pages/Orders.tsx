@@ -27,6 +27,8 @@ export const Orders: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'list' | 'create'>('list');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [selectedTab, setSelectedTab] = useState<string>('Histórico');
+    const [startWithStatusOpen, setStartWithStatusOpen] = useState<boolean>(false);
 
     // Filters
     const [search, setSearch] = useState('');
@@ -57,8 +59,10 @@ export const Orders: React.FC = () => {
         loadOrders();
     };
 
-    const handleViewOrder = async (order: Order) => {
+    const handleViewOrder = async (order: Order, tab?: string, openStatus?: boolean) => {
         // Set basic data first for immediate feedback
+        setSelectedTab(tab || 'Histórico');
+        setStartWithStatusOpen(!!openStatus);
         setSelectedOrder(order);
         try {
             // Fetch full details including history, photos, etc.
@@ -188,6 +192,8 @@ export const Orders: React.FC = () => {
                         <OrderDetails
                             key={selectedOrder.id}
                             order={selectedOrder}
+                            initialTab={selectedTab}
+                            startWithStatusOpen={startWithStatusOpen}
                             onClose={() => setSelectedOrder(null)}
                             onUpdate={handleUpdateOrder}
                         />

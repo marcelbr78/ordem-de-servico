@@ -19,4 +19,7 @@ export class ChangeStatusDto {
 
     @IsOptional()
     paymentDate?: string;
+
+    @IsOptional()
+    paymentAmount?: number;
 }

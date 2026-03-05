@@ -19,9 +19,12 @@ export class UsersController {
     }
 
     @Get()
-    //   @Roles(UserRole.ADMIN)
-    findAll() {
-        return this.usersService.findAll();
+    findAll(@Request() req) {
+        // Obter o tenantId do usuário logado (via JWT)
+        // Se for Super Admin sem tenantId fixo, ele verá os usuários globais (sem tenantId)
+        // Mas a regra principal aqui é esconder o Super Admin da lista da loja.
+        const { tenantId } = req.user;
+        return this.usersService.findAll(tenantId, true);
     }
 
     @Get(':id')

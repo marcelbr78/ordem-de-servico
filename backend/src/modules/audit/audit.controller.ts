@@ -7,13 +7,19 @@ import { UserRole } from '../users/entities/user.entity';
 
 @Controller('audit')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
 export class AuditController {
     constructor(private readonly auditService: AuditService) { }
 
     @Get()
     async findAll(@Query('limit') limit: number) {
         return this.auditService.findAll(limit || 100);
+    }
+
+    @Get('global')
+    @Roles(UserRole.SUPER_ADMIN)
+    async findGlobal(@Query('limit') limit: number) {
+        return this.auditService.findGlobal(limit || 500);
     }
 
     @Get('resource')

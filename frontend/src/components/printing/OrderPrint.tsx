@@ -471,7 +471,10 @@ const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any
 
             <div style={{ margin: '15px 0', textAlign: 'center' }}>
                 <div style={{ display: 'inline-block', backgroundColor: 'white', padding: '2px' }}>
-                    <QRCode value={`${window.location.origin}/status/${order.id}`} size={width === '80mm' ? 100 : 80} />
+                    {(() => {
+                        const baseUrl = (settings?.company_url || window.location.origin).replace(/\/+$/, '');
+                        return <QRCode value={`${baseUrl}/status/${order.id}`} size={width === '80mm' ? 100 : 80} />;
+                    })()}
                 </div>
                 <div style={{ fontSize: '9px', marginTop: '2px' }}>Acompanhe sua OS</div>
             </div>

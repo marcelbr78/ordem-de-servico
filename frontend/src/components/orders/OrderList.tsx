@@ -1,11 +1,11 @@
 import React from 'react';
-import { Eye, Settings, Clock, CheckCircle, AlertTriangle, Smartphone, Laptop, Wrench, XCircle, Trash2 } from 'lucide-react';
+import { Eye, Settings, Clock, CheckCircle, AlertTriangle, Smartphone, Laptop, Wrench, XCircle, Trash2, DollarSign, Printer } from 'lucide-react';
 import type { Order } from '../../types';
 
 interface OrderListProps {
     orders: Order[];
     loading: boolean;
-    onViewOrder: (order: Order) => void;
+    onViewOrder: (order: Order, tab?: string, openStatus?: boolean) => void;
     onDelete?: (id: string) => void;
     showDeleted?: boolean;
 }
@@ -92,9 +92,13 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrd
                                 </td>
 
                                 <td style={{ padding: '12px 16px' }}>
-                                    <span style={badge(config.color)}>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onViewOrder(order, undefined, true); }}
+                                        style={{ ...badge(config.color), cursor: 'pointer', border: 'none', appearance: 'none' }}
+                                        title="Alterar Status"
+                                    >
                                         <StatusIcon size={12} /> {config.label}
-                                    </span>
+                                    </button>
                                 </td>
 
                                 <td style={{ padding: '12px 16px', fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>
@@ -102,6 +106,14 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrd
                                 </td>
 
                                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                    <button onClick={(e) => { e.stopPropagation(); onViewOrder(order, 'Financeiro 💰'); }} title="Pagamento Rápido"
+                                        style={{ padding: '6px', borderRadius: '6px', border: 'none', background: 'transparent', color: '#10b981', cursor: 'pointer' }}>
+                                        <DollarSign size={16} />
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); onViewOrder(order, 'Impressão'); }} title="Impressão Rápida"
+                                        style={{ padding: '6px', borderRadius: '6px', border: 'none', background: 'transparent', color: '#a855f7', cursor: 'pointer' }}>
+                                        <Printer size={16} />
+                                    </button>
                                     <button onClick={(e) => { e.stopPropagation(); onViewOrder(order); }} title="Ver detalhes"
                                         style={{ padding: '6px', borderRadius: '6px', border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer' }}>
                                         <Eye size={16} />

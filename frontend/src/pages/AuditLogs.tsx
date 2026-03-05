@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Clock, User, Search, Activity } from 'lucide-react';
 import api from '../services/api';
 
-export const AuditLogs: React.FC = () => {
+export const AuditLogs: React.FC<{ isGlobal?: boolean }> = ({ isGlobal }) => {
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -14,7 +14,7 @@ export const AuditLogs: React.FC = () => {
     const fetchLogs = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/audit');
+            const res = await api.get(isGlobal ? '/audit/global' : '/audit');
             setLogs(res.data);
         } catch (error) {
             console.error('Error fetching audit logs:', error);
@@ -42,7 +42,7 @@ export const AuditLogs: React.FC = () => {
         <div className="animate-fade">
             <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#fff', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Shield size={28} className="text-purple-500" />
-                Auditoria do Sistema
+                {isGlobal ? 'Auditoria Global do SaaS' : 'Auditoria do Sistema'}
             </h1>
 
             <div className="glass-panel" style={{ padding: '24px' }}>

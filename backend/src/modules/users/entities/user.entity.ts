@@ -1,16 +1,27 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { Tenant } from '../../tenants/entities/tenant.entity';
+import { ManyToOne, JoinColumn } from 'typeorm';
 
 export enum UserRole {
     ADMIN = 'admin',
     TECHNICIAN = 'technician',
     ATTENDANT = 'attendant',
+    SUPER_ADMIN = 'super_admin',
 }
 
 @Entity('users')
 export class User {
     @PrimaryGeneratedColumn('uuid')
     id: string;
+
+    @Column({ nullable: true })
+    @Index()
+    tenantId: string;
+
+    @ManyToOne(() => Tenant, { nullable: true })
+    @JoinColumn({ name: 'tenantId' })
+    tenant: Tenant;
 
     @Column({ unique: true })
     email: string;
