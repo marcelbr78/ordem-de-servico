@@ -30,4 +30,10 @@ export class PlansService {
         Object.assign(plan, data);
         return this.plansRepository.save(plan);
     }
+
+    async remove(id: string): Promise<void> {
+        const plan = await this.findOne(id);
+        await this.plansRepository.remove(plan);
+    }
 }
+

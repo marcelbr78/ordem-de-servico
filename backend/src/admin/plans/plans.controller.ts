@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { PlansService } from './plans.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../guards/super-admin.guard';
@@ -26,5 +26,11 @@ export class PlansController {
     @Patch(':id')
     async update(@Param('id') id: string, @Body() body: any) {
         return this.plansService.update(id, body);
+    }
+
+    @Delete(':id')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async remove(@Param('id') id: string) {
+        return this.plansService.remove(id);
     }
 }

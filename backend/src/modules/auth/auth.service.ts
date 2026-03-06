@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { AuditService } from '../audit/audit.service';
+import { TenantsService } from '../tenants/tenants.service';
 
 @Injectable()
 export class AuthService {
@@ -10,6 +11,7 @@ export class AuthService {
         private usersService: UsersService,
         private jwtService: JwtService,
         private auditService: AuditService,
+        private tenantsService: TenantsService,
     ) { }
 
     async validateUser(email: string, pass: string): Promise<any> {
@@ -119,5 +121,27 @@ export class AuthService {
             {},
             null
         );
+    }
+
+    async publicSignup(
+        data: { storeName: string; ownerName: string; ownerEmail: string; password: string; phone?: string; city?: string; cnpj?: string },
+        ip?: string,
+        userAgent?: string
+    ) {
+        // 1. Create tenant + trial subscription using the existing registerNewStore
+        //    (it generates a random password — we'll override it below)
+        const result = await this.tenantsService.registerNewStore({
+            storeName: data.storeName,
+            ownerName: data.ownerName,
+            ownerEmail: data.ownerEmail,
+            cnpj: data.cnpj,
+        });
+
+        // 2. Override generated password with chosen password
+        await this.usersService.changePassword(result.admin.id, data.password);
+
+        // 3. Auto-login: return JWT tokens so the user is logged in immediately
+        const user = await this.usersService.findByEmail(data.ownerEmail);
+        return this.login(user, ip, userAgent);
     }
 }

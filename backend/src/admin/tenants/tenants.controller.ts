@@ -30,4 +30,12 @@ export class TenantsController {
     ) {
         return this.tenantsService.updateStatus(id, body.status);
     }
+
+    @Patch(':id/plan')
+    async changePlan(
+        @Param('id') id: string,
+        @Body() body: { planId: string }
+    ) {
+        return this.tenantsService.changePlan(id, body.planId);
+    }
 }

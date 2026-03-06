@@ -14,15 +14,23 @@ import { MonitorDashboard } from './pages/MonitorDashboard';
 import { SupplierManager } from './pages/smartparts/SupplierManager';
 import { LandingPage } from './pages/LandingPage';
 import { Settings } from './pages/Settings';
-import { Tenants } from './pages/Tenants';
 import { Layout } from './components/Layout';
 import { Kiosk } from './pages/public/Kiosk';
-import { MasterLayout } from './components/MasterLayout';
-import { MasterDashboard } from './pages/MasterDashboard';
-import { MasterBilling } from './pages/MasterBilling';
 import { MasterInfra } from './pages/MasterInfra';
 import { MasterSettings } from './pages/MasterSettings';
 import { MasterLogin } from './pages/MasterLogin';
+import { Marketplace } from './pages/Marketplace';
+
+import { AppLayout } from './layout/AppLayout';
+import { MasterDashboard } from './admin/pages/MasterDashboard';
+import { TenantsPage } from './admin/pages/TenantsPage';
+import { TenantDetails } from './admin/pages/TenantDetails';
+import { BillingPage } from './admin/pages/BillingPage';
+import { PlansPage } from './admin/pages/PlansPage';
+import { SignupMonitor } from './admin/pages/SignupMonitor';
+import { AIInsights } from './admin/pages/AIInsights';
+import { SignupPage } from './pages/SignupPage';
+import { PricingPage } from './pages/PricingPage';
 import { DebugAuth } from './pages/DebugAuth';
 import { useLocation } from 'react-router-dom';
 
@@ -128,6 +136,8 @@ function App() {
           <Route path="/masteradmin" element={<Navigate to="/portal-gestao/inicio" replace />} />
           <Route path="/masteradmin/login" element={<Navigate to="/portal-gestao/acesso" replace />} />
           <Route path="/" element={<LandingPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/login" element={<RouteDebugger name="StoreLogin"><Login /></RouteDebugger>} />
           {/* <Route path="/test-layout" element={<TestForm />} /> REMOVED */}
           <Route
@@ -164,6 +174,16 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <Inventory />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/marketplace"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <Marketplace />
                 </Layout>
               </PrivateRoute>
             }
@@ -224,9 +244,9 @@ function App() {
             path="/portal-gestao/inicio"
             element={
               <PrivateRoute requireAdmin>
-                <MasterLayout>
+                <AppLayout>
                   <MasterDashboard />
-                </MasterLayout>
+                </AppLayout>
               </PrivateRoute>
             }
           />
@@ -235,12 +255,22 @@ function App() {
             element={<Navigate to="/portal-gestao/inicio" replace />}
           />
           <Route
+            path="/masteradmin/tenants/:id"
+            element={
+              <PrivateRoute requireAdmin>
+                <AppLayout>
+                  <TenantDetails />
+                </AppLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/masteradmin/tenants"
             element={
               <PrivateRoute requireAdmin>
-                <MasterLayout>
-                  <Tenants />
-                </MasterLayout>
+                <AppLayout>
+                  <TenantsPage />
+                </AppLayout>
               </PrivateRoute>
             }
           />
@@ -248,9 +278,39 @@ function App() {
             path="/masteradmin/billing"
             element={
               <PrivateRoute requireAdmin>
-                <MasterLayout>
-                  <MasterBilling />
-                </MasterLayout>
+                <AppLayout>
+                  <BillingPage />
+                </AppLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/masteradmin/plans"
+            element={
+              <PrivateRoute requireAdmin>
+                <AppLayout>
+                  <PlansPage />
+                </AppLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/masteradmin/signups"
+            element={
+              <PrivateRoute requireAdmin>
+                <AppLayout>
+                  <SignupMonitor />
+                </AppLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/masteradmin/insights"
+            element={
+              <PrivateRoute requireAdmin>
+                <AppLayout>
+                  <AIInsights />
+                </AppLayout>
               </PrivateRoute>
             }
           />
@@ -258,9 +318,9 @@ function App() {
             path="/masteradmin/infra"
             element={
               <PrivateRoute requireAdmin>
-                <MasterLayout>
+                <AppLayout>
                   <MasterInfra />
-                </MasterLayout>
+                </AppLayout>
               </PrivateRoute>
             }
           />
@@ -268,9 +328,9 @@ function App() {
             path="/masteradmin/settings"
             element={
               <PrivateRoute requireAdmin>
-                <MasterLayout>
+                <AppLayout>
                   <MasterSettings />
-                </MasterLayout>
+                </AppLayout>
               </PrivateRoute>
             }
           />
@@ -278,9 +338,9 @@ function App() {
             path="/masteradmin/audit"
             element={
               <PrivateRoute requireAdmin>
-                <MasterLayout>
+                <AppLayout>
                   <AuditLogs isGlobal />
-                </MasterLayout>
+                </AppLayout>
               </PrivateRoute>
             }
           />

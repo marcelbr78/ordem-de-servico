@@ -7,13 +7,14 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PermissionsGuard } from './guards/permissions.guard';
-
 import { AuditModule } from '../audit/audit.module';
+import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
     imports: [
         AuditModule,
         UsersModule,
+        TenantsModule,
         PassportModule,
         JwtModule.registerAsync({
             imports: [ConfigModule],
@@ -31,3 +32,4 @@ import { AuditModule } from '../audit/audit.module';
     exports: [AuthService],
 })
 export class AuthModule { }
+

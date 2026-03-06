@@ -13,4 +13,10 @@ export class DashboardController {
     async getGlobalStats() {
         return this.dashboardService.getStats();
     }
+
+    @Get('mrr-chart')
+    async getMrrChart() {
+        return this.dashboardService.getMrrChart();
+    }
 }
+

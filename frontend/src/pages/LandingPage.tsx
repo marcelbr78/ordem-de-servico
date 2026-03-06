@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Cpu, MessageCircle, Send, CheckCircle, Shield, Zap } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Cpu, MessageCircle, Send, CheckCircle, Shield, Zap, ArrowRight } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -63,25 +63,27 @@ export const LandingPage: React.FC = () => {
         <div style={{ minHeight: '100vh', background: '#0f172a', color: '#fff', overflowX: 'hidden', fontFamily: '"Inter", sans-serif' }}>
 
             {/* ─── NAVBAR ─── */}
-            <nav style={{ padding: '24px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 50 }}>
+            <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 50, background: 'rgba(15,23,42,0.9)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', padding: '8px', borderRadius: '10px' }}>
                         <Cpu color="white" size={24} />
                     </div>
                     <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px' }}>OS4U</span>
                 </div>
-                <div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <Link to="/pricing" style={{ padding: '8px 16px', color: 'rgba(255,255,255,0.7)', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}>Preços</Link>
                     <button
                         onClick={() => navigate('/login')}
                         style={{
-                            padding: '10px 24px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
-                            color: '#fff', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s'
+                            padding: '8px 20px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#fff', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '14px'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
                     >
-                        Entrar na Loja
+                        Entrar
                     </button>
+                    <Link to="/signup" style={{ padding: '10px 20px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        Criar conta <ArrowRight size={14} />
+                    </Link>
                 </div>
             </nav>
 
@@ -102,11 +104,11 @@ export const LandingPage: React.FC = () => {
                 </p>
 
                 <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button onClick={() => { document.getElementById('cadastro')?.scrollIntoView({ behavior: 'smooth' }); }} style={{ padding: '16px 32px', background: 'var(--primary)', color: '#fff', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '16px', textDecoration: 'none', boxShadow: '0 8px 30px rgba(59, 130, 246, 0.3)', transition: 'transform 0.2s' }}>
-                        Tenho Interesse
+                    <button onClick={() => navigate('/signup')} style={{ padding: '16px 32px', background: 'linear-gradient(135deg, var(--primary), #7c3aed)', color: '#fff', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '16px', boxShadow: '0 8px 30px rgba(59, 130, 246, 0.3)', transition: 'transform 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        Criar conta grátis <ArrowRight size={18} />
                     </button>
-                    <button onClick={() => navigate('/login')} style={{ padding: '16px 32px', background: 'rgba(255,255,255,0.05)', color: '#fff', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontWeight: 700, fontSize: '16px', textDecoration: 'none', transition: 'background 0.2s' }}>
-                        Sou Cliente OS4U
+                    <button onClick={() => navigate('/pricing')} style={{ padding: '16px 32px', background: 'rgba(255,255,255,0.05)', color: '#fff', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontWeight: 700, fontSize: '16px', textDecoration: 'none', transition: 'background 0.2s' }}>
+                        Ver Planos
                     </button>
                 </div>
             </header>

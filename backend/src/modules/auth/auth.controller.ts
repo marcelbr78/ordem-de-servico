@@ -65,6 +65,34 @@ export class AuthController {
         return this.usersService.create(registerDto);
     }
 
+    @Post('signup')
+    @HttpCode(HttpStatus.CREATED)
+    async publicSignup(
+        @Body() body: {
+            storeName: string;
+            ownerName: string;
+            email: string;
+            password: string;
+            phone?: string;
+            city?: string;
+            cnpj?: string;
+        },
+        @Req() req: Request
+    ) {
+        // Create tenant + admin user + trial subscription
+        const result = await this.authService.publicSignup({
+            storeName: body.storeName,
+            ownerName: body.ownerName,
+            ownerEmail: body.email,
+            password: body.password,
+            phone: body.phone,
+            city: body.city,
+            cnpj: body.cnpj,
+        }, req.ip, req.headers['user-agent']);
+        return result;
+    }
+
+
     @Post('change-password')
     @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.OK)

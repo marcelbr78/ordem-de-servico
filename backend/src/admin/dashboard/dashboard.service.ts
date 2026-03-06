@@ -21,7 +21,6 @@ export class DashboardService {
         const activeTenants = await this.tenantsRepository.count({ where: { status: TenantStatus.ACTIVE } });
         const globalUsers = await this.usersRepository.count();
 
-        // Calculate global MRR only from ACTIVE subscriptions
         const activeSubscriptions = await this.subscriptionsRepository.find({
             where: { status: SubscriptionStatus.ACTIVE },
             relations: ['plan']
@@ -38,4 +37,31 @@ export class DashboardService {
             activeMrr,
         };
     }
+
+    async getMrrChart() {
+        // Returns last 6 months of MRR based on active subscriptions created per month
+        const allSubs = await this.subscriptionsRepository.find({
+            where: { status: SubscriptionStatus.ACTIVE },
+            relations: ['plan'],
+            order: { createdAt: 'ASC' }
+        });
+
+        const months: { month: string; mrr: number; tenants: number }[] = [];
+        const now = new Date();
+
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const label = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+
+            // Count subscriptions active as of this month (created on or before end of month)
+            const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+            const activeThatMonth = allSubs.filter(s => new Date(s.createdAt) <= endOfMonth);
+
+            const mrr = activeThatMonth.reduce((acc, sub) => acc + (Number(sub.plan?.price) || 0), 0);
+            months.push({ month: label, mrr: Math.round(mrr * 100) / 100, tenants: activeThatMonth.length });
+        }
+
+        return months;
+    }
 }
+

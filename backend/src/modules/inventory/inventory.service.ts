@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
+import { PlansService } from '../tenants/plans.service';
+import { SubscriptionStatus } from '../tenants/entities/subscription.entity';
 
 // Helper to clean incoming data (Vite might send empty strings for optional fields)
 function sanitise<T>(data: T): T {
@@ -20,9 +22,29 @@ export class InventoryService {
     constructor(
         @InjectRepository(Product)
         private productRepository: Repository<Product>,
+        private plansService: PlansService,
     ) { }
 
     async create(createProductDto: CreateProductDto, tenantId?: string): Promise<Product> {
+        // Check plan inventory limit
+        if (tenantId) {
+            const sub = await this.plansService.findSubscription(tenantId);
+            if (sub) {
+                if (sub.status === SubscriptionStatus.CANCELLED || sub.status === SubscriptionStatus.SUSPENDED) {
+                    throw new ForbiddenException('Sua assinatura está cancelada ou suspensa.');
+                }
+                const storageLimit = sub.plan?.storageLimit || 0;
+                if (storageLimit > 0) {
+                    const currentCount = await this.productRepository.count({ where: { tenantId } });
+                    if (currentCount >= storageLimit) {
+                        throw new ForbiddenException(
+                            `Limite de ${storageLimit} itens de inventário atingido no plano "${sub.plan.name}". Faça upgrade para adicionar mais produtos.`
+                        );
+                    }
+                }
+            }
+        }
+
         const data = sanitise(createProductDto);
 
         if (data.sku) {
