@@ -48,6 +48,12 @@ import { TenantModule as TenantModuleEntity } from './modules/tenants/entities/t
 import { Plan } from './modules/tenants/entities/plan.entity';
 import { Subscription } from './modules/tenants/entities/subscription.entity';
 import { EventsModule } from './modules/events/events.module';
+import { AdminModule } from './admin/admin.module';
+import { SmartDiagnosticsModule } from './modules/smart-diagnostics/smart-diagnostics.module';
+import { SmartPricingModule } from './modules/smart-pricing/smart-pricing.module';
+import { SmartPartsSuggestionModule } from './modules/smart-parts/smart-parts.module';
+import { DiagnosticPattern } from './modules/smart-diagnostics/entities/diagnostic-pattern.entity';
+import { RepairPricePattern } from './modules/smart-pricing/entities/repair-price-pattern.entity';
 
 @Module({
     imports: [
@@ -69,7 +75,7 @@ import { EventsModule } from './modules/events/events.module';
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern],
                         synchronize: true, // Em prod real deve ser false com migrations
                         ssl: { rejectUnauthorized: false },
                     };
@@ -78,7 +84,7 @@ import { EventsModule } from './modules/events/events.module';
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern],
                     synchronize: true,
                 };
             },
@@ -99,10 +105,17 @@ import { EventsModule } from './modules/events/events.module';
         FiscalModule,
         TenantsModule,
         EventsModule,
+        AdminModule,
+        SmartDiagnosticsModule,
+        SmartPricingModule,
+        SmartPartsSuggestionModule,
     ],
 })
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
-        consumer.apply(TenantMiddleware).forRoutes('*');
+        consumer
+            .apply(TenantMiddleware)
+            .exclude('admin/(.*)')
+            .forRoutes('*');
     }
 }

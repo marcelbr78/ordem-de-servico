@@ -80,6 +80,7 @@ const glassBg: React.CSSProperties = {
 };
 
 import { PhotoGallery } from '../common/PhotoGallery';
+import { SuggestionsPanel } from './SuggestionsPanel';
 
 // ... (existing imports)
 
@@ -471,6 +472,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
                                 </div>
 
                                 <div><div style={labelStyle}>Defeito Relatado *</div><input {...register(`equipments.${index}.reportedDefect` as const, { required: true })} style={inputStyle} placeholder="Descreva o defeito..." /></div>
+
+                                <SuggestionsPanel
+                                    model={watchedEquipments?.[index]?.model || ''}
+                                    symptom={watchedEquipments?.[index]?.reportedDefect || ''}
+                                />
+
                             </div>
                         ))}
                     </div>

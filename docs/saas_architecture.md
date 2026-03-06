@@ -1,39 +1,25 @@
 # SaaS Architecture
 
-## Multitenancy Model
+## Multi-Tenant Isolation
 
-The system is built on a "Database-per-Tenant" conceptual framework.
+The platform implements a strict multi-tenant architecture to support isolated SaaS interactions where multiple stores and franchises operate within the same physical instance without data crossing.
 
-### Global Store (Master Level)
+### TenantMiddleware
 
-Administered statically. Manages onboarding, security validation (JWT context mapping), and billing orchestration.
+All API requests (except specifically excluded prefixes) pass through this guard. It extracts the authentication payload and implicitly injects the `tenantId` into the request scope. The application repositories uniformly leverage this scoped ID to automatically filter reads and writes. No cross-tenant aggregations are possible by default.
 
-- **Tenant Management**: Tracks unique CNPJ identifiers, store names, and administrative owners.
-- **Authentication Gateway**: All user requests enter through a master gateway that decrypts user credentials and identifies their mapped `tenantId`.
+## Global Administration
 
-### Workload Isolation (`tenant_<uuid>.sqlite`)
+To manage the overarching SaaS configurations, subscriptions, and MRR, a high-level administrative layer sits totally external to the Tenant logic.
 
-Post-Registration, the system provisions an independent SQLite container per client store.
-This physical separation guarantees absolute isolation of sensitive store data (orders, stock metrics, financial registers) from unrelated clients.
+### Admin Routes Isolation
 
-## Subscription and Resource Enforcement
+Routes prefixed with `/admin/*` are explicitly excluded from the `TenantMiddleware`. These controllers interact sequentially with global platform services (e.g., retrieving all active platform tenants regardless of ID).
 
-Each Tenant holds a singular relation to a `Subscription` model, enforcing resource limits defined exclusively by their `Plan`.
+### SuperAdminGuard
 
-### 1. Limits Management (`plans.service.ts`)
+An aggressive secondary layer of protection on all `/admin` routes. It ensures that the current JWT context possesses the `super_admin` role. If a traditional user attempts to hit a platform configuration endpoint, the guard aggressively drops the request as a 403 Forbidden.
 
-The `PlansService` evaluates resource constraints during operational bounds (e.g., Opening a new Work Order or creating a new technician User).
+## MRR Calculation
 
-#### Flow of Enforcement
-
-- **Query**: Before an OS is logged, `checkOsLimit(tenantId)` validates current usage.
-- **Threshold Matching**: `PlansService` reads the active subscription associated with the tenant.
-- **Circuit Breaker**: If the tenant exceeds their ceiling limits (`osLimit` or `usersLimit` configured within `plans` table), the request is abruptly rejected, throwing an HTTP `ForbiddenException` enforcing upgrade prompts.
-- Unlimited plans operate silently bypassing numeric boundary scans (i.e. if limit === `0`).
-
-### 2. Immediate Provisioning
-
-New platform signups systematically bypass complex onboarding structures by invoking default configurations logic:
-
-- A `Trial` (or `Free`) Plan structurally generates in the `Plans` manifest if entirely devoid within the environment.
-- A 14-day trailing cycle actively attaches onto the default admin context seamlessly.
+The platform actively calculates Monthly Recurring Revenue (`Active MRR`) by summing the pricing values of all system Subscriptions where the status evaluates strictly to `ACTIVE`. If a subscription churns or is disabled, its financial footprint is immediately extracted from the live MRR dashboard.

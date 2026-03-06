@@ -1,34 +1,30 @@
-# Event System Documentation
+# Event Architecture
 
-To maintain decoupled architecture and increase the resilience of operations across diverse sub-modules, the system orchestrates cross-boundary communication using an Event-Driven architecture inside the NestJS framework.
+The application relies on asynchronous, decoupled message passing via `EventEmitter2` to build ML models, capture audit trails, and fire webhooks without bottlenecking the primary HTTP request lifecycle.
 
-## Event Dispatcher Configuration
+## Core Events
 
-- **File**: `modules/events/event-dispatcher.service.ts`
-- **Mechanism**: The backend leverages a centralized `EventEmitter2` instance that propagates specific data payloads to targeted listeners.
+### `work_order.created`
 
-## Registered System Events (`AppEvent`)
+- **Trigger**: Fired when a new Work Order is saved in the database.
+- **Payload**: Contains the newly created OS details and tenant metadata.
+- **Listeners**: Client notification dispatchers.
 
-Defined in `event-types.ts`.
+### `work_order.status_changed` (AppEvent.WORK_ORDER_STATUS_CHANGED)
 
-### 1. `AppEvent.WORK_ORDER_CREATED`
+- **Trigger**: Fired when an OS moves from one status to another (e.g., `EM_REPARO` -> `FINALIZADA`).
+- **Payload**: `{ orderId, oldStatus, newStatus, tenantId }`
 
-* **Emitted By**: `OrdersService.create()` upon a completely successful OS creation cycle (including database commits and protocol generation).
-- **Payload**: `orderId`, `protocol`, `clientId`, `technicianId`, `tenantId`, `userId`, `timestamp`.
-- **Primary Listeners**:
-  - **WhatsAppListener (`whatsapp.listener.ts`)**: Evaluates store messaging configurations. Automatically builds the "OS ABERTA" notification prompt bridging the store name and client details, pushing it via Evolution API.
+## Smart Module Listeners
 
-### 2. `AppEvent.WORK_ORDER_STATUS_CHANGED`
+The predictive engine operates purely on `status_changed` events, specifically scanning for when an OS indicates the repair cycle is successfully concluded (`FINALIZADA` or `ENTREGUE`).
 
-* **Emitted By**: `OrdersService.changeStatus()` after securely committing the new state (e.g., `EM_REPARO` to `FINALIZADA`), triggering stock deductions/financial inputs successfully.
-- **Payload**: `orderId`, `protocol`, `previousStatus`, `newStatus`, `comments`, `tenantId`, `userId`, `timestamp`.
-- **Primary Listeners**:
-  - **WhatsAppListener`: Listens for transition conditions (especially completion paths like`ENTREGUE` or `FINALIZADA`). Distributes automated dynamic responses (`✅ SERVIÇO CONCLUÍDO`) appending the current OS balance and last diagnostic notes via API delivery.
+### `SmartDiagnosticsListener`
 
-### 3. `AppEvent.USER_CREATED` (Hypothetical Core Expansion)
+- **Action**: Intercepts completed orders. Reads the `model`, `symptom`, and final `diagnosis`.
+- **Result**: Upserts `diagnostic_patterns`. Increments the `frequency` integer so the AI learns which diagnoses are most common for the given inputs.
 
-* Expected to manage future integrations where new technician onboarding fires off system orientation sequences via external modules.
+### `SmartPricingListener`
 
-### Benefits
-
-By strictly divorcing the `OrdersService` creation logic from third-party networks (WhatsApp Evolution API logic), the workflow avoids total breakdown sequences (OS creation failures) if external API channels time out. They fire synchronously under transaction commits, delegating execution tracking.
+- **Action**: Intercepts completed orders. Reads the `finalValue` and the calculated duration of the repair.
+- **Result**: Evaluates the `repair_price_patterns` matrix. Recalculates the moving average (`avg_price`), updates global min/max boundaries, and averages the repair time.

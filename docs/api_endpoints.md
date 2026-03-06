@@ -1,62 +1,50 @@
 # API Endpoints
 
-The API is structured around RESTful principles. Almost all endpoints (except registration/login) require a valid JWT issued by the `AuthService` through the `JwtAuthGuard`.
+## Core API
 
-## Headers
+### Orders API
 
-* `Authorization`: `Bearer <jwt_token>`
-* `Content-Type`: `application/json`
+- `POST /orders` - Create a new work order.
+- `GET /orders` - List tenant orders.
+- `GET /orders/:id` - Get order details.
+- `PATCH /orders/:id` - Update order fields.
+- `POST /orders/:id/status` - Transition order status (triggers events).
+- `POST /orders/:id/parts` - Add parts to an order.
 
----
+### Quotes API (SmartParts Integration)
 
-## Auth (`/auth`)
+- `POST /smart-parts/quotes` - Initiate a new part quote broadcast via WhatsApp.
+- `GET /smart-parts/quotes/:orderId` - Get active quotes for an order.
+- `POST /smart-parts/webhook/whatsapp` - Inbound listener for supplier pricing responses.
+- `POST /smart-parts/quotes/:id/approve` - Approve a quote, creating a product and stock entry.
 
-* `POST /auth/login`: Authenticates user (`email`, `password`) and issues a JWT token containing their `sub` (userId), `role`, and `tenantId`.
-* `POST /auth/refresh`: Renews an expired access token using a valid refresh token.
-* `POST /auth/logout`: Invalidates the current user session/refresh token.
+### Inventory API
 
----
-
-## Multi-Tenant SaaS (`/tenants`)
-
-* `GET /tenants`: Lists all stores/tenants in the system. Requires `Permission.SAAS_MANAGE`.
-* `POST /tenants/register`: Onboards a new store. Provisions the tenant record, the primary admin user with an 8-character password, a `Subscription` (default to Trial), and scaffolding the SQLite isolation database.
-* `PATCH /tenants/:id/suspend`: Marks a store as suspended.
-
-## Plans (`/plans`)
-
-* `GET /plans`: List available subscription plans and prices.
-* `POST /plans/subscription/:tenantId/:planId`: Subscribes a tenant to a paid plan.
-* `PATCH /plans/subscription/:tenantId/upgrade/:planId`: Modifies the store's current usage limits based on their new subscription tier.
+- `GET /inventory/products` - List available products.
+- `POST /inventory/products` - Manually create a new product.
+- `GET /inventory/balance` - View stock levels.
 
 ---
 
-## Order Services (`/orders`)
+## Admin SaaS API
 
-* `POST /orders`: Creates a new work order. Required parameters: `clientId`, `equipments`, `priority`.
-* `GET /orders`: Retrieves all OS for the authenticated user's `tenantId`.
-* `GET /orders/:id`: Retrieves detailed info of a specific OS (client, equipment, parts, photo timeline, history logs).
-* `PATCH /orders/:id/status`: Advances the OS workflow status (`dto.status`). Triggers backend validations, stock consumption (if `FINALIZADA`), financial entries (if `ENTREGUE`), and emits event `WORK_ORDER_STATUS_CHANGED`.
-* `POST /orders/:id/images`: Uploads diagnostic images to Cloudinary and links them to the active OS context.
-* `POST /orders/:id/share`: Manually dispatches a WhatsApp notification bridging external context via the Evolution API module.
+*These routes are strictly decoupled from tenant isolation and require a `super_admin` JWT token.*
 
----
-
-## Clients (`/clients`)
-
-* `POST /clients`: Registers a new client entry to the store.
-* `GET /clients`: Retrieves CRM list.
+- `GET /admin/dashboard` - Returns global platform metrics (Active MRR, Churn rate, total tenants).
+- `GET /admin/tenants` - Lists all registered platform tenants (supports `?page=x&limit=y`).
+- `PATCH /admin/tenants/:id` - Toggle tenant active state or update platform configuration.
+- `GET /admin/plans` - List available SaaS subscription plans.
+- `PATCH /admin/subscriptions/:tenantId` - Modify a tenant's active subscription (change `planId`).
 
 ---
 
-## Inventory (`/products`)
+## Smart Modules (AI Assistant)
 
-* `GET /products`: Fetches parts list.
-* `POST /products`: Registers components, enabling stock metrics (`StockMovements`).
+*These endpoints aggregate massive historical datasets scoped down natively to the requesting `tenantId`.*
 
----
-
-## WhatsApp Setup (`/whatsapp`)
-
-* `POST /whatsapp/config`: Saves store-specific API keys and Evolution Instance Names into their specialized configuration structure.
-* `GET /whatsapp/status`: Check connection bounds of current `tenantId` session.
+- `GET /smart-diagnostics/suggestions?model=X&symptom=Y`
+  - Returns the Top 3 most statistically probable diagnoses.
+- `GET /smart-pricing/suggestion?model=X&symptom=Y`
+  - Returns historical `avg_price`, `min_price`, `max_price`, and `avg_repair_time`.
+- `GET /smart-parts/suggestions?model=X&symptom=Y&diagnosis=Z`
+  - Dynamically builds a QueryBuilder against the Quotes history to return the Top 5 most frequently used hardware parts for the specific scenario.

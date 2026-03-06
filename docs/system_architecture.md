@@ -1,55 +1,35 @@
 # System Architecture
 
-## Project Overview
+## Overview
 
-The "Ordem de serviço" application is a multi-tenant SaaS platform built for technical assistance and repair shops. It provides an end-to-end solution for managing work orders (OS), inventory, clients, finances, and WhatsApp communications, all isolated by tenant.
+The internal Ordem de Serviço application has evolved into a full-fledged Software as a Service (SaaS) platform, supporting multi-tenant isolation, intelligent repair suggestions, and global administration.
 
-## Tech Stack
+## Backend Modules
 
-* **Backend**: NestJS, TypeScript, TypeORM (SQLite per tenant), Passport (JWT)
-* **Frontend**: React, Next.js / Vite, TypeScript, TailwindCSS
-* **Integrations**: Evolution API (WhatsApp), Cloudinary (Images)
-
-## Folder Structure
-
-```
-/backend
-  ├── /src
-  │    ├── /modules        # Feature modules
-  │    │    ├── /auth      # Authentication
-  │    │    ├── /users     # User management
-  │    │    ├── /tenants   # SaaS Multi-tenancy
-  │    │    ├── /orders    # Work order lifecycle
-  │    │    ├── /clients   # Client CRM
-  │    │    ├── /events    # Event-driven system
-  │    │    ├── /whatsapp  # Evolution API integration
-  │    │    └── ...
-  │    ├── /common         # Guards, Decorators, Filters
-  │    └── main.ts         # Entry point
-/frontend
-  ├── /src
-  │    ├── /pages          # React views
-  │    ├── /components     # Reuseable UI components
-  │    ├── /hooks          # Custom React hooks
-  │    └── /services       # API connectivity
-```
-
-## Core Modules & Entities
-
-* **Tenants Module**: Orchestrates SaaS operations (`Tenant`, `Plan`, `Subscription`). Registers stores and creates isolated SQLite databases.
-* **Orders Module**: Manages the core business flow (`OrderService`, `OrderEquipment`, `OrderHistory`, `OrderPhoto`, `OrderPart`).
-* **Auth Module**: Handles JWT issuance, validation, and role-based access logic (`User`, `UserRole`). Maps user credentials to specific `tenantId`.
-* **Events Module**: Centralized dispatcher (`EventDispatcher`, `AppEvent`) enabling reactive architecture (e.g., triggering WhatsApp on OS updates without tightly coupling the code).
-
-## Authentication Flow & Tenant Handling
-
-1. **Login**: User submits credentials.
-2. **Validation**: The system queries the master user database and validates the password.
-3. **JWT Issuance**: `AuthService` encodes the user's ID, role, and strictly maps their `tenantId` into the token payload.
-4. **Execution**: Incoming API requests pass through `JwtAuthGuard`, which extracts the JWT and populates `req.user.tenantId`.
-5. **Data Isolation**: Services filter operations based on this `tenantId`, ensuring absolute isolation of data across different stores.
+- **Auth & Users**: Handles JWT authentication and role-based access.
+- **Tenants**: Manages isolated multi-tenant data, SaaS subscriptions, and plans.
+- **Orders**: Core work order management, equipment tracking, and history logs.
+- **Finance**: Manages transactions, bank accounts, and MRR.
+- **Inventory & SmartParts (Quotes)**: Tracks physical stock and manages autonomous WhatsApp-based part quoting.
+- **Fiscal**: Automates NF-e and NFS-e generation.
+- **Admin**: Dedicated and isolated super-admin namespace for managing the SaaS platform.
 
 ## Event System
 
-The application leverages a lightweight event emitter to decouple processes.
-For example, the `work_order.created` event is fired when a new OS is logged. Asynchronous listeners (like the `WhatsAppListener`) hear this event and independently trigger messaging flows without blocking the primary HTTP response.
+The system is deeply decoupled using `EventEmitter2`. Core actions, like `work_order.completed` or `work_order.status_changed`, fire asynchronous events across the application. This allows independent modules (like Audit logs or Machine Learning trackers) to react to state changes without polluting the core transaction workflow.
+
+## Smart Modules
+
+A suite of intelligent modules operates passively by listening to completed Work Orders to build predictive models:
+
+- **Smart Diagnostics**: Learns from `(model, symptom)` pairs to suggest the statistically most probable diagnosis.
+- **Smart Pricing**: Aggregates the `AVG()`, `MIN()`, and `MAX()` repair costs and duration for specific repair types.
+- **Smart Parts**: Natively joins the Order and Quote histories to recommend the most frequently used parts for a specific diagnosis without creating redundant tracking tables.
+
+## Admin SaaS Architecture
+
+The Super Admin environment is completely walled off from the tenant data flows.
+
+- Routes prefixed with `/admin` bypass standard tenant filters.
+- Restricted exclusively to users with the `super_admin` role.
+- Interacts globally with all SaaS entities (Plans, Subscriptions, Tenants) allowing platform owners to monitor MRR and manage store access without tenant context bleed.
