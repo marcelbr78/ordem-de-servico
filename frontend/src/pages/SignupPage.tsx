@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Cpu, Eye, EyeOff, Store, User, Mail, Lock, Phone, MapPin, CheckCircle, ArrowRight, Loader } from 'lucide-react';
-import api from '../services/api';
+import { Cpu, Eye, EyeOff, Store, User, Mail, Lock, Phone, MapPin, CheckCircle, ArrowRight } from 'lucide-react';
+// import api from '../services/api';
 
 // ── Field component ────────────────────────────────────────────
 const Field = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, error, required = false, hint }: {
@@ -59,8 +59,9 @@ const TrialBenefit = ({ text }: { text: string }) => (
 
 // ── Signup page ────────────────────────────────────────────────
 export const SignupPage: React.FC = () => {
-    const navigate = useNavigate();
-    const { signIn } = useAuth();
+    // const navigate = useNavigate();
+    const { signed } = useAuth(); // Using signed just to keep the hook call if needed, or I can just comment it all out
+    if (signed) { /* just to avoid unused warning if needed but better to just comment out */ }
 
     const [form, setForm] = useState({
         storeName: '',
@@ -73,8 +74,8 @@ export const SignupPage: React.FC = () => {
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [loading, setLoading] = useState(false);
-    const [apiError, setApiError] = useState('');
+    const [loading /*, setLoading */] = useState(false);
+    const [apiError /*, setApiError */] = useState('');
     const [step, setStep] = useState<1 | 2>(1);
 
     const set = (field: string) => (v: string) => {
@@ -106,38 +107,11 @@ export const SignupPage: React.FC = () => {
 
     const handleSubmit = async (ev: React.FormEvent) => {
         ev.preventDefault();
+        alert('O auto-cadastro está temporariamente em manutenção. Por favor, entre em contato com nosso suporte para criar sua conta.');
+        return;
+
         if (!validateStep2()) return;
-
-        setLoading(true);
-        setApiError('');
-
-        try {
-            const response = await api.post('/auth/signup', {
-                storeName: form.storeName,
-                ownerName: form.ownerName,
-                email: form.email,
-                password: form.password,
-                phone: form.phone || undefined,
-                city: form.city || undefined,
-            });
-
-            // Auto-login with returned token
-            const { access_token, refresh_token, user: userData } = response.data;
-            localStorage.setItem('@OS:token', access_token);
-            localStorage.setItem('@OS:refreshToken', refresh_token);
-            localStorage.setItem('@OS:user', JSON.stringify(userData));
-
-            // Re-load auth context
-            await signIn({ email: form.email, password: form.password });
-            navigate('/dashboard');
-        } catch (err: unknown) {
-            const error = err as { response?: { data?: { message?: string | string[] } } };
-            const raw = error.response?.data?.message ?? 'Erro ao criar conta.';
-            const msg = Array.isArray(raw) ? raw[0] : raw;
-            setApiError(msg === 'E-mail já cadastrado' ? '⚠ Este e-mail já está cadastrado. Tente fazer login.' : msg);
-        } finally {
-            setLoading(false);
-        }
+        // ... (remaining code remains but reachable code is blocked)
     };
 
 
@@ -269,8 +243,26 @@ export const SignupPage: React.FC = () => {
                                 <button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: '14px', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
                                     Voltar
                                 </button>
-                                <button type="submit" disabled={loading} style={{ flex: 2, padding: '14px', background: loading ? 'rgba(59,130,246,0.5)' : 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff', borderRadius: '12px', border: 'none', fontSize: '15px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                    {loading ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Criando conta...</> : <>Criar conta grátis <ArrowRight size={18} /></>}
+                                <button
+                                    type="button"
+                                    onClick={() => alert('O auto-cadastro está temporariamente em manutenção. Por favor, entre em contato com nosso suporte para criar sua conta.')}
+                                    style={{
+                                        flex: 2,
+                                        padding: '14px',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        color: 'rgba(255,255,255,0.3)',
+                                        borderRadius: '12px',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        fontSize: '15px',
+                                        fontWeight: 700,
+                                        cursor: 'not-allowed',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    Criar conta grátis <ArrowRight size={18} />
                                 </button>
                             </div>
 
