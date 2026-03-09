@@ -54,7 +54,18 @@ import { SmartPricingModule } from './modules/smart-pricing/smart-pricing.module
 import { SmartPartsSuggestionModule } from './modules/smart-parts/smart-parts.module';
 import { DiagnosticPattern } from './modules/smart-diagnostics/entities/diagnostic-pattern.entity';
 import { RepairPricePattern } from './modules/smart-pricing/entities/repair-price-pattern.entity';
-
+import { PowerSequenceModule } from './modules/power-sequence/power-sequence.module';
+import { DiagnosticBoard } from './modules/power-sequence/entities/diagnostic-board.entity';
+import { PowerSequenceStep } from './modules/power-sequence/entities/power-sequence-step.entity';
+import { PowerSequenceAnalysis } from './modules/power-sequence/entities/power-sequence-analysis.entity';
+import { BoardDiagnosisModule } from './modules/board-diagnosis/board-diagnosis.module';
+import { Board as BoardDiagnosisBoard } from './modules/board-diagnosis/entities/board.entity';
+import { SymptomCategory as BoardDiagnosisSymptomCategory } from './modules/board-diagnosis/entities/symptom-category.entity';
+import { Circuit as BoardDiagnosisCircuit } from './modules/board-diagnosis/entities/circuit.entity';
+import { PowerRail as BoardDiagnosisPowerRail } from './modules/board-diagnosis/entities/power-rail.entity';
+import { DiagnosticSession as BoardDiagnosisSession } from './modules/board-diagnosis/entities/diagnostic-session.entity';
+import { DiagnosticStep as BoardDiagnosisStep } from './modules/board-diagnosis/entities/diagnostic-step.entity';
+import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosis/entities/repair-case.entity';
 @Module({
     imports: [
         ConfigModule.forRoot({
@@ -75,7 +86,7 @@ import { RepairPricePattern } from './modules/smart-pricing/entities/repair-pric
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase],
                         synchronize: true, // Em prod real deve ser false com migrations
                         ssl: { rejectUnauthorized: false },
                     };
@@ -84,7 +95,7 @@ import { RepairPricePattern } from './modules/smart-pricing/entities/repair-pric
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase],
                     synchronize: true,
                 };
             },
@@ -109,6 +120,8 @@ import { RepairPricePattern } from './modules/smart-pricing/entities/repair-pric
         SmartDiagnosticsModule,
         SmartPricingModule,
         SmartPartsSuggestionModule,
+        PowerSequenceModule,
+        BoardDiagnosisModule,
     ],
 })
 export class AppModule implements NestModule {

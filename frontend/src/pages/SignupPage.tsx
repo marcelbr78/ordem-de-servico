@@ -74,7 +74,7 @@ export const SignupPage: React.FC = () => {
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [loading /*, setLoading */] = useState(false);
+    // const [loading /*, setLoading */] = useState(false);
     const [apiError /*, setApiError */] = useState('');
     const [step, setStep] = useState<1 | 2>(1);
 

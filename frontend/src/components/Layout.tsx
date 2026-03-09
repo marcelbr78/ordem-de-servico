@@ -12,7 +12,9 @@ import {
     Truck,
     Settings,
     Shield,
-    Building2
+    Building2,
+    Activity,
+    Cpu
 } from 'lucide-react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -48,6 +50,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Financeiro', icon: DollarSign, path: '/finance' },
         { label: 'Contas Bancárias', icon: Building2, path: '/bank-accounts' },
         { label: 'Auditoria', icon: Shield, path: '/audit' },
+        { label: 'Diagnóstico', icon: Activity, path: '/diagnostico' },
+        { label: 'Diagnostico AI Placa', icon: Cpu, path: '/diagnostico-placa' },
         { label: 'Configurações', icon: Settings, path: '/settings' },
         ...(user?.role === 'super_admin' ? [{ label: 'Gestão SaaS (Lojas)', icon: Building2, path: '/portal-gestao/tenants' }] : []),
     ];

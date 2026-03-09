@@ -32,6 +32,16 @@ import { AIInsights } from './admin/pages/AIInsights';
 import { SignupPage } from './pages/SignupPage';
 import { PricingPage } from './pages/PricingPage';
 import { DebugAuth } from './pages/DebugAuth';
+
+// Power Sequence Diagnostics
+import { DiagnosticoIndex } from './pages/diagnostico/DiagnosticoIndex';
+import { BoardSequence } from './pages/diagnostico/BoardSequence';
+import { NewAnalysis } from './pages/diagnostico/NewAnalysis';
+import { AnalysisResult } from './pages/diagnostico/AnalysisResult';
+
+// AI Board Diagnosis
+import { DiagnosticoPlaca } from './pages/DiagnosticoPlaca';
+
 import { useLocation } from 'react-router-dom';
 
 const LocationLogger: React.FC = () => {
@@ -234,6 +244,56 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <BankAccounts />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/diagnostico"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <DiagnosticoIndex />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/diagnostico/board/:id"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <BoardSequence />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/diagnostico/board/:id/new-analysis"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <NewAnalysis />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/diagnostico/result/:id"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <AnalysisResult />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/diagnostico-placa"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <DiagnosticoPlaca />
                 </Layout>
               </PrivateRoute>
             }
