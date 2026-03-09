@@ -50,3 +50,14 @@ The architecture includes placeholders for a future AI engine. This engine will 
 ### Future schematic and boardview parsing
 
 Placeholders for parsers (e.g., BRD, PDF schematics) are included. The goal is to eventually allow the system to ingest schematic files and automatically generate the `Circuit` and `PowerRail` dependencies, removing the need for manual data entry of board logic.
+
+## First Diagnostic Flow Implemented
+
+An initial flow for the "No Power" symptom category is implemented. The guided engine executes a sequence of tests aligning with universal electronics rules:
+
+1. **Power Check 1**: What is the voltage on VBUS? (Expected: 20V). Failure suggests charger/USB-C controller fault.
+2. **Power Check 2**: What is the voltage on PPBUS_AON? (Expected: 12V-13V). Failure suggests input circuit fault (CD3217, fuse, MOSFET).
+3. **Power Check 3**: What is the voltage on PP3V8_AON? (Expected: 3.8V). Failure suggests PMIC/regulator fault.
+4. **Power Check 4**: What is the voltage on PP1V8_AON? (Expected: 1.8V). Failure suggests PMIC regulator issue.
+
+If all power checks pass, the system returns a diagnostic summary recommending investigation of other potential elements.

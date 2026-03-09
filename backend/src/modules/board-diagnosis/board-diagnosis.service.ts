@@ -79,13 +79,30 @@ export class BoardDiagnosisService {
         );
 
         if (!nextStepData) {
-            // End of flow, return results
+            // End of flow, return results based on the last step
+            if (lastStep && lastStep.result === 'fail') {
+                return {
+                    finished: true,
+                    diagnosis: lastStep.next_step_if_fail || 'Failure detected at step ' + lastStep.step_number,
+                    possible_components: [lastStep.next_step_if_fail]
+                };
+            }
+
+            if (lastStep && lastStep.result === 'pass' && lastStep.next_step_if_ok === 'Return diagnostic summary.') {
+                return {
+                    finished: true,
+                    diagnosis: 'All standard power rails passed. The issue may lie elsewhere (e.g. CPU/RAM).',
+                    possible_components: []
+                };
+            }
+
             const probabilities = await this.repairGraphService.calculateProbabilities(
                 session.symptom_category_id,
                 {}
             );
             return {
                 finished: true,
+                diagnosis: 'Diagnosis complete',
                 probabilities
             };
         }

@@ -18,50 +18,58 @@ export class GuidedDiagnosisEngine {
         currentStep: DiagnosticStep | null,
         symptom: SymptomCategory
     ): Partial<DiagnosticStep> | null {
-        // If no step yet, start with basic power
+        // Only implementing 'no_power' flow right now
+        if (symptom?.name !== 'no_power') {
+            return null; // For other symptoms, return null so UI handles as not implemented yet
+        }
+
         if (!currentStep) {
             return {
                 step_number: 1,
-                question: 'What is the voltage on the main power rail (e.g. PPBUS_AON)?',
+                question: 'What is the voltage on VBUS?',
                 measurement_type: 'voltage',
-                expected_range: '12V - 13V',
+                expected_range: '20V',
+                next_step_if_fail: 'Possible charger or USB-C controller fault.',
+                next_step_if_ok: 'Go to next step.'
             };
         }
 
-        // Logic based on previous steps
         if (currentStep.step_number === 1) {
-            if (currentStep.result === 'fail') {
-                return null; // Stop flow, issue found
-            }
+            if (currentStep.result === 'fail') return null;
+
             return {
                 step_number: 2,
-                question: 'Check the main clock signal (e.g., 32kHz RTC clock). Is it present?',
-                measurement_type: 'frequency',
-                expected_range: '32kHz',
+                question: 'What is the voltage on PPBUS_AON?',
+                measurement_type: 'voltage',
+                expected_range: '12V – 13V',
+                next_step_if_fail: 'Suggest input circuit failure (CD3217, fuse, MOSFET).',
+                next_step_if_ok: 'Go to next step.'
             };
         }
 
         if (currentStep.step_number === 2) {
-            if (currentStep.result === 'fail') {
-                return null;
-            }
+            if (currentStep.result === 'fail') return null;
+
             return {
                 step_number: 3,
-                question: 'Check the PMU Reset / Enable lines. Are they high?',
+                question: 'What is the voltage on PP3V8_AON?',
                 measurement_type: 'voltage',
-                expected_range: '1.8V - 3.3V',
+                expected_range: '3.8V',
+                next_step_if_fail: 'Suggest PMIC or regulator failure.',
+                next_step_if_ok: 'Go to next step.'
             };
         }
 
         if (currentStep.step_number === 3) {
-            if (currentStep.result === 'fail') {
-                return null;
-            }
+            if (currentStep.result === 'fail') return null;
+
             return {
                 step_number: 4,
-                question: 'Check data communication lines (I2C/SPI - SDA/SCL). Is there activity?',
-                measurement_type: 'activity',
-                expected_range: 'Active oscillation',
+                question: 'What is the voltage on PP1V8_AON?',
+                measurement_type: 'voltage',
+                expected_range: '1.8V',
+                next_step_if_fail: 'Suggest PMIC regulator issue.',
+                next_step_if_ok: 'Return diagnostic summary.'
             };
         }
 
