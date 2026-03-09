@@ -580,7 +580,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#1a1b26', overflow: 'hidden' }}>
             {/* Hidden Print Component */}
             <div style={{ display: 'none' }}>
-                <OrderPrint ref={printRef} order={order} settings={settings} type={printType} />
+                <OrderPrint ref={printRef} order={order} settings={settings} type={printType} transactions={transactions} />
             </div>
 
             {/* Loading State for Partial Data */}

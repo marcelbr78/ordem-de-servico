@@ -6,6 +6,7 @@ interface OrderPrintProps {
     order: any;
     settings: any;
     type: 'client' | 'store' | 'term';
+    transactions?: any[];
 }
 
 // Helpers
@@ -171,14 +172,14 @@ const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: a
     </div>
 );
 
-const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, settings: any, type: string, isCopy?: boolean }) => {
+const ReceiptContent = ({ order, settings, type, isCopy, transactions = [] }: { order: any, settings: any, type: string, isCopy?: boolean, transactions?: any[] }) => {
     const isTerm = type === 'term';
 
     // Parse detailed fields from settings
     const defaultFields = {
         showDefect: true,
         showItemDescription: true,
-        showFinancials: !isTerm,
+        showFinancials: true, // Allow 'Term' to show financials or payments
         showSignatures: true,
         showChecklist: true,
         showTechnicalReport: true,
@@ -196,7 +197,6 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
         console.error('Error parsing print fields:', e);
     }
 
-    // Compact styles for half-page
     const cs = {
         ...s,
         sectionBox: { ...s.sectionBox, marginBottom: '5px' },
@@ -206,6 +206,11 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
         signatureLine: { ...s.signatureLine, paddingTop: '2px' },
         footerGrid: { ...s.footerGrid, marginTop: '5px', paddingTop: '5px', gap: '20px' }
     };
+
+    // Safely calculate the total if order.total is 0 or missing
+    const calculatedTotal = order.total || [...(order.services || []), ...(order.parts || [])].reduce((acc, item) => {
+        return acc + ((item.unitPrice || item.price || 0) * (item.quantity || 1));
+    }, 0);
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -308,9 +313,36 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                             <tfoot>
                                 <tr style={{ backgroundColor: '#f9f9f9' }}>
                                     <td colSpan={3} style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', fontSize: '10px' }}>TOTAL:</td>
-                                    <td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>{formatCurrency(order.total || 0)}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>{formatCurrency(calculatedTotal)}</td>
                                 </tr>
                             </tfoot>
+                        </table>
+                    </div>
+                )}
+
+                {/* PAGAMENTOS EFETUADOS */}
+                {(fields.showFinancials || transactions?.length > 0) && transactions && transactions.length > 0 && (
+                    <div style={cs.sectionBox}>
+                        <div style={cs.sectionTitle}>Pagamentos</div>
+                        <table style={cs.table}>
+                            <thead>
+                                <tr>
+                                    <th style={{ ...cs.th, width: '40%' }}>Data</th>
+                                    <th style={{ ...cs.th, width: '30%' }}>Forma</th>
+                                    <th style={{ ...cs.th, width: '30%', textAlign: 'right' }}>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {transactions.map((tx: any, i: number) => (
+                                    <tr key={i}>
+                                        <td style={cs.td}>{safeDate(tx.createdAt)}</td>
+                                        <td style={cs.td}>{tx.paymentMethod}</td>
+                                        <td style={{ ...cs.td, textAlign: 'right', fontWeight: 'bold', color: tx.type === 'INCOME' ? 'inherit' : '#d00' }}>
+                                            {tx.type === 'INCOME' ? '' : '-'}{formatCurrency(tx.amount)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
                         </table>
                     </div>
                 )}
@@ -349,7 +381,7 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
     );
 };
 
-const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: any, type: string }) => {
+const StandardTemplateA4 = ({ order, settings, type, transactions = [] }: { order: any, settings: any, type: string, transactions?: any[] }) => {
     // A4 Portrait: 210mm x 297mm. Half is ~148mm.
     return (
         <div style={{ ...s.pageA4, padding: 0, height: '297mm', display: 'flex', flexDirection: 'column' }}>
@@ -361,7 +393,7 @@ const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: a
                 boxSizing: 'border-box',
                 overflow: 'hidden'
             }}>
-                <ReceiptContent order={order} settings={settings} type={type} />
+                <ReceiptContent order={order} settings={settings} type={type} transactions={transactions} />
             </div>
 
             {/* Second Copy (Bottom) */}
@@ -371,7 +403,7 @@ const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: a
                 boxSizing: 'border-box',
                 overflow: 'hidden'
             }}>
-                <ReceiptContent order={order} settings={settings} type={type} isCopy />
+                <ReceiptContent order={order} settings={settings} type={type} isCopy transactions={transactions} />
             </div>
         </div>
     );
@@ -379,7 +411,7 @@ const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: a
 
 // ─── THERMAL COMPONENTS ──────────────────────────────────────────────────────
 
-const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any, width: string }) => {
+const ThermalTemplate = ({ order, settings, width, transactions = [] }: { order: any, settings: any, width: string, transactions?: any[] }) => {
     // 80mm ~ 300px, 58mm ~ 200px (approx visual width for screen preview, print driver handles actual scale)
     const containerStyle = {
         width: width === '80mm' ? '280px' : '180px', // slightly smaller to be safe
@@ -395,6 +427,11 @@ const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any
     const separator = "----------------------------------------".slice(0, width === '80mm' ? 32 : 22);
     const center = (text: string) => <div style={{ textAlign: 'center' }}>{text}</div>;
     const row = { display: 'flex', justifyContent: 'space-between', marginBottom: '2px' };
+
+    // Calculate thermal total
+    const thermalTotal = order.total || [...(order.services || []), ...(order.parts || [])].reduce((acc, item) => {
+        return acc + ((item.unitPrice || item.price || 0) * (item.quantity || 1));
+    }, 0);
 
     return (
         <div style={containerStyle}>
@@ -466,8 +503,24 @@ const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any
 
             <div style={{ borderTop: '1px dashed black', paddingTop: '4px', marginTop: '4px', ...row, fontWeight: 'bold' }}>
                 <span>TOTAL:</span>
-                <span>{formatCurrency(order.total || 0)}</span>
+                <span>{formatCurrency(thermalTotal)}</span>
             </div>
+
+            {/* Payments */}
+            {transactions && transactions.length > 0 && (
+                <>
+                    {center(separator)}
+                    <div style={{ marginBottom: '5px' }}>
+                        <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '2px' }}>PAGAMENTOS</div>
+                        {transactions.map((tx: any, i: number) => (
+                            <div key={i} style={row}>
+                                <span>{tx.paymentMethod}</span>
+                                <span>{tx.type === 'INCOME' ? '' : '-'}{formatCurrency(tx.amount)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
 
             <div style={{ margin: '15px 0', textAlign: 'center' }}>
                 <div style={{ display: 'inline-block', backgroundColor: 'white', padding: '2px' }}>
@@ -493,7 +546,7 @@ const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
-export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, settings, type }, ref) => {
+export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, settings, type, transactions = [] }, ref) => {
     const format = settings?.print_format || 'a4'; // 'a4', '80mm', '58mm'
 
     return (
@@ -508,8 +561,8 @@ export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, 
             </style>
 
             {format === 'a4'
-                ? <StandardTemplateA4 order={order} settings={settings} type={type} />
-                : <ThermalTemplate order={order} settings={settings} width={format} />
+                ? <StandardTemplateA4 order={order} settings={settings} type={type} transactions={transactions} />
+                : <ThermalTemplate order={order} settings={settings} width={format} transactions={transactions} />
             }
         </div>
     );
