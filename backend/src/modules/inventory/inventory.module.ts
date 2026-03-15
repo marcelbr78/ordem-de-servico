@@ -6,17 +6,18 @@ import { Product } from './entities/product.entity';
 import { StockBalance } from './entities/stock-balance.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { StockService } from './stock.service';
-
 import { HttpModule } from '@nestjs/axios';
 import { BarcodeService } from './barcode.service';
+import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Product, StockBalance, StockMovement]),
-        HttpModule
+        HttpModule,
+        TenantsModule,
     ],
     controllers: [InventoryController],
     providers: [InventoryService, StockService, BarcodeService],
-    exports: [InventoryService, StockService]
+    exports: [InventoryService, StockService],
 })
-export class InventoryModule { }
+export class InventoryModule {}
