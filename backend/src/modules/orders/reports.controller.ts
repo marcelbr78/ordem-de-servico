@@ -208,3 +208,4 @@ export class ReportsController {
         return { total, warrantyReturns: warranty, rate: rate.toFixed(1) };
     }
 }
+}
