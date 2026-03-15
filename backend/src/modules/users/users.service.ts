@@ -12,32 +12,36 @@ export class UsersService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
-        console.log('[USERS DEBUG] Verificando usuários mestres...');
+        try {
+            console.log('[USERS DEBUG] Verificando usuários mestres...');
 
-        // 1. Super Admin Global (Você)
-        const superAdmin = await this.findByEmail('master@os4u.com.br');
-        if (!superAdmin) {
-            console.log('💎 Semeando Super Admin Global (master@os4u.com.br / master123)...');
-            await this.create({
-                email: 'master@os4u.com.br',
-                name: 'CEO OS4U',
-                password: 'master123',
-                role: UserRole.SUPER_ADMIN,
-                mustChangePassword: false,
-            });
-        }
+            // 1. Super Admin Global (Você)
+            const superAdmin = await this.findByEmail('master@os4u.com.br');
+            if (!superAdmin) {
+                console.log('💎 Semeando Super Admin Global (master@os4u.com.br / master123)...');
+                await this.create({
+                    email: 'master@os4u.com.br',
+                    name: 'CEO OS4U',
+                    password: 'master123',
+                    role: UserRole.SUPER_ADMIN,
+                    mustChangePassword: false,
+                });
+            }
 
-        // 2. Legado Admin (Compatibilidade)
-        const adminUser = await this.findByEmail('admin');
-        if (!adminUser) {
-            console.log('🌱 Semeando usuário administrador legado...');
-            await this.create({
-                email: 'admin',
-                name: 'Administrador Demo',
-                password: 'admin1234',
-                role: UserRole.ADMIN,
-                mustChangePassword: true,
-            });
+            // 2. Legado Admin (Compatibilidade)
+            const adminUser = await this.findByEmail('admin');
+            if (!adminUser) {
+                console.log('🌱 Semeando usuário administrador legado...');
+                await this.create({
+                    email: 'admin',
+                    name: 'Administrador Demo',
+                    password: 'admin1234',
+                    role: UserRole.ADMIN,
+                    mustChangePassword: true,
+                });
+            }
+        } catch (e) {
+            console.warn('⚠️ Usuários seed ignorado (banco ainda não pronto):', e.message);
         }
     }
 

@@ -17,7 +17,11 @@ export class PowerSequenceService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
-        await this.seed();
+        try {
+            await this.seed();
+        } catch (e) {
+            console.warn('⚠️ PowerSequence seed ignorado (banco ainda não pronto):', e.message);
+        }
     }
 
     async seed() {
