@@ -596,7 +596,7 @@ export class OrdersService {
                 senderName: 'Sistema',
             });
         } catch (e) {
-            this.logger.warn(`[Conversation] Falha ao gravar outbound: ${e.message}`);
+            console.warn(`[Conversation] Falha ao gravar outbound: ${e.message}`);
         }
 
         return { success: true, message: 'Mensagem enviada com sucesso!' };
@@ -697,7 +697,7 @@ export class OrdersService {
         // Ordens recentes (últimas 10)
         const recent = await this.ordersRepository.find({
             where,
-            order: { createdAt: 'DESC' },
+            order: { entryDate: 'DESC' },
             take: 10,
             relations: ['client', 'equipments'],
         });
@@ -814,7 +814,7 @@ export class OrdersService {
                 equipmentBrand: (o as any).equipments?.[0]?.brand || (o as any).equipments?.[0]?.marca || '—',
                 equipmentModel: (o as any).equipments?.[0]?.model || (o as any).equipments?.[0]?.modelo || '—',
                 total: o.finalValue || o.estimatedValue || 0,
-                createdAt: o.entryDate || o.createdAt,
+                createdAt: (o as any).entryDate || (o as any).createdAt,
             })),
             monthlyRevenue,
             prevMonthRevenue,

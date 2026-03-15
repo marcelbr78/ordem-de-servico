@@ -6,6 +6,15 @@ export enum QuoteDocStatus {
     REJECTED = 'rejected', EXPIRED = 'expired', CANCELED = 'canceled',
 }
 
+export interface QuoteItem {
+    id: string;
+    type: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+}
+
 @Entity('quote_documents')
 export class QuoteDocument {
     @PrimaryGeneratedColumn('uuid') id: string;

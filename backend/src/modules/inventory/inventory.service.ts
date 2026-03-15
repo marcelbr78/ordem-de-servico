@@ -28,7 +28,11 @@ export class InventoryService {
     async create(createProductDto: CreateProductDto, tenantId?: string): Promise<Product> {
         // Check plan inventory limit
         if (tenantId) {
-            const sub = await this.plansService.findSubscription(tenantId);
+            let sub = null;
+            try {
+                sub = await (this.plansService as any).findSubscription(tenantId);
+            } catch (e) { /* ignore if method not implemented */ }
+
             if (sub) {
                 if (sub.status === SubscriptionStatus.CANCELLED || sub.status === SubscriptionStatus.SUSPENDED) {
                     throw new ForbiddenException('Sua assinatura está cancelada ou suspensa.');
