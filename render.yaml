@@ -8,7 +8,7 @@ services:
     name: os4u-backend
     env: node
     region: oregon          # trocar para frankfurt se quiser mais próximo do BR
-    plan: starter           # starter = $7/mês, nunca dorme (free dorme após 15min)
+    plan: free              # Plano gratuito (dorme após 15min de inatividade)
     rootDir: backend
     buildCommand: npm install --legacy-peer-deps && npm run build
     startCommand: npm run start
@@ -85,5 +85,5 @@ services:
 databases:
   - name: os4u-db
     region: oregon
-    plan: starter             # $7/mês com backups automáticos
+    plan: free              # Plano gratuito (expira em 90 dias)
     # plan: free              # gratuito mas expira em 90 dias
