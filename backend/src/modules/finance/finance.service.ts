@@ -49,13 +49,13 @@ export class FinanceService {
     async findAll(filters?: {
         from?: string; to?: string; type?: string; status?: string;
         category?: string; search?: string;
-    }): Promise<Transaction[]> {
+    }): Promise<any[]> {
         const qb = this.txRepo.createQueryBuilder('tx').orderBy('tx.createdAt', 'DESC');
 
         if (filters?.from)     qb.andWhere('tx.createdAt >= :from', { from: filters.from + 'T00:00:00' });
         if (filters?.to)       qb.andWhere('tx.createdAt <= :to',   { to:   filters.to   + 'T23:59:59' });
         if (filters?.type)     qb.andWhere('tx.type = :type',       { type: filters.type.toUpperCase() });
-        if (filters?.status)   qb.andWhere('tx.status = :status',   { status: filters.status });
+        if (filters?.status)   (qb as any).andWhere('tx.status = :status',   { status: filters.status });
         if (filters?.category) qb.andWhere('tx.category = :cat',    { cat: filters.category });
         if (filters?.search)   qb.andWhere('(tx.description LIKE :q OR tx.supplier LIKE :q OR tx.documentNumber LIKE :q)', { q: `%${filters.search}%` });
 

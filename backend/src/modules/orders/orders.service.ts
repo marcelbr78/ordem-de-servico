@@ -596,7 +596,7 @@ export class OrdersService {
                 senderName: 'Sistema',
             });
         } catch (e) {
-            this.logger?.warn?.(`[Conversation] Falha ao gravar outbound: ${e.message}`) ?? console.warn(`[Conversation] Falha ao gravar outbound: ${e.message}`);
+            console.warn(`[Conversation] Falha ao gravar outbound: ${e?.message}`);
         }
 
         return { success: true, message: 'Mensagem enviada com sucesso!' };
