@@ -96,9 +96,10 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
                         entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag],
-                        synchronize: true, // cria tabelas automaticamente
+                        synchronize: false,
                         migrations: ['dist/migrations/*.js'],
-                        migrationsRun: false,
+                        migrationsRun: true,
+                        dropSchema: false,
                         ssl: { rejectUnauthorized: false },
                     };
                 }
