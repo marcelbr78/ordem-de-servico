@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+*.sqlite
+*.log
+coverage
+.git
+scripts-dev
+jest.config.js
+*.test.ts
+*.spec.ts

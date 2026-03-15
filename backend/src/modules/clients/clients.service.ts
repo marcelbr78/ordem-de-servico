@@ -1,0 +1,213 @@
+import {
+    Injectable,
+    ConflictException,
+    NotFoundException,
+    BadRequestException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Like, Not, IsNull } from 'typeorm';
+import { Client, ClientStatus } from './entities/client.entity';
+import { ClientOsHistory } from './entities/client-os-history.entity';
+import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
+import { ClientContact } from './entities/client-contact.entity';
+
+@Injectable()
+export class ClientsService {
+    constructor(
+        @InjectRepository(Client)
+        private clientsRepository: Repository<Client>,
+        @InjectRepository(ClientContact)
+        private contactsRepository: Repository<ClientContact>,
+        @InjectRepository(ClientOsHistory)
+        private osHistoryRepository: Repository<ClientOsHistory>,
+    ) { }
+
+    private cleanCpfCnpj(value: string): string {
+        return value.replace(/\D/g, '');
+    }
+
+    private maskCpfCnpj(value: string): string {
+        if (!value) return '';
+        const cleaned = this.cleanCpfCnpj(value);
+        if (cleaned.length === 11) {
+            // CPF: ***.***.***-XX (mostra apenas últimos 2 dígitos)
+            return `***.${cleaned.substring(3, 6)}.***-${cleaned.substring(9)}`;
+        }
+        if (cleaned.length === 14) {
+            // CNPJ: **.***.***/**XX-XX (mostra apenas últimos 4 + dígitos)
+            return `**.***.***/****-${cleaned.substring(12)}`;
+        }
+        return '***';
+    }
+
+    async create(createClientDto: CreateClientDto, tenantId?: string): Promise<Client> {
+        const cleaned = this.cleanCpfCnpj(createClientDto.cpfCnpj);
+
+        // Validar cruzamento tipo x documento
+        if (createClientDto.tipo === 'PF' && cleaned.length !== 11) {
+            throw new BadRequestException('Pessoa Física deve ter CPF com 11 dígitos');
+        }
+        if (createClientDto.tipo === 'PJ' && cleaned.length !== 14) {
+            throw new BadRequestException('Pessoa Jurídica deve ter CNPJ com 14 dígitos');
+        }
+
+        // Verificar duplicidade dentro do mesmo tenant
+        const existing = await this.clientsRepository.findOne({
+            where: tenantId ? { cpfCnpj: cleaned, tenantId } : { cpfCnpj: cleaned },
+            withDeleted: true,
+        });
+
+        if (existing) {
+            throw new ConflictException('Já existe um cliente cadastrado com este CPF/CNPJ');
+        }
+
+        // Extrair contatos (serão criados via cascade)
+        const { contatos: contatosDto, ...clientData } = createClientDto;
+
+        const client = this.clientsRepository.create({
+            ...clientData,
+            cpfCnpj: cleaned,
+            contatos: contatosDto || [],
+            tenantId,
+        });
+
+        return this.clientsRepository.save(client);
+    }
+
+    async findAll(search?: string, tipo?: string, status?: string, tenantId?: string): Promise<any[]> {
+        const queryBuilder = this.clientsRepository
+            .createQueryBuilder('client')
+            .leftJoinAndSelect('client.contatos', 'contato')
+            .orderBy('client.nome', 'ASC');
+
+        if (tenantId) {
+            queryBuilder.andWhere('client.tenantId = :tenantId', { tenantId });
+        }
+
+        if (search) {
+            queryBuilder.andWhere(
+                '(client.nome LIKE :search OR client.cpfCnpj LIKE :search OR client.nomeFantasia LIKE :search)',
+                { search: `%${search}%` },
+            );
+        }
+
+        if (tipo && (tipo === 'PF' || tipo === 'PJ')) {
+            queryBuilder.andWhere('client.tipo = :tipo', { tipo });
+        }
+
+        if (status && (status === 'ativo' || status === 'inativo')) {
+            queryBuilder.andWhere('client.status = :status', { status });
+        }
+
+        const clients = await queryBuilder.getMany();
+
+        // Mascarar CPF/CNPJ na listagem (LGPD)
+        return clients.map((client) => ({
+            ...client,
+            cpfCnpjMasked: this.maskCpfCnpj(client.cpfCnpj),
+        }));
+    }
+
+    async findOne(id: string, tenantId?: string): Promise<Client> {
+        const client = await this.clientsRepository.findOne({
+            where: tenantId ? { id, tenantId } : { id },
+            relations: ['contatos', 'osHistorico'],
+        });
+
+        if (!client) {
+            throw new NotFoundException('Cliente não encontrado');
+        }
+
+        return client;
+    }
+
+    async update(id: string, updateClientDto: UpdateClientDto): Promise<Client> {
+        const client = await this.findOne(id);
+        const { contatos: contatosDto, ...clientData } = updateClientDto;
+
+        // 1. Sincronizar contatos se fornecidos
+        if (contatosDto) {
+            // Pegar IDs enviados para saber quem excluir
+            const incomingIds = contatosDto.map(c => c.id).filter(Boolean);
+
+            // Remover os que não estão na nova lista
+            const currentContacts = client.contatos || [];
+            const toDelete = currentContacts.filter(c => !incomingIds.includes(c.id));
+
+            if (toDelete.length > 0) {
+                await this.contactsRepository.remove(toDelete);
+            }
+
+            // Atualizar lista no objeto (TypeORM cascade save lidará com o resto)
+            client.contatos = contatosDto.map(dto => this.contactsRepository.create({
+                ...dto,
+                clienteId: client.id
+            })) as ClientContact[];
+        }
+
+        const updatedClient = this.clientsRepository.merge(client, clientData);
+        return this.clientsRepository.save(updatedClient);
+    }
+
+    async softDelete(id: string): Promise<void> {
+        const client = await this.findOne(id);
+        client.status = ClientStatus.INATIVO;
+        await this.clientsRepository.save(client);
+        await this.clientsRepository.softDelete(id);
+    }
+
+    async reactivate(id: string): Promise<Client> {
+        await this.clientsRepository.restore(id);
+        const client = await this.clientsRepository.findOne({
+            where: { id },
+        });
+        if (!client) {
+            throw new NotFoundException('Cliente não encontrado');
+        }
+        client.status = ClientStatus.ATIVO;
+        return this.clientsRepository.save(client);
+    }
+
+    async findByDocument(cpfCnpj: string): Promise<Client | undefined> {
+        const cleaned = this.cleanCpfCnpj(cpfCnpj);
+        return this.clientsRepository.findOne({
+            where: { cpfCnpj: cleaned },
+        }) as Promise<Client | undefined>;
+    }
+
+    async hasLinkedOS(clientId: string): Promise<boolean> {
+        const count = await this.osHistoryRepository.count({
+            where: { clienteId: clientId },
+        });
+        return count > 0;
+    }
+}
+
+    async getClientStats(id: string, tenantId?: string) {
+        const client = await this.findOne(id, tenantId);
+        if (!client) throw new Error('Cliente não encontrado');
+
+        // Buscar OS do cliente
+        const orders = await this.dataSource?.getRepository
+            ? this.dataSource.getRepository('OrderService').find({
+                where: { clientId: id },
+                select: ['id', 'status', 'finalValue', 'estimatedValue', 'entryDate', 'exitDate'],
+              })
+            : [];
+
+        const paid    = (orders as any[]).filter((o: any) => o.status === 'entregue');
+        const total   = (orders as any[]).length;
+        const totalSpent = paid.reduce((s: number, o: any) => s + (Number(o.finalValue) || 0), 0);
+        const avgTicket  = paid.length > 0 ? totalSpent / paid.length : 0;
+        const lastOrder  = (orders as any[]).sort((a: any, b: any) =>
+            new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime())[0];
+
+        return {
+            totalOS: total,
+            deliveredOS: paid.length,
+            totalSpent,
+            avgTicket,
+            lastOrderDate: lastOrder?.entryDate || null,
+        };
+    }

@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Cadastro - Bem-vindo!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, Helvetica, Arial, sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .screen {
+            display: none;
+            min-height: 100vh;
+            padding: 30px 24px;
+            padding-bottom: 40px;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* ── Welcome Screen ─────────────────── */
+        .welcome {
+            text-align: center;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 40px 24px;
+        }
+
+        .welcome.active {
+            display: -webkit-flex;
+            display: flex;
+        }
+
+        .welcome-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+
+        .welcome h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .welcome p {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 40px;
+            line-height: 1.5;
+            max-width: 320px;
+        }
+
+        /* ── Buttons ─────────────────────────── */
+        .btn {
+            display: block;
+            width: 100%;
+            max-width: 360px;
+            padding: 18px 24px;
+            border: none;
+            border-radius: 14px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            margin: 6px auto;
+            -webkit-appearance: none;
+            outline: none;
+        }
+
+        .btn-primary {
+            background: #6366f1;
+            color: #fff;
+        }
+
+        .btn-primary:active {
+            background: #4f46e5;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:active {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-success {
+            background: #059669;
+            color: #fff;
+        }
+
+        .btn-success:active {
+            background: #047857;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+        }
+
+        /* ── Step Header ───────────────────── */
+        .step-header {
+            margin-bottom: 28px;
+        }
+
+        .step-progress {
+            display: -webkit-flex;
+            display: flex;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+
+        .step-dot {
+            height: 4px;
+            -webkit-flex: 1;
+            flex: 1;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .step-dot.done {
+            background: #6366f1;
+        }
+
+        .step-dot.current {
+            background: #818cf8;
+        }
+
+        .step-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .step-header p {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* ── Form Fields ───────────────────── */
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .field input {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            font-size: 18px;
+            font-family: inherit;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .field input:focus {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .field input.error {
+            border-color: #ef4444;
+        }
+
+        .field .hint {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.35);
+            margin-top: 4px;
+        }
+
+        .field .error-msg {
+            font-size: 12px;
+            color: #ef4444;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .row {
+            display: -webkit-flex;
+            display: flex;
+            gap: 12px;
+        }
+
+        .row .field {
+            -webkit-flex: 1;
+            flex: 1;
+        }
+
+        .row .field.small {
+            -webkit-flex: 0 0 100px;
+            flex: 0 0 100px;
+        }
+
+        .row .field.medium {
+            -webkit-flex: 0 0 140px;
+            flex: 0 0 140px;
+        }
+
+        /* ── Navigation ──────────────────────── */
+        .nav-btns {
+            margin-top: 28px;
+        }
+
+        .nav-btns .btn {
+            margin-bottom: 10px;
+        }
+
+        /* ── Loading Overlay ─────────────────── */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 15, 26, 0.92);
+            z-index: 100;
+            text-align: center;
+            padding-top: 40%;
+        }
+
+        .loading-overlay.active {
+            display: block;
+        }
+
+        .loading-overlay .spinner {
+            display: inline-block;
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.15);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            -webkit-animation: spin 0.8s linear infinite;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-overlay p {
+            margin-top: 16px;
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        @-webkit-keyframes spin {
+            to {
+                -webkit-transform: rotate(360deg);
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── Success Screen ──────────────────── */
+        .success-screen {
+            text-align: center;
+            padding-top: 15%;
+        }
+
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .success-screen h2 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #34d399;
+            margin-bottom: 12px;
+        }
+
+        .success-screen p {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        /* ── CEP Loading ──────────────────────── */
+        .cep-loading {
+            display: none;
+            font-size: 13px;
+            color: #818cf8;
+            margin-top: 4px;
+        }
+
+        .cep-loading.active {
+            display: block;
+        }
+
+        .address-fields {
+            display: none;
+        }
+
+        .address-fields.active {
+            display: block;
+        }
+
+        /* ── Alert ──────────────────────────── */
+        .alert {
+            display: none;
+            padding: 14px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .alert.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCREEN 0: WELCOME                              -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div id="screen-welcome" class="screen welcome active">
+        <div class="welcome-icon">👋</div>
+        <h1>Bem-vindo!</h1>
+        <p>Faça seu cadastro rápido para agilizar seu atendimento.</p>
+        <button class="btn btn-primary" onclick="goToStep(1)">Iniciar Cadastro</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCREEN 1: NOME                                 -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div id="screen-1" class="screen">
+        <div class="step-header">
+            <div class="step-progress">
+                <div class="step-dot current"></div>
+                <div class="step-dot"></div>
+                <div class="step-dot"></div>
+                <div class="step-dot"></div>
+            </div>
+            <h2>Seu Nome</h2>
+            <p>Como gostaria de ser chamado?</p>
+        </div>
+
+        <div class="field">
+            <label>Nome Completo</label>
+            <input type="text" id="inp-nome" placeholder="Ex: João Silva" autocomplete="name" autocapitalize="words">
+        </div>
+
+        <div class="nav-btns">
+            <button class="btn btn-primary" onclick="validateAndNext(1)">Continuar</button>
+            <button class="btn btn-secondary" onclick="goToStep(0)">Voltar</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCREEN 2: TELEFONE + CPF                       -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div id="screen-2" class="screen">
+        <div class="step-header">
+            <div class="step-progress">
+                <div class="step-dot done"></div>
+                <div class="step-dot current"></div>
+                <div class="step-dot"></div>
+                <div class="step-dot"></div>
+            </div>
+            <h2>Contato</h2>
+            <p>Seu telefone para comunicação</p>
+        </div>
+
+        <div class="field">
+            <label>WhatsApp / Celular</label>
+            <input type="tel" id="inp-telefone" placeholder="(47) 99999-9999" maxlength="15">
+        </div>
+
+        <div class="field">
+            <label>CPF (opcional)</label>
+            <input type="tel" id="inp-cpf" placeholder="000.000.000-00" maxlength="14">
+        </div>
+
+        <div class="field">
+            <label>E-mail (opcional)</label>
+            <input type="email" id="inp-email" placeholder="seu@email.com" autocomplete="email">
+        </div>
+
+        <div class="nav-btns">
+            <button class="btn btn-primary" onclick="validateAndNext(2)">Continuar</button>
+            <button class="btn btn-secondary" onclick="goToStep(1)">Voltar</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCREEN 3: ENDEREÇO (CEP AUTO)                  -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div id="screen-3" class="screen">
+        <div class="step-header">
+            <div class="step-progress">
+                <div class="step-dot done"></div>
+                <div class="step-dot done"></div>
+                <div class="step-dot current"></div>
+                <div class="step-dot"></div>
+            </div>
+            <h2>Endereço</h2>
+            <p>Digite seu CEP para preenchimento automático</p>
+        </div>
+
+        <div class="field">
+            <label>CEP</label>
+            <input type="tel" id="inp-cep" placeholder="00000-000" maxlength="9" oninput="onCepInput(this)">
+            <div id="cep-loading" class="cep-loading">🔍 Buscando endereço...</div>
+        </div>
+
+        <div id="address-fields" class="address-fields">
+            <div class="field">
+                <label>Rua</label>
+                <input type="text" id="inp-rua" placeholder="Rua / Avenida">
+            </div>
+
+            <div class="row">
+                <div class="field small">
+                    <label>Número</label>
+                    <input type="tel" id="inp-numero" placeholder="Nº">
+                </div>
+                <div class="field">
+                    <label>Complemento</label>
+                    <input type="text" id="inp-complemento" placeholder="Apto, Bloco...">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Bairro</label>
+                <input type="text" id="inp-bairro" placeholder="Bairro">
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label>Cidade</label>
+                    <input type="text" id="inp-cidade" placeholder="Cidade">
+                </div>
+                <div class="field small">
+                    <label>UF</label>
+                    <input type="text" id="inp-estado" placeholder="SC" maxlength="2"
+                        style="text-transform: uppercase;">
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-btns">
+            <button class="btn btn-primary" onclick="validateAndNext(3)">Continuar</button>
+            <button class="btn btn-secondary" onclick="skipAddress()">Pular endereço</button>
+            <button class="btn btn-secondary" onclick="goToStep(2)">Voltar</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCREEN 4: CONFIRMAR                            -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div id="screen-4" class="screen">
+        <div class="step-header">
+            <div class="step-progress">
+                <div class="step-dot done"></div>
+                <div class="step-dot done"></div>
+                <div class="step-dot done"></div>
+                <div class="step-dot current"></div>
+            </div>
+            <h2>Confirme seus dados</h2>
+            <p>Verifique se está tudo correto</p>
+        </div>
+
+        <div id="alert-error" class="alert"></div>
+
+        <div
+            style="background: rgba(255,255,255,0.04); border-radius: 14px; padding: 20px; border: 1px solid rgba(255,255,255,0.08);">
+            <div style="margin-bottom: 16px;">
+                <div
+                    style="font-size: 12px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px;">
+                    Nome</div>
+                <div id="confirm-nome" style="font-size: 18px; font-weight: 600;"></div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <div
+                    style="font-size: 12px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px;">
+                    WhatsApp</div>
+                <div id="confirm-telefone" style="font-size: 18px; font-weight: 600;"></div>
+            </div>
+            <div id="confirm-cpf-row" style="margin-bottom: 16px; display: none;">
+                <div
+                    style="font-size: 12px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px;">
+                    CPF</div>
+                <div id="confirm-cpf" style="font-size: 18px; font-weight: 600;"></div>
+            </div>
+            <div id="confirm-email-row" style="margin-bottom: 16px; display: none;">
+                <div
+                    style="font-size: 12px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px;">
+                    E-mail</div>
+                <div id="confirm-email" style="font-size: 18px; font-weight: 600;"></div>
+            </div>
+            <div id="confirm-endereco-row" style="display: none;">
+                <div
+                    style="font-size: 12px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 2px;">
+                    Endereço</div>
+                <div id="confirm-endereco" style="font-size: 16px; font-weight: 500; line-height: 1.4;"></div>
+            </div>
+        </div>
+
+        <div class="nav-btns">
+            <button class="btn btn-success" onclick="submitRegistration()" id="btn-submit">✅ Confirmar Cadastro</button>
+            <button class="btn btn-secondary" onclick="goToStep(1)">Corrigir Dados</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCREEN 5: SUCCESS                              -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div id="screen-success" class="screen success-screen">
+        <div class="success-icon">✅</div>
+        <h2>Cadastro Realizado!</h2>
+        <p id="success-msg">Obrigado! Seu cadastro foi realizado com sucesso. Aguarde ser chamado para o atendimento.
+        </p>
+        <button class="btn btn-primary" onclick="resetForm()">Novo Cadastro</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- LOADING OVERLAY                                -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Cadastrando...</p>
+    </div>
+
+    <script>
+        // ─── Configuration ────────────────────────────────────
+        // Backend URL - adjust if needed
+        var API_URL = window.location.protocol + '//' + window.location.hostname + ':3001';
+
+        // ─── State ────────────────────────────────────────────
+        var currentStep = 0;
+        var cepTimer = null;
+
+        // ─── Navigation ───────────────────────────────────────
+        function goToStep(step) {
+            // Hide all screens
+            var screens = document.querySelectorAll('.screen');
+            for (var i = 0; i < screens.length; i++) {
+                screens[i].className = screens[i].className.replace(' active', '');
+            }
+
+            if (step === 0) {
+                document.getElementById('screen-welcome').className += ' active';
+            } else if (step === 5) {
+                document.getElementById('screen-success').className += ' active';
+            } else {
+                document.getElementById('screen-' + step).className += ' active';
+
+                // If going to confirmation, populate data
+                if (step === 4) {
+                    populateConfirmation();
+                }
+            }
+
+            currentStep = step;
+            window.scrollTo(0, 0);
+        }
+
+        // ─── Validation ───────────────────────────────────────
+        function validateAndNext(step) {
+            if (step === 1) {
+                var nome = document.getElementById('inp-nome').value.trim();
+                if (!nome) {
+                    shakeInput('inp-nome');
+                    return;
+                }
+                goToStep(2);
+            } else if (step === 2) {
+                var tel = document.getElementById('inp-telefone').value.replace(/\D/g, '');
+                if (tel.length < 10) {
+                    shakeInput('inp-telefone');
+                    return;
+                }
+                goToStep(3);
+            } else if (step === 3) {
+                goToStep(4);
+            }
+        }
+
+        function shakeInput(id) {
+            var el = document.getElementById(id);
+            el.style.borderColor = '#ef4444';
+            el.focus();
+            setTimeout(function () {
+                el.style.borderColor = '';
+            }, 2000);
+        }
+
+        // ─── Phone Mask ───────────────────────────────────────
+        document.getElementById('inp-telefone').addEventListener('input', function (e) {
+            var v = this.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.substring(0, 11);
+
+            if (v.length > 6) {
+                this.value = '(' + v.substring(0, 2) + ') ' + v.substring(2, v.length - 4) + '-' + v.substring(v.length - 4);
+            } else if (v.length > 2) {
+                this.value = '(' + v.substring(0, 2) + ') ' + v.substring(2);
+            } else if (v.length > 0) {
+                this.value = '(' + v;
+            }
+        });
+
+        // ─── CPF Mask ─────────────────────────────────────────
+        document.getElementById('inp-cpf').addEventListener('input', function (e) {
+            var v = this.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.substring(0, 11);
+
+            if (v.length > 9) {
+                this.value = v.substring(0, 3) + '.' + v.substring(3, 6) + '.' + v.substring(6, 9) + '-' + v.substring(9);
+            } else if (v.length > 6) {
+                this.value = v.substring(0, 3) + '.' + v.substring(3, 6) + '.' + v.substring(6);
+            } else if (v.length > 3) {
+                this.value = v.substring(0, 3) + '.' + v.substring(3);
+            } else {
+                this.value = v;
+            }
+        });
+
+        // ─── CEP Lookup ───────────────────────────────────────
+        function onCepInput(el) {
+            var v = el.value.replace(/\D/g, '');
+            if (v.length > 8) v = v.substring(0, 8);
+
+            // Format: 00000-000
+            if (v.length > 5) {
+                el.value = v.substring(0, 5) + '-' + v.substring(5);
+            } else {
+                el.value = v;
+            }
+
+            // Auto-search when 8 digits
+            if (v.length === 8) {
+                if (cepTimer) clearTimeout(cepTimer);
+                cepTimer = setTimeout(function () {
+                    fetchCep(v);
+                }, 400);
+            }
+        }
+
+        function fetchCep(cep) {
+            var loadingEl = document.getElementById('cep-loading');
+            loadingEl.className = 'cep-loading active';
+
+            // Use XMLHttpRequest for iOS 9 compatibility
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'https://viacep.com.br/ws/' + cep + '/json/', true);
+            xhr.timeout = 10000;
+
+            xhr.onload = function () {
+                loadingEl.className = 'cep-loading';
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (!data.erro) {
+                            document.getElementById('inp-rua').value = data.logradouro || '';
+                            document.getElementById('inp-bairro').value = data.bairro || '';
+                            document.getElementById('inp-cidade').value = data.localidade || '';
+                            document.getElementById('inp-estado').value = data.uf || '';
+
+                            // Show address fields
+                            document.getElementById('address-fields').className = 'address-fields active';
+
+                            // Focus on número
+                            document.getElementById('inp-numero').focus();
+                        }
+                    } catch (e) { }
+                }
+            };
+
+            xhr.onerror = function () {
+                loadingEl.className = 'cep-loading';
+            };
+
+            xhr.ontimeout = function () {
+                loadingEl.className = 'cep-loading';
+            };
+
+            xhr.send();
+        }
+
+        function skipAddress() {
+            goToStep(4);
+        }
+
+        // ─── Confirmation ─────────────────────────────────────
+        function populateConfirmation() {
+            var nome = document.getElementById('inp-nome').value;
+            var tel = document.getElementById('inp-telefone').value;
+            var cpf = document.getElementById('inp-cpf').value;
+            var email = document.getElementById('inp-email').value;
+            var rua = document.getElementById('inp-rua').value;
+            var numero = document.getElementById('inp-numero').value;
+            var bairro = document.getElementById('inp-bairro').value;
+            var cidade = document.getElementById('inp-cidade').value;
+            var estado = document.getElementById('inp-estado').value;
+
+            document.getElementById('confirm-nome').textContent = nome;
+            document.getElementById('confirm-telefone').textContent = tel;
+
+            if (cpf) {
+                document.getElementById('confirm-cpf').textContent = cpf;
+                document.getElementById('confirm-cpf-row').style.display = 'block';
+            } else {
+                document.getElementById('confirm-cpf-row').style.display = 'none';
+            }
+
+            if (email) {
+                document.getElementById('confirm-email').textContent = email;
+                document.getElementById('confirm-email-row').style.display = 'block';
+            } else {
+                document.getElementById('confirm-email-row').style.display = 'none';
+            }
+
+            if (rua || cidade) {
+                var endereco = '';
+                if (rua) endereco += rua;
+                if (numero) endereco += ', ' + numero;
+                if (bairro) endereco += ' - ' + bairro;
+                if (cidade) endereco += '\n' + cidade;
+                if (estado) endereco += ' / ' + estado.toUpperCase();
+                document.getElementById('confirm-endereco').textContent = endereco;
+                document.getElementById('confirm-endereco-row').style.display = 'block';
+            } else {
+                document.getElementById('confirm-endereco-row').style.display = 'none';
+            }
+
+            // Hide previous errors
+            document.getElementById('alert-error').className = 'alert';
+        }
+
+        // ─── Submit ───────────────────────────────────────────
+        function submitRegistration() {
+            var btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+
+            document.getElementById('loading-overlay').className = 'loading-overlay active';
+
+            var data = {
+                nome: document.getElementById('inp-nome').value.trim(),
+                telefone: document.getElementById('inp-telefone').value,
+                cpf: document.getElementById('inp-cpf').value,
+                email: document.getElementById('inp-email').value.trim(),
+                cep: document.getElementById('inp-cep').value.replace(/\D/g, ''),
+                rua: document.getElementById('inp-rua').value,
+                numero: document.getElementById('inp-numero').value,
+                complemento: document.getElementById('inp-complemento').value,
+                bairro: document.getElementById('inp-bairro').value,
+                cidade: document.getElementById('inp-cidade').value,
+                estado: document.getElementById('inp-estado').value.toUpperCase()
+            };
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', API_URL + '/clients/public/register', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.timeout = 15000;
+
+            xhr.onload = function () {
+                document.getElementById('loading-overlay').className = 'loading-overlay';
+                btn.disabled = false;
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        var result = JSON.parse(xhr.responseText);
+                        document.getElementById('success-msg').textContent =
+                            'Obrigado, ' + (result.nome || data.nome) + '! Seu cadastro foi realizado com sucesso. Aguarde ser chamado para o atendimento.';
+                    } catch (e) { }
+                    goToStep(5);
+                } else {
+                    var errorMsg = 'Erro ao cadastrar. Tente novamente.';
+                    try {
+                        var err = JSON.parse(xhr.responseText);
+                        if (err.message) {
+                            errorMsg = typeof err.message === 'string' ? err.message : err.message[0];
+                        }
+                    } catch (e) { }
+
+                    var alertEl = document.getElementById('alert-error');
+                    alertEl.textContent = '⚠️ ' + errorMsg;
+                    alertEl.className = 'alert error';
+                }
+            };
+
+            xhr.onerror = function () {
+                document.getElementById('loading-overlay').className = 'loading-overlay';
+                btn.disabled = false;
+
+                var alertEl = document.getElementById('alert-error');
+                alertEl.textContent = '⚠️ Sem conexão com o servidor. Peça ajuda ao atendente.';
+                alertEl.className = 'alert error';
+            };
+
+            xhr.ontimeout = function () {
+                document.getElementById('loading-overlay').className = 'loading-overlay';
+                btn.disabled = false;
+
+                var alertEl = document.getElementById('alert-error');
+                alertEl.textContent = '⚠️ O servidor demorou muito. Tente novamente.';
+                alertEl.className = 'alert error';
+            };
+
+            xhr.send(JSON.stringify(data));
+        }
+
+        // ─── Reset Form ───────────────────────────────────────
+        function resetForm() {
+            document.getElementById('inp-nome').value = '';
+            document.getElementById('inp-telefone').value = '';
+            document.getElementById('inp-cpf').value = '';
+            document.getElementById('inp-email').value = '';
+            document.getElementById('inp-cep').value = '';
+            document.getElementById('inp-rua').value = '';
+            document.getElementById('inp-numero').value = '';
+            document.getElementById('inp-complemento').value = '';
+            document.getElementById('inp-bairro').value = '';
+            document.getElementById('inp-cidade').value = '';
+            document.getElementById('inp-estado').value = '';
+            document.getElementById('address-fields').className = 'address-fields';
+            goToStep(0);
+        }
+
+        // ─── Auto-reset after 60s of inactivity on success ──
+        var inactivityTimer = null;
+        document.addEventListener('touchstart', function () {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            if (currentStep === 5) {
+                inactivityTimer = setTimeout(resetForm, 60000);
+            }
+        });
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,58 @@
+# ── Dependências ────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Build ───────────────────────────────────────────────────────
+dist/
+build/
+.next/
+
+# ── Variáveis de ambiente (NUNCA subir) ──────────────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ── Banco SQLite (dados locais) ──────────────────────────────────
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# ── Certificados e segredos ──────────────────────────────────────
+certs/
+*.pfx
+*.p12
+*.pem
+*.key
+nginx/ssl/
+
+# ── Logs ────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+
+# ── Backups ─────────────────────────────────────────────────────
+backups/
+
+# ── Sistema operacional ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDEs ────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ── Cobertura de testes ─────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── TypeScript incremental ──────────────────────────────────────
+*.tsbuildinfo
+
+# ── Docker volumes locais ────────────────────────────────────────
+postgres_data/

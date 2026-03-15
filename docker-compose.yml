@@ -1,0 +1,158 @@
+version: '3.9'
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  OS4U — Docker Compose completo                             ║
+# ║  Uso: docker compose up -d                                   ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+services:
+
+  # ──────────────────────────────────────────────────────────────
+  # PostgreSQL
+  # ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: os4u_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-os4u}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+      POSTGRES_DB: ${DB_DATABASE:-assistencia_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5432:5432'   # só acessível localmente
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-os4u}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - os4u_net
+
+  # ──────────────────────────────────────────────────────────────
+  # Backend NestJS
+  # ──────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: os4u_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:3005:3005'   # Nginx faz proxy; não expor direto em prod
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+
+      # Banco
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-os4u}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE:-assistencia_db}
+
+      # Auth
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+
+      # CORS
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+
+      # WhatsApp (Evolution API)
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_INSTANCE_ID: ${EVOLUTION_INSTANCE_ID:-}
+
+      # E-mail SMTP
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+
+      # Fiscal NF-e (opcional)
+      FISCAL_AMBIENTE: ${FISCAL_AMBIENTE:-2}
+      FISCAL_CERT_PATH: /app/certs/certificado.pfx
+      FISCAL_CERT_PASSWORD: ${FISCAL_CERT_PASSWORD:-}
+      FISCAL_EMITENTE_CNPJ: ${FISCAL_EMITENTE_CNPJ:-}
+      FISCAL_EMITENTE_RAZAO_SOCIAL: ${FISCAL_EMITENTE_RAZAO_SOCIAL:-}
+      FISCAL_EMITENTE_UF: ${FISCAL_EMITENTE_UF:-SC}
+      FISCAL_EMITENTE_CRT: ${FISCAL_EMITENTE_CRT:-1}
+
+      # Cloudinary (fotos das OS)
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+
+    volumes:
+      - ./certs:/app/certs:ro        # certificado digital NF-e
+      - backend_logs:/app/logs
+    networks:
+      - os4u_net
+
+  # ──────────────────────────────────────────────────────────────
+  # Frontend React (Nginx)
+  # ──────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3005}
+    container_name: os4u_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '127.0.0.1:8080:80'    # Nginx reverso aponta para cá
+    networks:
+      - os4u_net
+
+  # ──────────────────────────────────────────────────────────────
+  # Nginx Reverso (HTTPS + roteamento)
+  # ──────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: os4u_nginx
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro       # certificados SSL
+      - certbot_www:/var/www/certbot:ro     # para renovação Let's Encrypt
+    networks:
+      - os4u_net
+
+  # ──────────────────────────────────────────────────────────────
+  # Certbot — SSL automático (Let's Encrypt)
+  # ──────────────────────────────────────────────────────────────
+  certbot:
+    image: certbot/certbot
+    container_name: os4u_certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: >
+      sh -c "trap exit TERM;
+             while :; do
+               certbot renew --webroot -w /var/www/certbot --quiet;
+               sleep 12h & wait $${!};
+             done"
+
+volumes:
+  postgres_data:
+  backend_logs:
+  certbot_www:
+
+networks:
+  os4u_net:
+    driver: bridge

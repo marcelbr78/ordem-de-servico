@@ -1,0 +1,38 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { OrdersService } from './orders.service';
+import { LookupService } from './lookup.service';
+import { OrdersController } from './orders.controller';
+import { PublicOrdersController } from './public-orders.controller';
+import { OrderService } from './entities/order-service.entity';
+import { OrderEquipment } from './entities/order-equipment.entity';
+import { OrderHistory } from './entities/order-history.entity';
+import { OrderPhoto } from './entities/order-photo.entity';
+import { OrderPart } from './entities/order-part.entity';
+import { OrderConversation } from './entities/order-conversation.entity';
+import { WhatsappModule } from '../whatsapp/whatsapp.module';
+import { ClientsModule } from '../clients/clients.module';
+import { InventoryModule } from '../inventory/inventory.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { SettingsModule } from '../settings/settings.module';
+import { FinanceModule } from '../finance/finance.module';
+import { OrderPdfService } from './pdf/order-pdf.service';
+import { TenantsModule } from '../tenants/tenants.module';
+import { PlansService } from '../tenants/plans.service';
+import { Plan } from '../tenants/entities/plan.entity';
+import { ConversationService } from './conversation.service';
+
+@Module({
+    imports: [
+        TypeOrmModule.forFeature([
+            OrderService, OrderEquipment, OrderHistory,
+            OrderPhoto, OrderPart, OrderConversation, Plan,
+        ]),
+        WhatsappModule, ClientsModule, InventoryModule,
+        CloudinaryModule, SettingsModule, FinanceModule, TenantsModule,
+    ],
+    controllers: [OrdersController, PublicOrdersController],
+    providers: [OrdersService, LookupService, OrderPdfService, PlansService, ConversationService],
+    exports: [OrdersService, ConversationService],
+})
+export class OrdersModule {}

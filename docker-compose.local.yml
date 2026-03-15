@@ -1,0 +1,91 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  OS4U — Docker Compose LOCAL (notebook da loja)             ║
+# ║  Uso: docker compose -f docker-compose.local.yml up -d      ║
+# ║  Frontend: http://SEU_IP:80                                  ║
+# ║  Backend:  http://SEU_IP:3005                                ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+version: '3.9'
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: os4u_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: os4u
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-os4u_loja_123}
+      POSTGRES_DB: assistencia_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U os4u']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - os4u_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: os4u_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3005:3005'       # acessível na rede local
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: os4u
+      DB_PASSWORD: ${DB_PASSWORD:-os4u_loja_123}
+      DB_DATABASE: assistencia_db
+      JWT_SECRET: ${JWT_SECRET:-TROQUE_ISSO_ANTES_DE_USAR}
+      JWT_EXPIRES_IN: 7d
+      # FRONTEND_URL vazio = aceita qualquer origem (OK para rede local)
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      # Opcionais — preencher no .env se usar
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_INSTANCE_ID: ${EVOLUTION_INSTANCE_ID:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+    volumes:
+      - ./certs:/app/certs:ro
+    networks:
+      - os4u_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # IP/endereço do notebook na rede — pegar com ipconfig/ip a
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3005}
+    container_name: os4u_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '80:80'           # acessível na rede local: http://SEU_IP
+    networks:
+      - os4u_net
+
+volumes:
+  postgres_data:
+
+networks:
+  os4u_net:
+    driver: bridge

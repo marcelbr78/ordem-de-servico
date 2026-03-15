@@ -1,0 +1,24 @@
+version: '3.3'
+
+services:
+  evolution_api:
+    container_name: evolution_api
+    image: atendai/evolution-api:v1.8.2
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=http://localhost:8080
+      - DOCKER_ENV=true
+      - LOG_LEVEL=ERROR
+      - DEL_INSTANCE=false
+      - DATABASE_ENABLED=false
+      - AUTHENTICATION_API_KEY=B8D6F5E4C3A2910G7
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+    volumes:
+      - evolution_store:/evolution/store
+      - evolution_instances:/evolution/instances
+
+volumes:
+  evolution_store:
+  evolution_instances:
