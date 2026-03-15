@@ -180,9 +180,7 @@ export class ClientsService {
         const count = await this.osHistoryRepository.count({
             where: { clienteId: clientId },
         });
-        return count > 0;
     }
-}
 
     async getClientStats(id: string, tenantId?: string) {
         const client = await this.findOne(id, tenantId);
@@ -211,3 +209,4 @@ export class ClientsService {
             lastOrderDate: lastOrder?.entryDate || null,
         };
     }
+}

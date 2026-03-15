@@ -111,6 +111,7 @@ export class ReportsController {
             avgRepairHours: Math.round(avgRepairHours),
             topBrands,
             dailyChart,
+            monthlyRevenue,
         };
     }
 

@@ -27,18 +27,6 @@ export class DashboardController {
     async getHealth() {
         return this.healthService.getFullReport();
     }
-}
-
-    @Get('onboarding')
-    async getOnboarding() {
-        return this.healthService.getOnboardingScores();
-    }
-
-    @Get('analytics')
-    async getAnalytics() {
-        return this.healthService.getAdvancedAnalytics();
-    }
-
     @Get('audit')
     async getAuditLogs(
         @Query('page') page = '1',
@@ -46,3 +34,4 @@ export class DashboardController {
     ) {
         return this.healthService.getAuditLogs(parseInt(page), search);
     }
+}

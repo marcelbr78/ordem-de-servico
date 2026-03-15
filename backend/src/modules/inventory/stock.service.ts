@@ -117,10 +117,7 @@ export class StockService {
             }
         };
 
-        if (manager) await run(manager);
-        else await this.dataSource.transaction(run);
     }
-}
 
     // ── Entrada manual ────────────────────────────────────────
     async manualEntry(productId: string, quantity: number, cost?: number, reason?: string, supplierId?: string, invoiceNumber?: string, tenantId?: string) {
@@ -225,3 +222,4 @@ export class StockService {
         if (to)        qb.andWhere('m.createdAt <= :to',   { to: to + 'T23:59:59' });
         return qb.getMany();
     }
+}

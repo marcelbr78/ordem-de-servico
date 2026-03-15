@@ -120,10 +120,7 @@ export class InventoryService {
     }
 
     async updateQuantity(id: string, quantity: number, type: 'IN' | 'OUT'): Promise<Product> {
-        // Deprecated: Logic moved to StockService
-        return this.findOne(id);
     }
-}
 
     async remove(id: string): Promise<void> {
         await this.productRepository.delete(id);
@@ -163,3 +160,4 @@ export class InventoryService {
             return { ...item, cumulative, cumulativePct: pct, abc: pct <= 80 ? 'A' : pct <= 95 ? 'B' : 'C' };
         });
     }
+}
