@@ -120,6 +120,8 @@ export class InventoryService {
     }
 
     async updateQuantity(id: string, quantity: number, type: 'IN' | 'OUT'): Promise<Product> {
+        // Deprecated: Logic moved to StockService
+        return this.findOne(id);
     }
 
     async remove(id: string): Promise<void> {

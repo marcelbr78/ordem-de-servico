@@ -117,6 +117,8 @@ export class StockService {
             }
         };
 
+        if (manager) await run(manager);
+        else await this.dataSource.transaction(run);
     }
 
     // ── Entrada manual ────────────────────────────────────────

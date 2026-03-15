@@ -121,6 +121,7 @@ export class ClientsController {
     findOsHistory(@Param('id') id: string) {
         return this.osHistoryService.findByClient(id);
     }
+
     @Get(':id/stats')
     async getStats(@Param('id') id: string, @Req() req: any) {
         return this.clientsService.getClientStats(id, req.user?.tenantId);

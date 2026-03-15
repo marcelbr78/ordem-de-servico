@@ -238,7 +238,6 @@ export class HealthService {
             return { receivedToday: 0, deliveredToday: 0, failedToday: 0, avgLatencyMs: 0 };
         }
     }
-}
 
     async getOnboardingScores() {
         const tenants = await this.tenantRepo.find({ order: { createdAt: 'DESC' }, take: 50 });
@@ -325,3 +324,4 @@ export class HealthService {
         const [data, total] = await qb.getManyAndCount().catch(() => [[], 0] as [any[], number]);
         return { data, total, page };
     }
+}

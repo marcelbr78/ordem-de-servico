@@ -180,6 +180,7 @@ export class ClientsService {
         const count = await this.osHistoryRepository.count({
             where: { clienteId: clientId },
         });
+        return count > 0;
     }
 
     async getClientStats(id: string, tenantId?: string) {
