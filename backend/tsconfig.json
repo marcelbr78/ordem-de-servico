@@ -18,16 +18,14 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     },
     "rootDir": "."
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": [
+    "node_modules",
+    "dist",
     "**/*.spec.ts",
     "**/*.test.ts"
   ]

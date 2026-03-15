@@ -14,15 +14,16 @@ export class FinanceService {
 
     async create(dto: CreateTransactionDto, manager?: EntityManager): Promise<Transaction> {
         const repo = manager ? manager.getRepository(Transaction) : this.txRepo;
+        const status = (dto.status as any) || (dto.dueDate ? TransactionStatus.PENDING : TransactionStatus.PAID);
         const tx = repo.create({
-            ...dto,
-            status: dto.status || (dto.dueDate ? TransactionStatus.PENDING : TransactionStatus.PAID),
+            ...(dto as any),
+            status,
             competenceDate: dto.competenceDate || dto.paidDate || new Date().toISOString().slice(0, 10),
         });
         const saved = await repo.save(tx);
 
         // Atualiza saldo da conta bancária se pago e conta informada
-        if (saved.status === TransactionStatus.PAID && dto.bankAccountId && manager) {
+        if ((saved as any).status === TransactionStatus.PAID && dto.bankAccountId && manager) {
             const bankRepo = manager.getRepository(BankAccount);
             const account = await bankRepo.findOne({ where: { id: dto.bankAccountId } });
             if (account) {

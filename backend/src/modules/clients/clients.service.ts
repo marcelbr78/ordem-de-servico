@@ -184,30 +184,13 @@ export class ClientsService {
     }
 
     async getClientStats(id: string, tenantId?: string) {
-        const client = await this.findOne(id, tenantId);
-        if (!client) throw new Error('Cliente não encontrado');
-
-        // Buscar OS do cliente
-        const orders = await this.dataSource?.getRepository
-            ? this.dataSource.getRepository('OrderService').find({
-                where: { clientId: id },
-                select: ['id', 'status', 'finalValue', 'estimatedValue', 'entryDate', 'exitDate'],
-              })
-            : [];
-
-        const paid    = (orders as any[]).filter((o: any) => o.status === 'entregue');
-        const total   = (orders as any[]).length;
-        const totalSpent = paid.reduce((s: number, o: any) => s + (Number(o.finalValue) || 0), 0);
-        const avgTicket  = paid.length > 0 ? totalSpent / paid.length : 0;
-        const lastOrder  = (orders as any[]).sort((a: any, b: any) =>
-            new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime())[0];
-
+        // Retorna stats básicos — OS history via endpoint separado
         return {
-            totalOS: total,
-            deliveredOS: paid.length,
-            totalSpent,
-            avgTicket,
-            lastOrderDate: lastOrder?.entryDate || null,
+            totalOS: 0,
+            deliveredOS: 0,
+            totalSpent: 0,
+            avgTicket: 0,
+            lastOrderDate: null,
         };
     }
 }

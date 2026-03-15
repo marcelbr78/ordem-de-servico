@@ -128,19 +128,19 @@ export class AuthService {
         ip?: string,
         userAgent?: string
     ) {
-        // 1. Create tenant + trial subscription using the existing registerNewStore
-        //    (it generates a random password — we'll override it below)
-        const result = await this.tenantsService.registerNewStore({
-            storeName: data.storeName,
-            ownerName: data.ownerName,
-            ownerEmail: data.ownerEmail,
-            cnpj: data.cnpj,
+        // 1. Verificar se email já existe
+        const existing = await this.usersService.findByEmail(data.ownerEmail);
+        if (existing) throw new UnauthorizedException('E-mail já cadastrado.');
+
+        // 2. Criar usuário admin (sem tenant — sistema single-tenant)
+        const admin = await this.usersService.createAdminUserForTenant({
+            name: data.ownerName,
+            email: data.ownerEmail,
+            password: data.password,
+            mustChangePassword: false,
         });
 
-        // 2. Override generated password with chosen password
-        await this.usersService.changePassword(result.admin.id, data.password);
-
-        // 3. Auto-login: return JWT tokens so the user is logged in immediately
+        // 3. Auto-login
         const user = await this.usersService.findByEmail(data.ownerEmail);
         return this.login(user, ip, userAgent);
     }

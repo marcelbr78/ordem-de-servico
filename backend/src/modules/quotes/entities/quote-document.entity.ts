@@ -6,13 +6,15 @@ export enum QuoteDocStatus {
     REJECTED = 'rejected', EXPIRED = 'expired', CANCELED = 'canceled',
 }
 
+// Exportado explicitamente para uso no PDF service e quotes service
 export interface QuoteItem {
     id: string;
-    type: string;
+    type: 'service' | 'part' | 'other';
     description: string;
     quantity: number;
     unitPrice: number;
     total: number;
+    warranty?: string;
 }
 
 @Entity('quote_documents')
@@ -23,9 +25,9 @@ export class QuoteDocument {
     @Column({ default: 1 }) version: number;
     @Column({ type: 'text', default: QuoteDocStatus.DRAFT }) status: QuoteDocStatus;
     @Column({ nullable: true }) validUntil: string;
-    @Column({ type: 'text' }) itemsJson: string;
+    @Column({ type: 'text', default: '[]' }) itemsJson: string;
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 }) subtotal: number;
-    @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 }) discountPercent: number;
+    @Column({ type: 'decimal', precision: 5,  scale: 2, default: 0 }) discountPercent: number;
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 }) discountValue: number;
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 }) total: number;
     @Column({ nullable: true }) paymentCondition: string;

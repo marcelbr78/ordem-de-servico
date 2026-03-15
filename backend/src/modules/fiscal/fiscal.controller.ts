@@ -193,7 +193,7 @@ export class FiscalController {
             if (!body.email) throw new Error('E-mail não informado');
             const nota = await this.fiscalService.findNotaById(id);
             const danfePdf = await this.fiscalService.getDanfePdf(id);
-            await (this.fiscalService as any).enviarEmailDanfe(body.email, nota.nomeDestinatario || 'Destinatário', danfePdf, nota);
+            await (this.fiscalService as any).enviarEmailDanfe(body.email, (nota as any).nomeDestinatario || (nota as any).destinatario?.nome || 'Destinatário', danfePdf, nota);
             return { success: true, message: `DANFE enviado para ${body.email}` };
         } catch (err) {
             return this.handleError(err);

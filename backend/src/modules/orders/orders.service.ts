@@ -596,7 +596,7 @@ export class OrdersService {
                 senderName: 'Sistema',
             });
         } catch (e) {
-            console.warn(`[Conversation] Falha ao gravar outbound: ${e.message}`);
+            this.logger?.warn?.(`[Conversation] Falha ao gravar outbound: ${e.message}`) ?? console.warn(`[Conversation] Falha ao gravar outbound: ${e.message}`);
         }
 
         return { success: true, message: 'Mensagem enviada com sucesso!' };
@@ -714,7 +714,7 @@ export class OrdersService {
             .getMany()
             .catch(() => []);
 
-        const monthlyRevenue = monthlyTransactions.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+        const monthlyRevenue = (monthlyTransactions as any[]).reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
         // ── Dados do dia de hoje ─────────────────────────────
         const today = new Date();
@@ -744,7 +744,7 @@ export class OrdersService {
             .andWhere('t.createdAt >= :start', { start: prevMonthStart })
             .andWhere('t.createdAt < :end', { end: startOfMonth })
             .getMany().catch(() => []);
-        const prevMonthRevenue = prevMonthTransactions.reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const prevMonthRevenue = (prevMonthTransactions as any[]).reduce((s: number, t: any) => s + Number(t.amount), 0);
 
         // ── Top técnicos (por OS entregues no mês) ──────────
         const deliveredMonth = await this.ordersRepository.find({

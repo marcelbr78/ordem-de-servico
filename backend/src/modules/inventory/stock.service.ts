@@ -137,7 +137,7 @@ export class StockService {
             (mv as any).invoiceNumber = invoiceNumber;
             (mv as any).supplierId = supplierId;
             await em.save(mv);
-            return em.findOne(Product, { where: { id: productId }, relations: ['balance'] });
+            return em.findOne(require('./entities/product.entity').Product, { where: { id: productId }, relations: ['balance'] });
         });
     }
 
@@ -155,7 +155,7 @@ export class StockService {
             });
             (mv as any).reason = reason || 'Saída manual';
             await em.save(mv);
-            return em.findOne(Product, { where: { id: productId }, relations: ['balance'] });
+            return em.findOne(require('./entities/product.entity').Product, { where: { id: productId }, relations: ['balance'] });
         });
     }
 
@@ -175,7 +175,7 @@ export class StockService {
             });
             (mv as any).reason = reason || `Ajuste de inventário (${diff >= 0 ? '+' : ''}${diff})`;
             await em.save(mv);
-            return em.findOne(Product, { where: { id: productId }, relations: ['balance'] });
+            return em.findOne(require('./entities/product.entity').Product, { where: { id: productId }, relations: ['balance'] });
         });
     }
 
@@ -200,10 +200,10 @@ export class StockService {
                 // Atualizar custo médio no produto
                 const product = await em.findOne(Product, { where: { id: item.productId } });
                 if (product) {
-                    const oldCost = Number(product.priceCost) || 0;
+                    const oldCost = Number((product as any).priceCost) || 0;
                     const oldQty = Math.max(0, before);
                     const newAvgCost = oldQty === 0 ? item.cost : ((oldCost * oldQty) + (item.cost * item.quantity)) / (oldQty + item.quantity);
-                    product.priceCost = newAvgCost;
+                    (product as any).priceCost = newAvgCost;
                     await em.save(product);
                 }
                 results.push({ productId: item.productId, newBalance: balance.quantity });

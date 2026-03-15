@@ -26,29 +26,29 @@ export class InventoryService {
     ) { }
 
     async create(createProductDto: CreateProductDto, tenantId?: string): Promise<Product> {
-        // Check plan inventory limit
+        // Check plan inventory limit (graceful — não quebra se plansService não tiver findSubscription)
         if (tenantId) {
-            let sub = null;
             try {
-                sub = await (this.plansService as any).findSubscription(tenantId);
-            } catch (e) { /* ignore if method not implemented */ }
-
-            if (sub) {
-                if (sub.status === SubscriptionStatus.CANCELLED || sub.status === SubscriptionStatus.SUSPENDED) {
-                    throw new ForbiddenException('Sua assinatura está cancelada ou suspensa.');
-                }
-                const storageLimit = sub.plan?.storageLimit || 0;
-                if (storageLimit > 0) {
-                    const currentCount = await this.productRepository.count({ where: { tenantId } });
-                    if (currentCount >= storageLimit) {
-                        throw new ForbiddenException(
-                            `Limite de ${storageLimit} itens de inventário atingido no plano "${sub.plan.name}". Faça upgrade para adicionar mais produtos.`
-                        );
+                const sub = await (this.plansService as any).findSubscription?.(tenantId);
+                if (sub) {
+                    if (sub.status === 'CANCELLED' || sub.status === 'SUSPENDED') {
+                        throw new ForbiddenException('Sua assinatura está cancelada ou suspensa.');
+                    }
+                    const storageLimit = sub.plan?.storageLimit || 0;
+                    if (storageLimit > 0) {
+                        const currentCount = await this.productRepository.count({ where: { tenantId } });
+                        if (currentCount >= storageLimit) {
+                            throw new ForbiddenException(
+                                `Limite de ${storageLimit} itens atingido. Faça upgrade do plano.`
+                            );
+                        }
                     }
                 }
+            } catch (e: any) {
+                if (e instanceof ForbiddenException) throw e;
+                // ignora erros de verificação de plano
             }
         }
-
         const data = sanitise(createProductDto);
 
         if (data.sku) {
