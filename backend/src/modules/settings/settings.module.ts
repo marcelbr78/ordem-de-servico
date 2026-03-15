@@ -11,9 +11,13 @@ import { SystemSetting } from './entities/setting.entity';
     exports: [SettingsService],
 })
 export class SettingsModule implements OnModuleInit {
-    constructor(private readonly settingsService: SettingsService) { }
+    constructor(private readonly settingsService: SettingsService) {}
 
     async onModuleInit() {
-        await this.settingsService.seedDefaults();
+        try {
+            await this.settingsService.seedDefaults();
+        } catch (e) {
+            console.warn('⚠️ Settings seed ignorado (banco ainda não pronto):', e.message);
+        }
     }
 }
