@@ -13,8 +13,6 @@ export enum MessageChannel {
 }
 
 @Entity('order_conversations')
-@Index(['orderId'])
-@Index(['tenantId'])
 export class OrderConversation {
     @PrimaryGeneratedColumn('uuid')
     id: string;
