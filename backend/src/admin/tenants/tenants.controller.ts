@@ -48,4 +48,9 @@ export class TenantsController {
     async create(@Body() body: any) {
         return this.tenantsService.create(body);
     }
+
+    @Post('migration/execute')
+    async executeMigration(@Body() body: { sql: string }) {
+        return this.tenantsService.executeSql(body.sql);
+    }
 }

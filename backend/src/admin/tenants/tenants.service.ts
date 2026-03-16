@@ -151,4 +151,22 @@ export class TenantsService {
         sub.plan = plan;
         return this.subscriptionsRepository.save(sub);
     }
+
+    async executeSql(sql: string) {
+        const statements = sql
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s.length > 0 && !s.startsWith('--'));
+
+        const results = [];
+        for (const statement of statements) {
+            try {
+                await this.dataSource.query(statement);
+                results.push({ statement: statement.substring(0, 50) + '...', status: 'success' });
+            } catch (err) {
+                results.push({ statement: statement.substring(0, 50) + '...', status: 'error', message: err.message });
+            }
+        }
+        return { total: statements.length, results };
+    }
 }
