@@ -161,8 +161,12 @@ export class TenantsService {
         const results = [];
         for (const statement of statements) {
             try {
-                await this.dataSource.query(statement);
-                results.push({ statement: statement.substring(0, 50) + '...', status: 'success' });
+                const data = await this.dataSource.query(statement);
+                results.push({ 
+                    statement: statement.substring(0, 50) + '...', 
+                    status: 'success',
+                    data: data
+                });
             } catch (err) {
                 results.push({ statement: statement.substring(0, 50) + '...', status: 'error', message: err.message });
             }
