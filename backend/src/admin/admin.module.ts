@@ -15,6 +15,7 @@ import { SubscriptionsController, BillingWebhookController } from './subscriptio
 import { SupportController, TenantSupportController } from './support/support.controller';
 import { BroadcastsController } from './broadcasts/broadcasts.controller';
 import { FeatureFlagsController } from './feature-flags/feature-flags.controller';
+import { MigrationController } from './tenants/migration.controller';
 import { Broadcast } from './broadcasts/broadcast.entity';
 import { FeatureFlag } from './feature-flags/feature-flag.entity';
 import { SupportTicket, TicketMessage } from './support/support-ticket.entity';
@@ -39,6 +40,7 @@ import { User } from '../modules/users/entities/user.entity';
         SupportController, TenantSupportController,
         DashboardController,
         TenantsController,
+        MigrationController,
         PlansController,
         SubscriptionsController,
         BillingWebhookController,
