@@ -286,6 +286,7 @@ export const TenantsPage: React.FC = () => {
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                             {t.email && <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{t.email}</span>}
+                                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>ID: {t.id}</span>
                                             {t.subdomain && <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>{t.subdomain}.os4u.com.br</span>}
                                             <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                 <Calendar size={10} /> {new Date(t.createdAt).toLocaleDateString('pt-BR')}
