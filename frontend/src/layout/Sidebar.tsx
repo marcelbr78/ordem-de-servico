@@ -5,7 +5,7 @@ import {
     LayoutDashboard, ShoppingCart, Users, Package, DollarSign,
     Settings, ScrollText, Landmark, Blocks, Cpu,
     ChevronLeft, ChevronRight, Box, Activity, CreditCard, Award,
-    LayoutGrid, UserPlus, Brain, Store, BarChart2, Kanban, Calendar, Shield, Receipt,
+    LayoutGrid, UserPlus, Brain, Store, BarChart2, Kanban, Calendar, Shield, Receipt, Truck,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,6 +23,7 @@ const MAIN_LINKS = [
     { name: 'Agenda', path: '/schedule', icon: Calendar },
     { name: 'Garantias', path: '/warranty', icon: Shield },
     { name: 'Clientes', path: '/clients', icon: Users },
+    { name: 'Fornecedores', path: '/suppliers', icon: Truck },
     { name: 'Estoque', path: '/inventory', icon: Package },
     { name: 'Financeiro', path: '/finance', icon: DollarSign },
     { name: 'Comissões', path: '/commissions', icon: Award },

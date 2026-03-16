@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
     Search, Plus, Package, ArrowRightLeft, Pencil, X, RefreshCw,
@@ -37,13 +38,116 @@ const inp: React.CSSProperties = { width: '100%', padding: '9px 12px', borderRad
 const lbl: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' };
 
 // ── Modal de produto ─────────────────────────────────────────
+// ── Listas de sugestões ──────────────────────────────────────
+const MARCAS_COMUNS = [
+    'Apple','Samsung','Motorola','Xiaomi','LG','Sony','Huawei',
+    'Dell','HP','Lenovo','Asus','Acer','Microsoft','Nokia',
+    'Positivo','Multilaser','JBL','Generic',
+];
+const CATEGORIAS_COMUNS = [
+    'Tela / Display','Bateria','Conector de Carga','Câmera','Alto-Falante',
+    'Microfone','Botões','Carcaça / Tampa','Flex / Cabo','Placa-mãe',
+    'Memória / RAM','SSD / HD','Fonte','Cooler','Pasta Térmica',
+    'Ferramentas','Acessórios','Serviço de Reparo','Diagnóstico',
+];
+const UNIDADES = ['UN','PÇ','CX','KG','MT','LT','PR','KIT'];
+
+// Gerar SKU interno curto e padronizado
+const gerarSKU = (nome: string, marca: string, categoria: string): string => {
+    const sigla = (s: string) => s.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+    const ts = Date.now().toString().slice(-4);
+    const partes = [sigla(marca) || 'GEN', sigla(categoria) || 'PRD', sigla(nome) || 'ITM', ts];
+    return partes.filter(Boolean).join('-');
+};
+
+// Input de moeda brasileiro
+const CurrencyInput: React.FC<{ value: number; onChange: (v: number) => void; label: React.ReactNode; style?: React.CSSProperties }> = ({ value, onChange, label, style }) => {
+    const [display, setDisplay] = React.useState(value > 0 ? value.toFixed(2).replace('.', ',') : '');
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let raw = e.target.value.replace(/[^0-9]/g, '');
+        if (!raw) { setDisplay(''); onChange(0); return; }
+        const num = parseInt(raw) / 100;
+        setDisplay(num.toFixed(2).replace('.', ','));
+        onChange(num);
+    };
+    return (
+        <div>
+            <label style={lbl}>{label}</label>
+            <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>R$</span>
+                <input
+                    inputMode="numeric"
+                    value={display}
+                    onChange={handleChange}
+                    placeholder="0,00"
+                    style={{ ...inp, paddingLeft: '32px', ...style }}
+                />
+            </div>
+        </div>
+    );
+};
+
+// Autocomplete com sugestões
+const AutocompleteInput: React.FC<{ value: string; onChange: (v: string) => void; label: string; suggestions: string[]; placeholder?: string }> = ({ value, onChange, label, suggestions, placeholder }) => {
+    const [open, setOpen] = React.useState(false);
+    const filtered = suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s.toLowerCase() !== value.toLowerCase());
+    return (
+        <div style={{ position: 'relative' }}>
+            <label style={lbl}>{label}</label>
+            <input
+                value={value}
+                onChange={e => { onChange(e.target.value); setOpen(true); }}
+                onFocus={() => setOpen(true)}
+                onBlur={() => setTimeout(() => setOpen(false), 150)}
+                placeholder={placeholder}
+                style={inp}
+            />
+            {open && filtered.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', zIndex: 100, maxHeight: '160px', overflowY: 'auto', marginTop: '2px' }}>
+                    {filtered.slice(0, 8).map(s => (
+                        <div key={s} onMouseDown={() => { onChange(s); setOpen(false); }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            {s}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const ProductModal: React.FC<{ product?: Product | null; onClose: () => void; onSuccess: () => void }> = ({ product, onClose, onSuccess }) => {
     const isEdit = !!product;
-    const [data, setData] = useState({ name: product?.name || '', type: product?.type || 'product', sku: product?.sku || '', barcode: product?.barcode || '', brand: product?.brand || '', category: product?.category || '', unit: product?.unit || 'UN', minQuantity: product?.minQuantity || 0, priceCost: product?.priceCost || 0, priceSell: product?.priceSell || 0, description: product?.description || '' });
+    const [data, setData] = useState({
+        name: product?.name || '',
+        type: product?.type || 'product',
+        sku: product?.sku || '',
+        barcode: product?.barcode || '',
+        brand: product?.brand || '',
+        category: product?.category || '',
+        unit: product?.unit || 'UN',
+        minQuantity: product?.minQuantity || 0,
+        priceCost: product?.priceCost || 0,
+        priceSell: product?.priceSell || 0,
+        description: product?.description || '',
+        // campos NF
+        ncm: (product as any)?.ncm || '',
+        cfop: (product as any)?.cfop || '',
+        origin: (product as any)?.origin || '0',
+    });
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState('');
     const set = (k: string, v: any) => setData(p => ({ ...p, [k]: v }));
     const margin = data.priceCost > 0 ? ((data.priceSell - data.priceCost) / data.priceCost * 100) : 0;
+
+    // Auto-gerar SKU quando nome/marca/categoria mudam
+    React.useEffect(() => {
+        if (!isEdit && data.name && !data.sku) {
+            set('sku', gerarSKU(data.name, data.brand, data.category));
+        }
+    }, [data.name, data.brand, data.category]);
 
     const save = async () => {
         if (!data.name.trim()) { setErr('Nome obrigatório'); return; }
@@ -64,6 +168,7 @@ const ProductModal: React.FC<{ product?: Product | null; onClose: () => void; on
                     <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex' }}><X size={15}/></button>
                 </div>
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
                     {/* Tipo */}
                     <div style={{ display: 'flex', gap: '8px' }}>
                         {(['product','service'] as const).map(t => (
@@ -72,30 +177,92 @@ const ProductModal: React.FC<{ product?: Product | null; onClose: () => void; on
                             </button>
                         ))}
                     </div>
-                    <div><label style={lbl}>Nome *</label><input value={data.name} onChange={e => set('name', e.target.value)} style={inp} placeholder="Nome do produto" autoFocus /></div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <div><label style={lbl}>SKU</label><input value={data.sku} onChange={e => set('sku', e.target.value)} style={inp} placeholder="COD-001" /></div>
-                        {data.type === 'product' && <div><label style={lbl}>Código de Barras</label><input value={data.barcode} onChange={e => set('barcode', e.target.value)} style={inp} placeholder="EAN-13" /></div>}
-                        <div><label style={lbl}>Marca</label><input value={data.brand} onChange={e => set('brand', e.target.value)} style={inp} /></div>
-                        <div><label style={lbl}>Categoria</label><input value={data.category} onChange={e => set('category', e.target.value)} style={inp} /></div>
-                        {data.type === 'product' && <div><label style={lbl}>Unidade</label><select value={data.unit} onChange={e => set('unit', e.target.value)} style={inp}><option>UN</option><option>PÇ</option><option>CX</option><option>KG</option><option>MT</option></select></div>}
-                        {data.type === 'product' && <div><label style={lbl}>Estoque mínimo</label><input type="number" min="0" value={data.minQuantity} onChange={e => set('minQuantity', Number(e.target.value))} style={inp} /></div>}
-                        <div>
-                            <label style={lbl}>Preço de Custo</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>R$</span>
-                                <input type="number" min="0" step="0.01" value={data.priceCost} onChange={e => set('priceCost', Number(e.target.value))} style={{ ...inp, paddingLeft: '28px' }} />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={lbl}>Preço de Venda {data.priceCost > 0 && <span style={{ color: margin >= 20 ? '#22c55e' : '#f59e0b', fontSize: '10px' }}>({margin.toFixed(0)}% margem)</span>}</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>R$</span>
-                                <input type="number" min="0" step="0.01" value={data.priceSell} onChange={e => set('priceSell', Number(e.target.value))} style={{ ...inp, paddingLeft: '28px' }} />
-                            </div>
+
+                    {/* Nome */}
+                    <div><label style={lbl}>Nome *</label><input value={data.name} onChange={e => set('name', e.target.value)} style={inp} placeholder="Ex: Tela iPhone 13 Pro" autoFocus /></div>
+
+                    {/* SKU gerado automaticamente */}
+                    <div>
+                        <label style={lbl}>
+                            SKU Interno
+                            {!isEdit && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', marginLeft: '6px' }}>gerado automaticamente</span>}
+                        </label>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <input value={data.sku} onChange={e => set('sku', e.target.value)} style={{ ...inp, fontFamily: 'monospace', flex: 1 }} placeholder="APL-TEL-ITE-1234" />
+                            {!isEdit && <button onClick={() => set('sku', gerarSKU(data.name, data.brand, data.category))} style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', color: '#60a5fa', cursor: 'pointer', fontSize: '11px', whiteSpace: 'nowrap' }}>Gerar</button>}
                         </div>
                     </div>
-                    <div><label style={lbl}>Descrição</label><textarea value={data.description} onChange={e => set('description', e.target.value)} style={{ ...inp, minHeight: '50px', resize: 'vertical', fontFamily: 'inherit' }} /></div>
+
+                    {/* Marca e Categoria com autocomplete */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <AutocompleteInput value={data.brand} onChange={v => set('brand', v)} label="Marca" suggestions={MARCAS_COMUNS} placeholder="Ex: Apple, Samsung..." />
+                        <AutocompleteInput value={data.category} onChange={v => set('category', v)} label="Categoria" suggestions={CATEGORIAS_COMUNS} placeholder="Ex: Tela, Bateria..." />
+                    </div>
+
+                    {/* Código de barras + Unidade */}
+                    {data.type === 'product' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div><label style={lbl}>Código de Barras</label><input value={data.barcode} onChange={e => set('barcode', e.target.value)} style={inp} placeholder="EAN-13" inputMode="numeric" /></div>
+                            <div><label style={lbl}>Unidade</label>
+                                <select value={data.unit} onChange={e => set('unit', e.target.value)} style={inp}>
+                                    {UNIDADES.map(u => <option key={u}>{u}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Preços com máscara monetária */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <CurrencyInput
+                            value={data.priceCost}
+                            onChange={v => set('priceCost', v)}
+                            label="Preço de Custo"
+                        />
+                        <CurrencyInput
+                            value={data.priceSell}
+                            onChange={v => set('priceSell', v)}
+                            label={<>Preço de Venda {data.priceCost > 0 && <span style={{ color: margin >= 20 ? '#22c55e' : '#f59e0b', fontSize: '10px' }}>({margin.toFixed(0)}%)</span>}</>}
+                        />
+                    </div>
+
+                    {/* Estoque mínimo */}
+                    {data.type === 'product' && (
+                        <div style={{ maxWidth: '50%' }}>
+                            <label style={lbl}>Estoque mínimo</label>
+                            <input type="number" min="0" inputMode="numeric" value={data.minQuantity} onChange={e => set('minQuantity', Number(e.target.value))} style={inp} />
+                        </div>
+                    )}
+
+                    {/* Campos Nota Fiscal */}
+                    {data.type === 'product' && (
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>📄 Dados para Nota Fiscal</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div>
+                                    <label style={lbl}>NCM</label>
+                                    <input value={data.ncm} onChange={e => set('ncm', e.target.value)} style={inp} placeholder="Ex: 8517.12.31" inputMode="numeric" />
+                                </div>
+                                <div>
+                                    <label style={lbl}>CFOP</label>
+                                    <input value={data.cfop} onChange={e => set('cfop', e.target.value)} style={inp} placeholder="Ex: 5102" inputMode="numeric" />
+                                </div>
+                                <div style={{ gridColumn: '1/-1' }}>
+                                    <label style={lbl}>Origem</label>
+                                    <select value={data.origin} onChange={e => set('origin', e.target.value)} style={inp}>
+                                        <option value="0">0 — Nacional</option>
+                                        <option value="1">1 — Estrangeira (importação direta)</option>
+                                        <option value="2">2 — Estrangeira (mercado interno)</option>
+                                        <option value="3">3 — Nacional c/ mais de 40% conteúdo estrangeiro</option>
+                                        <option value="8">8 — Nacional (operações com gás natural)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Descrição */}
+                    <div><label style={lbl}>Descrição / Observações</label><textarea value={data.description} onChange={e => set('description', e.target.value)} style={{ ...inp, minHeight: '50px', resize: 'vertical', fontFamily: 'inherit' }} /></div>
+
                     {err && <div style={{ padding: '9px 13px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', color: '#ef4444', fontSize: '13px' }}>{err}</div>}
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
@@ -193,6 +360,8 @@ export const Inventory: React.FC = () => {
     const [filterType, setFilterType] = useState<'all' | 'product' | 'service'>('all');
     const [filterAbc, setFilterAbc] = useState<'' | 'A' | 'B' | 'C'>('');
     const [showModal, setShowModal] = useState(false);
+    const [searchParams] = useSearchParams();
+    useEffect(() => { if (searchParams.get('new') === '1') setShowModal(true); }, []);
     const [editProduct, setEditProduct] = useState<Product | null>(null);
     const [moveProduct, setMoveProduct] = useState<Product | null>(null);
     const [movFrom, setMovFrom]     = useState('');

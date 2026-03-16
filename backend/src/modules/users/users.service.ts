@@ -13,12 +13,9 @@ export class UsersService implements OnModuleInit {
 
     async onModuleInit() {
         try {
-            console.log('[USERS DEBUG] Verificando usuários mestres...');
-
-            // 1. Super Admin Global (Você)
+            // 1. Super Admin Global
             const superAdmin = await this.findByEmail('master@os4u.com.br');
             if (!superAdmin) {
-                console.log('💎 Semeando Super Admin Global (master@os4u.com.br / master123)...');
                 await this.create({
                     email: 'master@os4u.com.br',
                     name: 'CEO OS4U',
@@ -26,22 +23,23 @@ export class UsersService implements OnModuleInit {
                     role: UserRole.SUPER_ADMIN,
                     mustChangePassword: false,
                 });
+                console.log('✅ Super Admin criado: master@os4u.com.br');
             }
 
-            // 2. Legado Admin (Compatibilidade)
-            const adminUser = await this.findByEmail('admin');
+            // 2. Admin padrão da loja
+            const adminUser = await this.findByEmail('admin@admin.com');
             if (!adminUser) {
-                console.log('🌱 Semeando usuário administrador legado...');
                 await this.create({
-                    email: 'admin',
-                    name: 'Administrador Demo',
-                    password: 'admin1234',
+                    email: 'admin@admin.com',
+                    name: 'Administrador',
+                    password: 'Admin@123',
                     role: UserRole.ADMIN,
-                    mustChangePassword: true,
+                    mustChangePassword: false,
                 });
+                console.log('✅ Admin padrão criado: admin@admin.com / Admin@123');
             }
         } catch (e) {
-            console.warn('⚠️ Usuários seed ignorado (banco ainda não pronto):', e.message);
+            console.warn('⚠️ UsersService init:', e.message);
         }
     }
 

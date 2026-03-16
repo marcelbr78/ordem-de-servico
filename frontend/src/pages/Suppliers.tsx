@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
     Plus, Edit3, Trash2, Star, Truck, Phone, Mail, MapPin,
@@ -46,6 +47,8 @@ export const Suppliers: React.FC = () => {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('active');
     const [showModal, setShowModal] = useState(false);
+    const [searchParams] = useSearchParams();
+    useEffect(() => { if (searchParams.get('new') === '1') openNew(); }, []);
     const [editing, setEditing] = useState<Supplier | null>(null);
     const [detail, setDetail] = useState<Supplier | null>(null);
     const [saving, setSaving] = useState(false);
@@ -274,6 +277,27 @@ export const Suppliers: React.FC = () => {
                                 <input value={form.brands ? (() => { try { return JSON.parse(form.brands).join(', '); } catch { return form.brands; } })() : ''} onChange={e => setForm(p => ({ ...p, brands: JSON.stringify(e.target.value.split(',').map(b => b.trim()).filter(Boolean)) }))} style={inp} placeholder="Samsung, Apple, Motorola, Xiaomi" />
                             </div>
 
+                            {/* Endereço */}
+                            <div>
+                                <label style={lbl}>Endereço</label>
+                                <input value={form.address || ''} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} style={inp} placeholder="Rua, número, bairro" />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <label style={lbl}>Cidade</label>
+                                    <input value={form.city || ''} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} style={inp} placeholder="Ex: São Paulo" />
+                                </div>
+                                <div>
+                                    <label style={lbl}>Estado</label>
+                                    <select value={form.state || ''} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} style={inp}>
+                                        <option value="">Selecione</option>
+                                        {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
+                                            <option key={uf} value={uf}>{uf}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
                             {/* Condições */}
                             <div>
                                 <label style={lbl}>Condições de Pagamento</label>
@@ -322,7 +346,7 @@ export const Suppliers: React.FC = () => {
                                     <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#fff', margin: 0 }}>{detail.name}</h3>
                                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
                                         <Stars n={detail.reliability} />
-                                        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '20px', background: `${CATEGORY_COLORS[detail.category] || '#94a3b8'}15`, color: CATEGORY_COLORS[detail.category] || '#94a3b8', fontWeight: 600 }}>{CATEGORY_LABELS[detail.category]}</span>
+                                        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '20px', background: `${CATEGORY_COLORS[detail.category] || '#94a3b8'}15`, color: CATEGORY_COLORS[detail.category] || '#94a3b8', fontWeight: 600, fontSize: '10px' }}>{CATEGORY_LABELS[detail.category]}</span>
                                     </div>
                                 </div>
                             </div>

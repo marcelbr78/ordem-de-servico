@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import {
     Plus, Search, X, User, Building2, Phone, MessageCircle,
@@ -140,6 +140,8 @@ export function Clients() {
     const [filterStatus, setFilterStatus] = useState('');
     const [filterTag, setFilterTag]       = useState('');
     const [showModal, setShowModal]       = useState(false);
+    const [searchParams] = useSearchParams();
+    useEffect(() => { if (searchParams.get('new') === '1') setShowModal(true); }, []);
     const [editClient, setEditClient]     = useState<ClientData | null>(null);
     const [detailClient, setDetailClient] = useState<ClientData | null>(null);
     const [detailTab, setDetailTab]       = useState<'info'|'stats'|'tags'|'contatos'|'os'>('info');

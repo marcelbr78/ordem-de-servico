@@ -38,6 +38,20 @@ export class UsersController {
         return this.usersService.update(id, updateUserDto);
     }
 
+    @Post(':id/reset-password')
+    async resetPassword(@Param('id') id: string) {
+        // Gerar senha temporária aleatória de 8 chars
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let tempPassword = '';
+        for (let i = 0; i < 8; i++) {
+            tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        await this.usersService.changePassword(id, tempPassword);
+        // Forçar troca no próximo login
+        await this.usersService.update(id, { mustChangePassword: true } as any);
+        return { tempPassword, message: 'Senha temporária gerada. O usuário deverá trocar no próximo acesso.' };
+    }
+
     //   @Delete(':id')
     //   @Roles(UserRole.ADMIN)
     //   remove(@Param('id') id: string) {

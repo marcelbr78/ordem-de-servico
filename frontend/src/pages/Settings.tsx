@@ -370,7 +370,7 @@ export const Settings: React.FC = () => {
         setWaConnecting(true);
         try {
             const instName = settings.whatsapp_instance_name || 'instance';
-            const r = await api.post('/whatsapp/instance/create', { instanceName: instName });
+            const r = await api.post('/whatsapp/instance', { instanceName: instName });
             if (r.data.qrcode) { setWaQrCode(r.data.qrcode); setWaStep('qrcode'); }
             if (qrPollRef.current) clearInterval(qrPollRef.current);
             qrPollRef.current = setInterval(async () => {
@@ -384,7 +384,7 @@ export const Settings: React.FC = () => {
     };
 
     const handleDisconnect = async () => {
-        try { await api.post('/whatsapp/instance/disconnect'); setWaStep('disconnected'); setWaQrCode(null); } catch {}
+        try { await api.delete('/whatsapp/disconnect'); setWaStep('disconnected'); setWaQrCode(null); } catch {}
     };
 
     const handleSendTest = async () => {
@@ -505,6 +505,13 @@ export const Settings: React.FC = () => {
                                 <button onClick={() => handleToggleUser(u)} style={{ padding: '7px', borderRadius: '7px', background: u.isActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)', border: `1px solid ${u.isActive ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)'}`, color: u.isActive ? '#ef4444' : '#22c55e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', minHeight: '32px' }}>
                                     {u.isActive ? <UserX size={13} /> : <UserCheck size={13} />}
                                 </button>
+                                <button onClick={async () => {
+                                    if (!confirm(`Resetar senha de "${u.name}"?`)) return;
+                                    try {
+                                        const r = await api.post(`/users/${u.id}/reset-password`);
+                                        alert(`Senha temporária: ${r.data.tempPassword}\n\nO usuário deverá trocar no próximo acesso.`);
+                                    } catch { alert('Erro ao resetar senha'); }
+                                }} title="Resetar senha" style={{ padding: '7px', borderRadius: '7px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', minHeight: '32px' }}>🔑</button>
                                 <button onClick={() => handleDeleteUser(u)} style={{ padding: '7px', borderRadius: '7px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', minHeight: '32px' }}><Trash2 size={13} /></button>
                             </div>
                         </div>

@@ -11,7 +11,9 @@ import { ToastContainer } from '../ui/ToastContainer';
 import { WhatsAppMessageModal } from './WhatsAppMessageModal';
 import { ConversationTab } from './ConversationTab';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import type { Order } from '../../types';
+import api from '../../services/api';
 import { ActiveQuote } from '../smartparts/ActiveQuote';
 import { PhotoGallery } from '../common/PhotoGallery';
 import { FiscalTab } from '../fiscal/FiscalTab';
@@ -393,7 +395,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             // 1. Update status
             await api.patch(`/orders/${order.id}/status`, {
                 status: targetStatus,
-                comments: statusComment,
+                comments: statusComment?.trim() || 'Status atualizado',
                 paymentMethod: (targetStatus === 'entregue' && balanceToPay > 0) ? paymentMethod : undefined,
                 bankAccountId: (targetStatus === 'entregue' && balanceToPay > 0) ? bankAccountId : undefined,
                 paymentDate: (targetStatus === 'entregue' && balanceToPay > 0) ? new Date().toISOString() : undefined,
@@ -821,7 +823,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                         <QuoteTab order={order} />
                     )}
                         {/* Botão Recibo de Entrega — aparece quando OS está finalizada ou entregue */}
-                        {((order.status as string).toLowerCase() === 'finalizada' || (order.status as string).toLowerCase() === 'entregue') && activeTab === 'Financeiro 💰' && (
+                        {(order.status === 'finalizada' || order.status === 'entregue') && activeTab === 'Financeiro 💰' && (
                             <div style={{ marginTop: '14px' }}>
                                 <button
                                     onClick={() => setShowDeliveryReceipt(true)}

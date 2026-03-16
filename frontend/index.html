@@ -1,37 +1,70 @@
 <!doctype html>
-<html lang="en">
-  <head>
+<html lang="pt-BR">
+<head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script>
-      window.onerror = function(msg, url, line, col, error) {
-        var div = document.createElement("div");
-        div.style.position = "fixed";
-        div.style.top = "0";
-        div.style.left = "0";
-        div.style.width = "100%";
-        div.style.height = "100%";
-        div.style.backgroundColor = "white";
-        div.style.color = "red";
-        div.style.zIndex = "9999";
-        div.style.padding = "20px";
-        div.style.whiteSpace = "pre-wrap";
-        div.style.fontFamily = "monospace";
-        div.style.overflow = "auto";
-        div.innerHTML = "<h1>Error Occurred</h1>" +
-          "<strong>Message:</strong> " + msg + "<br>" +
-          "<strong>URL:</strong> " + url + "<br>" +
-          "<strong>Line:</strong> " + line + ":" + col + "<br>" +
-          "<strong>Stack:</strong> " + (error && error.stack ? error.stack : "N/A");
-        document.body.appendChild(div);
-        return false;
-      };
-    </script>
-    <title>frontend</title>
-  </head>
-  <body>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0a0a0c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="OS4U" />
+
+    <!-- Ícones -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+
+    <!-- SEO -->
+    <title>OS4U — Assistência Técnica</title>
+    <meta name="description" content="Sistema de gestão para assistência técnica" />
+    <meta name="application-name" content="OS4U" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="OS4U" />
+    <meta property="og:description" content="Sistema de gestão para assistência técnica" />
+    <meta property="og:type" content="website" />
+
+    <!-- Performance -->
+    <link rel="preconnect" href="https://os4u-backend.onrender.com" />
+    <link rel="dns-prefetch" href="https://os4u-backend.onrender.com" />
+
+    <!-- Prevenir flash branco no iOS -->
+    <style>
+        html, body, #root {
+            background-color: #0a0a0c;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        /* Prevenir scroll bounce no iOS */
+        body {
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        /* Safe area para notch/Dynamic Island */
+        #root {
+            padding-top: env(safe-area-inset-top);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+    </style>
+</head>
+<body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <!-- Registrar Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW registrado:', reg.scope))
+                    .catch(err => console.log('SW falhou:', err));
+            });
+        }
+    </script>
+</body>
 </html>

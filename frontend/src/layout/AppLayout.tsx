@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
+import { QuickAdd } from '../components/QuickAdd';
 import { Topbar } from './Topbar';
 import { BottomNav } from './BottomNav';
 
@@ -65,23 +66,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 />
             )}
 
-            {/* Sidebar — oculta no iPhone (usa BottomNav), visível em tablet/desktop */}
-            {!isMobile && (
+            {/* Sidebar — position:fixed no mobile/tablet, relative no desktop */}
+            {/* Só renderiza no mobile quando aberta para não deixar espaço vazio */}
+            {(isDesktop || (!isMobile && isSidebarOpen) || (isMobile && isSidebarOpen)) && (
                 <Sidebar
                     isOpen={isSidebarOpen}
                     isDesktop={isDesktop}
                     collapsed={isDesktop && isCollapsed}
-                    onClose={closeSidebarMobile}
-                    onToggleCollapse={toggleCollapse}
-                />
-            )}
-
-            {/* Sidebar drawer no mobile (chamado via Topbar) */}
-            {isMobile && isSidebarOpen && (
-                <Sidebar
-                    isOpen={isSidebarOpen}
-                    isDesktop={false}
-                    collapsed={false}
                     onClose={closeSidebarMobile}
                     onToggleCollapse={toggleCollapse}
                 />
@@ -106,6 +97,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
                 {/* Bottom navigation — apenas iPhone */}
                 {isMobile && <BottomNav />}
+                {/* Botão de cadastro rápido — mobile */}
+                {isMobile && <QuickAdd />}
             </div>
         </div>
     );

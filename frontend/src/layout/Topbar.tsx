@@ -220,19 +220,21 @@ export const Topbar: React.FC<TopbarProps> = ({ toggleSidebar, isDesktop, isMobi
 
     return (
         <header style={{
-            height: isMobile ? '56px' : '64px',
-            borderBottom: '0.5px solid var(--border-color)',
-            padding: isMobile ? '0 12px' : '0 20px 0 16px',
+            height: isMobile ? '52px' : '60px',
+            borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+            padding: isMobile ? '0 16px' : '0 20px 0 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexShrink: 0,
-            background: 'rgba(10,10,12,0.92)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
+            background: 'rgba(10,10,12,0.95)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             position: 'sticky',
             top: 0,
             zIndex: 100,
+            // Safe area para notch
+            paddingTop: isMobile ? '0' : '0',
         }}>
             {/* Esquerda: botão menu + busca */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

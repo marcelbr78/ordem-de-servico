@@ -206,3 +206,79 @@ input, select, textarea {
   border: 1px solid var(--border-color);
   border-radius: 14px;
 }
+
+/* ══════════════════════════════════════════════
+   PWA / Mobile — refinamentos iOS-like
+   ══════════════════════════════════════════════ */
+
+/* Remover highlight de toque em todos os elementos */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Scroll suave e sem bounce lateral */
+html {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+}
+
+/* Inputs sem zoom no iOS (mínimo 16px) */
+input, select, textarea {
+    font-size: max(16px, 1em) !important;
+    -webkit-appearance: none;
+}
+
+/* Scrollbar fina e discreta */
+::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+}
+
+/* Botões com feedback tátil suave */
+button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+button:active {
+    opacity: 0.75;
+    transform: scale(0.97);
+}
+
+/* Conteúdo principal com padding bottom para BottomNav */
+@media (max-width: 767px) {
+    main {
+        padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+    }
+
+    /* Cards com bordas mais suaves no mobile */
+    .glass-panel {
+        border-radius: 12px;
+    }
+
+    /* Fonte ligeiramente maior no mobile para legibilidade */
+    body {
+        font-size: 15px;
+    }
+}
+
+/* Animação de entrada suave nas páginas */
+@keyframes pageEnter {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+main > * {
+    animation: pageEnter 0.18s ease-out;
+}
+
+/* Status bar safe area */
+body {
+    padding-top: env(safe-area-inset-top);
+}
