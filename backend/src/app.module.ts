@@ -141,6 +141,13 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
     ],
 })
 export class AppModule implements NestModule {
+    constructor(private configService: ConfigService) {}
+
+    async onModuleInit() {
+        const dbHost = this.configService.get('DB_HOST');
+        console.log(`[DB DEBUG] Tentando conexão com o banco em: ${dbHost || 'SQLite Local'}`);
+    }
+
     configure(consumer: MiddlewareConsumer) {
         consumer
             .apply(TenantMiddleware)

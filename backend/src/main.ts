@@ -15,16 +15,25 @@ async function bootstrap() {
     const reflector = app.get(Reflector);
     app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
 
-    // CORS — lê do .env em produção, aceita tudo em dev
+    // CORS - Configuração mais robusta para produção
     const frontendUrl = process.env.FRONTEND_URL;
     const allowedOrigins = frontendUrl
         ? frontendUrl.split(',').map(u => u.trim())
-        : true; // dev: aceita qualquer origem
+        : ['https://os4u.com.br', 'https://ordem-de-servico.pages.dev', 'http://localhost:5173'];
 
     app.enableCors({
-        origin: allowedOrigins,
+        origin: (origin, callback) => {
+            // Em produção, se allowedOrigins for '*', permite tudo
+            if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+                callback(null, true);
+            } else {
+                console.warn(`[CORS] Bloqueado origin: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
+        allowedHeaders: 'Content-Type,Authorization,x-tenant-id',
     });
 
     // Health check endpoint
