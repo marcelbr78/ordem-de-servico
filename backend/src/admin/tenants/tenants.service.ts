@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Tenant, TenantStatus } from '../../modules/tenants/entities/tenant.entity';
-import { Subscription } from '../../modules/tenants/entities/subscription.entity';
+import { Subscription, SubscriptionStatus } from '../../modules/tenants/entities/subscription.entity';
 import { Plan } from '../../modules/tenants/entities/plan.entity';
 import { User } from '../../modules/users/entities/user.entity';
 
@@ -35,8 +35,8 @@ export class TenantsService {
                 const subscription = manager.create(Subscription, {
                     tenantId: savedTenant.id,
                     planId: planId,
-                    status: 'active',
-                    startDate: new Date(),
+                    status: SubscriptionStatus.ACTIVE,
+                    nextBilling: new Date(new Date().setDate(new Date().getDate() + 30)),
                 });
                 await manager.save(subscription);
             }
