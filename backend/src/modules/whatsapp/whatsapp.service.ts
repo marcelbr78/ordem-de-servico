@@ -31,9 +31,17 @@ export class WhatsappService {
 
     /** Resolve config: DB settings take priority, env vars as fallback */
     private async getConfig(): Promise<{ apiUrl: string; apiKey: string; instance: string }> {
-        const apiUrl = (await this.settingsService.findByKey('whatsapp_api_url')) || this.configService.get<string>('EVOLUTION_API_URL') || '';
-        const apiKey = (await this.settingsService.findByKey('whatsapp_api_token')) || this.configService.get<string>('EVOLUTION_API_KEY') || '';
-        const instance = (await this.settingsService.findByKey('whatsapp_instance_name')) || this.configService.get<string>('EVOLUTION_INSTANCE_ID') || '';
+        // URL e Key fixas do servidor — cliente não precisa configurar
+        const apiUrl = this.configService.get<string>('EVOLUTION_API_URL')
+            || (await this.settingsService.findByKey('whatsapp_api_url'))
+            || '';
+        const apiKey = this.configService.get<string>('EVOLUTION_API_KEY')
+            || (await this.settingsService.findByKey('whatsapp_api_token'))
+            || '';
+        // Instância: definida pelo cliente ou gerada automaticamente
+        const instance = (await this.settingsService.findByKey('whatsapp_instance_name'))
+            || this.configService.get<string>('EVOLUTION_INSTANCE_ID')
+            || 'os4u-default';
         return { apiUrl, apiKey, instance };
     }
 

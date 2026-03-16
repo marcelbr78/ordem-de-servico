@@ -459,17 +459,23 @@ export const Settings: React.FC = () => {
                 )}
             </div>
             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Evolution API</h3>
-                {[
-                    { k: 'whatsapp_api_url', l: 'URL da API', ph: 'https://api.evolution.com' },
-                    { k: 'whatsapp_api_token', l: 'Token / API Key', ph: 'seu-token-aqui' },
-                    { k: 'whatsapp_instance_name', l: 'Nome da Instância', ph: 'minha-loja' },
-                ].map(f => (
-                    <div key={f.k} style={{ marginBottom: '12px' }}>
-                        <label style={lbl}>{f.l}</label>
-                        <input value={settings[f.k] || ''} onChange={e => setSettings(p => ({ ...p, [f.k]: e.target.value }))} onBlur={e => handleSave(f.k, e.target.value)} placeholder={f.ph} style={inp} />
-                    </div>
-                ))}
+                <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configuração</h3>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', margin: '0 0 14px' }}>
+                    Defina um nome único para identificar sua loja no WhatsApp. Use apenas letras, números e hífens.
+                </p>
+                <div>
+                    <label style={lbl}>Nome da Instância</label>
+                    <input
+                        value={settings['whatsapp_instance_name'] || ''}
+                        onChange={e => setSettings(p => ({ ...p, whatsapp_instance_name: e.target.value }))}
+                        onBlur={e => handleSave('whatsapp_instance_name', e.target.value)}
+                        placeholder="minha-assistencia"
+                        style={inp}
+                    />
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '6px' }}>
+                        Ex: assistencia-blumenau, tecinfo, reparo-cel
+                    </p>
+                </div>
             </div>
         </div>
     );
