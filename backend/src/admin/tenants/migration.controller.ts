@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../guards/super-admin.guard';
 
-@Controller('admin/tenants/migration')
+@Controller('migration-api')
 @UseGuards(JwtAuthGuard, SuperAdminGuard)
 export class MigrationController {
     constructor(private readonly dataSource: DataSource) {}
