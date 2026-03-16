@@ -49,6 +49,12 @@ import { PlansPage } from './admin/pages/PlansPage';
 import { SignupMonitor } from './admin/pages/SignupMonitor';
 import { AIInsights } from './admin/pages/AIInsights';
 import { HealthMonitor } from './admin/pages/HealthMonitor';
+import { SupportPage } from './admin/pages/SupportPage';
+import { BroadcastsPage } from './admin/pages/BroadcastsPage';
+import { OnboardingPage } from './admin/pages/OnboardingPage';
+import { AnalyticsPage } from './admin/pages/AnalyticsPage';
+import { AuditPage } from './admin/pages/AuditPage';
+import { FeatureFlagsPage } from './admin/pages/FeatureFlagsPage';
 
 // Layout unificado
 import { AppLayout } from './layout/AppLayout';
