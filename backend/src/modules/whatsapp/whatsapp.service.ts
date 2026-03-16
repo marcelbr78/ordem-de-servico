@@ -46,10 +46,14 @@ export class WhatsappService {
     }
 
     /** Public method: tells frontend if API is configured */
-    async getConfigStatus(): Promise<{ configured: boolean; hasInstance: boolean; apiUrl?: string; instanceName?: string }> {
+    async getConfigStatus(): Promise<{ configured: boolean; usingEnv: boolean; hasInstance: boolean; apiUrl?: string; instanceName?: string }> {
+        const apiUrlEnv = this.configService.get<string>('EVOLUTION_API_URL');
+        const apiKeyEnv = this.configService.get<string>('EVOLUTION_API_KEY');
         const { apiUrl, apiKey, instance } = await this.getConfig();
+        
         return {
             configured: !!(apiUrl && apiKey),
+            usingEnv: !!(apiUrlEnv && apiKeyEnv),
             hasInstance: !!instance,
             apiUrl: apiUrl ? apiUrl.replace(/\/+$/, '') : undefined,
             instanceName: instance,
