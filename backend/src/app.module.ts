@@ -87,9 +87,12 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
             useFactory: (configService: ConfigService) => {
                 const isProduction = configService.get('NODE_ENV') === 'production';
 
-                if (isProduction || configService.get('DB_HOST')) {
+                const dbUrl = configService.get<string>('DATABASE_URL');
+
+                if (dbUrl || isProduction || configService.get('DB_HOST')) {
                     return {
                         type: 'postgres',
+                        url: dbUrl, // Se dbUrl existir, o TypeORM usa ela e ignora o resto
                         host: configService.get<string>('DB_HOST'),
                         port: configService.get<number>('DB_PORT', 5432),
                         username: configService.get<string>('DB_USERNAME'),
