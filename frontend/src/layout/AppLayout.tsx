@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
-import { QuickAdd } from '../components/QuickAdd';
 import { Topbar } from './Topbar';
 import { BottomNav } from './BottomNav';
 
@@ -97,8 +96,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
                 {/* Bottom navigation — apenas iPhone */}
                 {isMobile && <BottomNav />}
-                {/* Botão de cadastro rápido — mobile */}
-                {isMobile && <QuickAdd />}
             </div>
         </div>
     );
