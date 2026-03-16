@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../guards/super-admin.guard';
@@ -42,5 +42,10 @@ export class TenantsController {
         @Body() body: { planId: string }
     ) {
         return this.tenantsService.changePlan(id, body.planId);
+    }
+
+    @Post()
+    async create(@Body() body: any) {
+        return this.tenantsService.create(body);
     }
 }

@@ -59,6 +59,9 @@ export const adminService = {
     }> => {
         const r = await api.get(`/admin/tenants/${id}/metrics`); return r.data;
     },
+    createTenant: async (data: any): Promise<TenantAdminDto> => {
+        const r = await api.post('/admin/tenants', data); return r.data;
+    },
     updateTenantStatus: async (id: string, status: string): Promise<void> => {
         await api.patch(`/admin/tenants/${id}/status`, { status });
     },

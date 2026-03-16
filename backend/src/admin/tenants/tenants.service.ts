@@ -4,6 +4,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Tenant, TenantStatus } from '../../modules/tenants/entities/tenant.entity';
 import { Subscription } from '../../modules/tenants/entities/subscription.entity';
 import { Plan } from '../../modules/tenants/entities/plan.entity';
+import { User } from '../../modules/users/entities/user.entity';
 
 @Injectable()
 export class TenantsService {
@@ -11,8 +12,54 @@ export class TenantsService {
         @InjectRepository(Tenant) private tenantsRepository: Repository<Tenant>,
         @InjectRepository(Subscription) private subscriptionsRepository: Repository<Subscription>,
         @InjectRepository(Plan) private plansRepository: Repository<Plan>,
+        @InjectRepository(User) private usersRepository: Repository<User>,
         private dataSource: DataSource,
     ) {}
+
+    async create(data: { storeName: string; ownerName: string; email: string; password: string; planId?: string }) {
+        return this.dataSource.transaction(async (manager) => {
+            // 1. Criar o Tenant
+            const tenant = manager.create(Tenant, {
+                storeName: data.storeName,
+                name: data.storeName,
+                ownerName: data.ownerName,
+                email: data.email,
+                status: TenantStatus.TRIAL,
+                isActive: true,
+            });
+            const savedTenant = await manager.save(tenant);
+
+            // 2. Criar a Assinatura (Plano padrão se não informado)
+            const planId = data.planId || (await manager.findOne(Plan, { where: { active: true } }))?.id;
+            if (planId) {
+                const subscription = manager.create(Subscription, {
+                    tenantId: savedTenant.id,
+                    planId: planId,
+                    status: 'active',
+                    startDate: new Date(),
+                });
+                await manager.save(subscription);
+            }
+
+            // 3. Criar o Usuário Administrador da Loja
+            const Bcrypt = await import('bcrypt');
+            const salt = await Bcrypt.genSalt();
+            const hashedPassword = await Bcrypt.hash(data.password, salt);
+
+            const adminUser = manager.create(User, {
+                tenantId: savedTenant.id,
+                email: data.email,
+                password: hashedPassword,
+                name: data.ownerName,
+                role: 'admin' as any,
+                isActive: true,
+                mustChangePassword: true,
+            });
+            await manager.save(adminUser);
+
+            return savedTenant;
+        });
+    }
 
     async findAll(page: number = 1, limit: number = 20) {
         const [items, total] = await this.tenantsRepository.findAndCount({

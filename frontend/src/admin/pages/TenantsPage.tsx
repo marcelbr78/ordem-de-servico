@@ -81,6 +81,61 @@ const ChangePlanModal = ({ tenant, plans, onClose, onDone }: {
     );
 };
 
+// ── Create Tenant Modal ───────────────────────────────────────
+const CreateTenantModal = ({ onClose, onDone }: { onClose: () => void; onDone: () => void }) => {
+    const [form, setForm] = useState({ storeName: '', ownerName: '', email: '', password: '' });
+    const [saving, setSaving] = useState(false);
+
+    const save = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            await adminService.createTenant(form);
+            onDone();
+            onClose();
+        } catch {
+            alert('Erro ao criar loja. Verifique se o e-mail já existe.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <form onSubmit={save} style={{ width: '100%', maxWidth: '460px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', margin: 0 }}>Nova Assistência</h2>
+                    <button type="button" onClick={onClose} style={{ color: 'rgba(255,255,255,0.4)', minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>NOME DA LOJA</label>
+                        <input required value={form.storeName} onChange={e => setForm({ ...form, storeName: e.target.value })} placeholder="Ex: Infosend" style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: '#fff', outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>NOME DO RESPONSÁVEL</label>
+                        <input required value={form.ownerName} onChange={e => setForm({ ...form, ownerName: e.target.value })} placeholder="Ex: Marcel" style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: '#fff', outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>E-MAIL DE ACESSO</label>
+                        <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: '#fff', outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>SENHA INICIAL</label>
+                        <input required type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Mínimo 8 caracteres" style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: '#fff', outline: 'none' }} />
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="button" onClick={onClose} style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.7)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+                    <button type="submit" disabled={saving} style={{ flex: 2, padding: '12px', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', color: '#fff', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                        {saving ? 'Criando...' : 'Criar Assistência'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 // ── Main Page ─────────────────────────────────────────────────
 const PAGE_SIZE = 20;
 
@@ -89,6 +144,7 @@ export const TenantsPage: React.FC = () => {
     const [plans, setPlans] = useState<PlanDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [changingPlanFor, setChangingPlanFor] = useState<TenantAdminDto | null>(null);
+    const [showCreate, setShowCreate] = useState(false);
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [page, setPage] = useState(1);
@@ -138,6 +194,7 @@ export const TenantsPage: React.FC = () => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {changingPlanFor && <ChangePlanModal tenant={changingPlanFor} plans={plans} onClose={() => setChangingPlanFor(null)} onDone={loadAll} />}
+            {showCreate && <CreateTenantModal onClose={() => setShowCreate(false)} onDone={loadAll} />}
 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
@@ -150,9 +207,14 @@ export const TenantsPage: React.FC = () => {
                         <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', margin: '2px 0 0' }}>{tenants.length} tenants · {statusCounts['active'] || 0} ativos</p>
                     </div>
                 </div>
-                <button onClick={loadAll} style={{ padding: '9px', borderRadius: '10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <RefreshCw size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => setShowCreate(true)} style={{ padding: '0 16px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                        <Users size={16} /> Nova Loja
+                    </button>
+                    <button onClick={loadAll} style={{ padding: '9px', borderRadius: '10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <RefreshCw size={16} />
+                    </button>
+                </div>
             </div>
 
             {/* Cards de status rápido */}
