@@ -17,23 +17,13 @@ async function bootstrap() {
 
     // CORS - Configuração mais robusta para produção
     const frontendUrl = process.env.FRONTEND_URL;
-    const allowedOrigins = frontendUrl
-        ? frontendUrl.split(',').map(u => u.trim())
-        : ['https://os4u.com.br', 'https://ordem-de-servico.pages.dev', 'http://localhost:5173'];
-
+    // CORS - Liberando para o domínio customizado e espelhando a origem
     app.enableCors({
-        origin: (origin, callback) => {
-            // Em produção, se allowedOrigins for '*', permite tudo
-            if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-                callback(null, true);
-            } else {
-                console.warn(`[CORS] Bloqueado origin: ${origin}`);
-                callback(new Error('Not allowed by CORS'));
-            }
-        },
+        origin: true, // Reflete a origem da requisição, resolvendo bloqueios de CORS
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
-        allowedHeaders: 'Content-Type,Authorization,x-tenant-id',
+        allowedHeaders: 'Content-Type,Authorization,x-tenant-id,Accept',
+        exposedHeaders: 'Content-Range,X-Content-Range',
     });
 
     // Health check endpoint
