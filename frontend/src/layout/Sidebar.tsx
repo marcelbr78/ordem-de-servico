@@ -165,9 +165,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, isDesktop, collapsed, 
                         <Box size={18} color="#fff" />
                     </div>
                     {!collapsed && (
-                        <span style={{ fontWeight: 800, fontSize: '18px', color: '#fff', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
-                            OS4U
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+                            <span style={{ fontWeight: 800, fontSize: '18px', color: '#fff', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
+                                OS4U
+                            </span>
+                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px', marginTop: '2px' }}>
+                                v{(typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.1.2') as string}
+                            </span>
+                        </div>
                     )}
                 </div>
                 {!isDesktop && !collapsed && (

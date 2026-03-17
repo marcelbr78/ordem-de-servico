@@ -58,12 +58,14 @@ export class WhatsappService {
             || (await (this.settingsService as any).findByKey('whatsapp_api_token', tenantId))
             || '';
         // Instância: específica por tenant para isolamento
-        // Nome da instância = subdomain do tenant (único, permanente, sem intervenção do usuário)
-        // Fallback: 'instance' para compatibilidade com instalações sem multitenancy
+        // Nome da instância = subdomain do tenant; fallback = slug do storeName; fallback2 = os4u-{id8}
         let instance = 'instance';
         if (tenantId) {
             const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
-            instance = tenant?.subdomain || `os4u-${tenantId.slice(0, 8)}`;
+            const storeSlug = tenant?.storeName
+                ? tenant.storeName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 30)
+                : '';
+            instance = tenant?.subdomain || storeSlug || `os4u-${tenantId.slice(0, 8)}`;
         }
         return { apiUrl, apiKey, instance };
     }
@@ -448,7 +450,7 @@ export class WhatsappService {
 
     /** Disconnect and delete instance */
     async disconnectInstance(tenantId?: string): Promise<{ success: boolean; error?: string }> {
-        const { apiUrl, apiKey, instance } = await this.getConfig();
+        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey || !instance) {
             return { success: false, error: 'Não configurado' };

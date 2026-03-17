@@ -16,14 +16,33 @@ export class TenantsService {
         private dataSource: DataSource,
     ) {}
 
+    /** Gera um subdomain único a partir do nome da loja */
+    private slugify(name: string): string {
+        return name
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+            .replace(/[^a-z0-9]/g, '')                        // só letras e números
+            .slice(0, 30);
+    }
+
     async create(data: { storeName: string; ownerName: string; email: string; password: string; planId?: string }) {
         return this.dataSource.transaction(async (manager) => {
+            // Gera subdomain único a partir do nome da loja
+            const baseSlug = this.slugify(data.storeName);
+            let subdomain = baseSlug;
+            // Garante unicidade adicionando sufixo numérico se necessário
+            let suffix = 1;
+            while (await manager.findOne(Tenant, { where: { subdomain } })) {
+                subdomain = `${baseSlug}${suffix++}`;
+            }
+
             // 1. Criar o Tenant
             const tenant = manager.create(Tenant, {
                 storeName: data.storeName,
                 name: data.storeName,
                 ownerName: data.ownerName,
                 email: data.email,
+                subdomain,
                 status: TenantStatus.TRIAL,
                 isActive: true,
             });
