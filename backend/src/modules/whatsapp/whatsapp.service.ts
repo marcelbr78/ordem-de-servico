@@ -15,17 +15,31 @@ export class WhatsappService {
         private settingsService: SettingsService,
     ) { }
 
-    /** Ping Evolution API every 10 minutes to keep Render awake */
-    @Cron('*/10 * * * *')
-    async keepAlive() {
+    /** Ping Evolution API every 5 minutes to keep Render free tier awake */
+    @Cron('*/5 * * * *')
+    async keepEvolutionAlive() {
         try {
             const { apiUrl } = await this.getConfig();
             if (apiUrl) {
-                await axios.get(apiUrl, { timeout: 10000 });
+                await axios.get(apiUrl, { timeout: 10000, validateStatus: () => true });
                 this.logger.debug('Evolution API keep-alive ping OK');
             }
         } catch {
-            this.logger.debug('Evolution API keep-alive ping (may be waking up)');
+            this.logger.debug('Evolution API keep-alive ping failed (may be waking up)');
+        }
+    }
+
+    /** Ping this backend's own health endpoint every 5 minutes so Render doesn't sleep it.
+     *  Render sets RENDER_EXTERNAL_URL automatically for web services. */
+    @Cron('*/5 * * * *')
+    async keepBackendAlive() {
+        const selfUrl = this.configService.get<string>('RENDER_EXTERNAL_URL');
+        if (!selfUrl) return; // only runs on Render
+        try {
+            await axios.get(`${selfUrl}/health`, { timeout: 10000, validateStatus: () => true });
+            this.logger.debug('Backend self keep-alive ping OK');
+        } catch {
+            this.logger.debug('Backend self keep-alive ping failed');
         }
     }
 
