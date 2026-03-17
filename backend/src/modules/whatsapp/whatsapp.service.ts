@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 import { SettingsService } from '../settings/settings.service';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import axios from 'axios';
 
 const API_TIMEOUT = 120000; // 2 minutes (Render free tier can be slow to wake up)
@@ -13,6 +16,8 @@ export class WhatsappService {
     constructor(
         private configService: ConfigService,
         private settingsService: SettingsService,
+        @InjectRepository(Tenant)
+        private tenantRepo: Repository<Tenant>,
     ) { }
 
     /** Ping Evolution API every 5 minutes to keep Render free tier awake */
@@ -53,9 +58,13 @@ export class WhatsappService {
             || (await (this.settingsService as any).findByKey('whatsapp_api_token', tenantId))
             || '';
         // Instância: específica por tenant para isolamento
-        const savedInstance = await (this.settingsService as any).findByKey('whatsapp_instance_name', tenantId);
-        // Gera nome único por tenant; fallback para 'instance' se não tiver tenantId (legado)
-        const instance = savedInstance || (tenantId ? `os4u-${tenantId.slice(0, 8)}` : 'instance');
+        // Nome da instância = subdomain do tenant (único, permanente, sem intervenção do usuário)
+        // Fallback: 'instance' para compatibilidade com instalações sem multitenancy
+        let instance = 'instance';
+        if (tenantId) {
+            const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+            instance = tenant?.subdomain || `os4u-${tenantId.slice(0, 8)}`;
+        }
         return { apiUrl, apiKey, instance };
     }
 
@@ -306,7 +315,7 @@ export class WhatsappService {
             return { success: false, error: error.message };
         }
 
-        await this.settingsService.set('whatsapp_instance_name', instanceName, undefined, undefined, undefined, tenantId);
+        // Nome vem do subdomain do tenant — não precisa salvar nas settings
 
         // QR veio direto do create — retorna imediatamente
         if (qrFromCreate) {
