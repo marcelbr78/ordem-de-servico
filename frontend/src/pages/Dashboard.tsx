@@ -187,7 +187,20 @@ export const Dashboard: React.FC = () => {
         </div>
     );
 
-    const s = stats!;
+    if (!stats) return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '12px', color: 'rgba(255,255,255,0.4)' }}>
+            <AlertCircle size={20} /> Não foi possível carregar o dashboard.
+            <button onClick={load} style={{ marginLeft: '10px', padding: '8px 16px', borderRadius: '8px', background: 'var(--accent-primary)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Tentar novamente</button>
+        </div>
+    );
+
+    const s = {
+        ...stats,
+        byStatus: stats.byStatus || {},
+        slaViolations: stats.slaViolations || [],
+        recentOrders: stats.recentOrders || [],
+        last7days: stats.last7days || [],
+    };
     const activeOS = (s.byStatus.aberta || 0) + (s.byStatus.em_diagnostico || 0) + (s.byStatus.aguardando_peca || 0) + (s.byStatus.em_reparo || 0) + (s.byStatus.testes || 0);
     const revTrend = pctChange(s.monthlyRevenue, s.prevMonthRevenue);
     const slaWarning = s.slaViolations.filter(o => o.hoursOpen > 48).length;
