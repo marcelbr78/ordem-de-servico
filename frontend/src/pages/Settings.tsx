@@ -370,46 +370,74 @@ export const Settings: React.FC = () => {
     const handleConnect = async () => {
         setWaConnecting(true);
         setWaError(null);
+        if (qrPollRef.current) clearInterval(qrPollRef.current);
+
         try {
-            const instName = settings.whatsapp_instance_name || 'instance';
-            const r = await api.post('/whatsapp/instance', { instanceName: instName });
+            const instName = settings.whatsapp_instance_name || `os4u-${Date.now().toString(36)}`;
+            const r = await api.post('/whatsapp/instance', { instanceName: instName }, { timeout: 35000 });
 
             if (r.data.success === false) {
                 setWaError(r.data.error || 'Falha ao criar instância WhatsApp.');
+                setWaConnecting(false);
                 return;
             }
 
-            // QR pode vir direto do create ou precisar de busca adicional
-            let qr: string | null = r.data.qrcode || null;
-
-            // Se não veio no create, tenta buscar via endpoint dedicado
-            if (!qr) {
-                try {
-                    const qrRes = await api.get('/whatsapp/qrcode');
-                    qr = qrRes.data?.qrcode || null;
-                } catch {}
-            }
-
-            if (qr) {
-                setWaQrCode(qr);
+            // Se veio QR direto, mostra já
+            if (r.data.qrcode) {
+                setWaQrCode(r.data.qrcode);
                 setWaStep('qrcode');
-            } else {
-                setWaError('QR Code não foi gerado. Verifique as configurações da Evolution API.');
+                setWaConnecting(false);
+                startStatusPolling();
                 return;
             }
 
-            if (qrPollRef.current) clearInterval(qrPollRef.current);
+            // Sem QR imediato — inicia polling de QR (Evolution pode levar alguns segundos)
+            let attempts = 0;
+            const maxAttempts = 20; // 20 × 3s = 60s
             qrPollRef.current = setInterval(async () => {
+                attempts++;
                 try {
-                    const s = await api.get('/whatsapp/status');
-                    if (s.data.connected) { setWaStep('connected'); setWaQrCode(null); clearInterval(qrPollRef.current!); }
+                    const qrRes = await api.get('/whatsapp/qrcode', { timeout: 12000 });
+                    if (qrRes.data?.qrcode) {
+                        clearInterval(qrPollRef.current!);
+                        setWaQrCode(qrRes.data.qrcode);
+                        setWaStep('qrcode');
+                        setWaConnecting(false);
+                        startStatusPolling();
+                        return;
+                    }
+                    if (qrRes.data?.status === 'connected') {
+                        clearInterval(qrPollRef.current!);
+                        setWaStep('connected');
+                        setWaConnecting(false);
+                        return;
+                    }
                 } catch {}
-            }, 4000);
+                if (attempts >= maxAttempts) {
+                    clearInterval(qrPollRef.current!);
+                    setWaError('QR Code não apareceu em 60s. Verifique se a Evolution API está online e tente novamente.');
+                    setWaConnecting(false);
+                }
+            }, 3000);
         } catch (e: any) {
-            setWaError(e?.response?.data?.message || 'Erro ao conectar. Tente novamente.');
-        } finally {
+            const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Erro ao conectar.';
+            setWaError(typeof msg === 'string' ? msg : 'Erro ao conectar. Tente novamente.');
             setWaConnecting(false);
         }
+    };
+
+    const startStatusPolling = () => {
+        if (qrPollRef.current) clearInterval(qrPollRef.current);
+        qrPollRef.current = setInterval(async () => {
+            try {
+                const s = await api.get('/whatsapp/status');
+                if (s.data.connected) {
+                    setWaStep('connected');
+                    setWaQrCode(null);
+                    clearInterval(qrPollRef.current!);
+                }
+            } catch {}
+        }, 4000);
     };
 
     const handleDisconnect = async () => {
@@ -467,10 +495,18 @@ export const Settings: React.FC = () => {
                     </div>
                 )}
                 {waStep === 'disconnected' && (
-                    <button onClick={handleConnect} disabled={waConnecting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 22px', borderRadius: '10px', background: '#25d366', color: '#fff', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', minHeight: '44px' }}>
-                        {waConnecting ? <><RefreshCw size={15} style={{ animation: 'spin 1s linear infinite' }} /> Conectando...</> : <><Wifi size={15} /> Conectar WhatsApp</>}
-                        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <button onClick={handleConnect} disabled={waConnecting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 22px', borderRadius: '10px', background: '#25d366', color: '#fff', border: 'none', fontWeight: 700, fontSize: '14px', cursor: waConnecting ? 'default' : 'pointer', opacity: waConnecting ? 0.8 : 1, minHeight: '44px' }}>
+                            <RefreshCw size={15} style={waConnecting ? { animation: 'spin 1s linear infinite' } : undefined} />
+                            {waConnecting ? 'Aguardando QR Code...' : 'Conectar WhatsApp'}
+                            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                        </button>
+                        {waConnecting && (
+                            <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>
+                                Iniciando conexão com a Evolution API. Pode levar até 30s se o servidor estiver dormindo…
+                            </p>
+                        )}
+                    </div>
                 )}
                 {waStep === 'qrcode' && waQrCode && (
                     <div style={{ textAlign: 'center' }}>

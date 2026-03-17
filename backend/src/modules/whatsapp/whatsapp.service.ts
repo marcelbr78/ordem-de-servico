@@ -56,23 +56,20 @@ export class WhatsappService {
         };
     }
 
-    /** Helper to wait for Render server to wake up */
+    /** Ping Evolution API — up to 3 tries × 5s = 15s max */
     private async waitForServer(apiUrl: string): Promise<boolean> {
         this.logger.log(`Checking if WhatsApp server at ${apiUrl} is awake...`);
-        for (let i = 0; i < 15; i++) { // Try for 75 seconds (15 * 5s)
+        for (let i = 0; i < 3; i++) {
             try {
-                // validateStatus: () => true aceita qualquer resposta HTTP (incluindo 404)
-                // como prova de que o servidor está no ar
-                await axios.get(apiUrl, { timeout: 5000, validateStatus: () => true });
+                await axios.get(apiUrl, { timeout: 8000, validateStatus: () => true });
                 this.logger.log('WhatsApp server is awake!');
                 return true;
-            } catch (error) {
-                // Só cai aqui em caso de timeout/ECONNREFUSED — servidor realmente dormindo
-                this.logger.debug(`Waiting for server to wake up... (${i + 1}/15)`);
-                await new Promise(r => setTimeout(r, 5000));
+            } catch {
+                this.logger.debug(`Waiting for server to wake up... (${i + 1}/3)`);
+                if (i < 2) await new Promise(r => setTimeout(r, 5000));
             }
         }
-        this.logger.error('WhatsApp server failed to wake up after multiple attempts');
+        this.logger.warn('WhatsApp server did not respond in time');
         return false;
     }
 
@@ -221,77 +218,69 @@ export class WhatsappService {
         await this.sendMessage(to, msg);
     }
 
-    /** Create a new instance on Evolution API */
-    async createInstance(instanceName: string, number?: string, tenantId?: string): Promise<{ success: boolean; instance?: any; qrcode?: string; error?: string }> {
-        const { apiUrl, apiKey } = await this.getConfig();
+    /** Create / reset instance on Evolution API — returns quickly; frontend polls for QR separately */
+    async createInstance(instanceName: string, number?: string, tenantId?: string): Promise<{ success: boolean; qrcode?: string; error?: string }> {
+        const { apiUrl, apiKey } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey) {
             return { success: false, error: 'API URL e Token não configurados. Contate o suporte.' };
         }
 
-        // Wait for server to wake up
+        // Quick liveness check — max 3 tries × 8s = 24s
         const isAwake = await this.waitForServer(apiUrl);
         if (!isAwake) {
-            return { success: false, error: 'O servidor WhatsApp não respondeu. Tente novamente em alguns instantes.' };
+            return { success: false, error: 'O servidor WhatsApp não respondeu. Tente novamente em instantes.' };
         }
 
-        // Tenta criar a instância; se já existir, usa a existente
-        let instanceAlreadyExists = false;
+        // Create instance (or accept "already in use")
         try {
             const response = await axios.post(
                 `${apiUrl}/instance/create`,
-                {
-                    instanceName,
-                    integration: 'WHATSAPP-BAILEYS',
-                    qrcode: true,
-                    number: number ? number.replace(/\D/g, '') : undefined,
-                },
+                { instanceName, integration: 'WHATSAPP-BAILEYS', qrcode: true },
                 {
                     headers: { apikey: apiKey, 'Content-Type': 'application/json' },
-                    timeout: 30000,
+                    timeout: 20000,
                     validateStatus: (status) => status < 500,
                 },
             );
 
-            const alreadyInUse = response.data?.response?.message?.toString().includes('already in use')
-                || response.data?.message?.toString().includes('already in use');
+            const alreadyInUse =
+                response.data?.response?.message?.toString().includes('already in use') ||
+                response.data?.message?.toString().includes('already in use');
 
-            if (alreadyInUse || response.status === 403) {
-                this.logger.log(`Instance ${instanceName} already exists, will connect directly.`);
-                instanceAlreadyExists = true;
-            } else if (response.status >= 400) {
+            if (!alreadyInUse && response.status >= 400) {
                 const errMsg = response.data?.response?.message || response.data?.message || `HTTP ${response.status}`;
+                this.logger.warn(`createInstance HTTP ${response.status}: ${JSON.stringify(response.data)}`);
                 return { success: false, error: Array.isArray(errMsg) ? errMsg.join(', ') : String(errMsg) };
             }
+
+            this.logger.log(`Instance ${instanceName} ${alreadyInUse ? 'already existed' : 'created'}`);
         } catch (error) {
             this.logger.error(`Failed to create instance: ${error.message}`);
             return { success: false, error: error.message };
         }
 
-        await this.settingsService.set('whatsapp_instance_name', instanceName);
-        this.logger.log(`Instance ${instanceName} ${instanceAlreadyExists ? 'already existed' : 'created'}, fetching QR...`);
+        // Persist instance name per tenant
+        await this.settingsService.set('whatsapp_instance_name', instanceName, undefined, undefined, undefined, tenantId);
 
-        // Busca QR via /instance/connect
-        let qrcode: string | null = null;
-        for (let i = 0; i < 10; i++) {
-            try {
-                const connectRes = await axios.get(
-                    `${apiUrl}/instance/connect/${instanceName}`,
-                    { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
-                );
-                qrcode = connectRes.data?.qrcode?.base64 || connectRes.data?.base64 || connectRes.data?.urlCode || null;
-                if (qrcode) {
-                    this.logger.log('QR code obtained via /instance/connect');
-                    break;
-                }
-                this.logger.debug(`QR attempt ${i + 1}: no QR yet (${JSON.stringify(connectRes.data)})`);
-            } catch (e) {
-                this.logger.debug(`QR attempt ${i + 1} failed: ${e.message}`);
+        // Try to grab QR right away (1 attempt) — frontend will keep polling if not ready yet
+        try {
+            const connectRes = await axios.get(
+                `${apiUrl}/instance/connect/${instanceName}`,
+                { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
+            );
+            const qrcode = connectRes.data?.qrcode?.base64 || connectRes.data?.base64 || connectRes.data?.urlCode || null;
+            if (qrcode) {
+                this.logger.log('QR obtained immediately on create');
+                return { success: true, qrcode };
             }
-            await new Promise(r => setTimeout(r, 2000));
+            this.logger.debug(`createInstance: no immediate QR (${JSON.stringify(connectRes.data)})`);
+        } catch (e) {
+            this.logger.debug(`createInstance: /connect attempt failed (${e.message})`);
         }
 
-        return { success: true, qrcode };
+        // Return success without QR — frontend will poll GET /whatsapp/qrcode
+        return { success: true };
     }
 
     /** Check connection status of the Evolution API instance */
@@ -325,7 +314,7 @@ export class WhatsappService {
         }
     }
 
-    /** Get QR code for pairing */
+    /** Get QR code — called repeatedly by the frontend every 2-3s after createInstance */
     async getQRCode(tenantId?: string): Promise<{ qrcode?: string; status: string; pairingCode?: string }> {
         const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
 
@@ -333,59 +322,43 @@ export class WhatsappService {
             return { status: 'not_configured' };
         }
 
-        // Wait for server to wake up
-        await this.waitForServer(apiUrl);
-
+        // A. Try /instance/connect (fast, single attempt)
         try {
-            // Try /instance/connect first (v2.2.3)
-            // Retry logic: The QR might not be ready immediately after create
-            for (let i = 0; i < 10; i++) {
-                // A. Try /connect endpoint
-                try {
-                    const response = await axios.get(
-                        `${apiUrl}/instance/connect/${instance}`,
-                        { headers: { apikey: apiKey }, timeout: API_TIMEOUT },
-                    );
-
-                    const qr = response.data?.qrcode?.base64 || response.data?.base64 || response.data?.urlCode;
-                    if (qr) {
-                        return { qrcode: qr, pairingCode: response.data?.pairingCode || null, status: 'ok' };
-                    }
-                    this.logger.debug(`Attempt ${i + 1}: No QR from /connect (${JSON.stringify(response.data)})`);
-                } catch (e) {
-                    this.logger.debug(`Attempt ${i + 1}: /connect failed (${e.message})`);
-                }
-
-                // B. Try /fetchInstances endpoint (Fallback)
-                try {
-                    const fetchRes = await axios.get(
-                        `${apiUrl}/instance/fetchInstances`,
-                        { headers: { apikey: apiKey }, timeout: API_TIMEOUT, params: { instanceName: instance } },
-                    );
-                    const instances = Array.isArray(fetchRes.data) ? fetchRes.data : [fetchRes.data];
-                    const inst = instances.find((item: any) => item.instance?.instanceName === instance);
-
-                    if (inst?.qrcode?.base64) {
-                        return { qrcode: inst.qrcode.base64, status: 'ok' };
-                    }
-                    this.logger.debug(`Attempt ${i + 1}: No QR from /fetchInstances (Status: ${inst?.instance?.status})`);
-                } catch (e) {
-                    this.logger.debug(`Attempt ${i + 1}: /fetchInstances failed (${e.message})`);
-                }
-
-                // Wait before retrying
-                await new Promise(r => setTimeout(r, 3000));
+            const response = await axios.get(
+                `${apiUrl}/instance/connect/${instance}`,
+                { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
+            );
+            const qr = response.data?.qrcode?.base64 || response.data?.base64 || response.data?.urlCode;
+            if (qr) {
+                this.logger.debug('QR obtained from /instance/connect');
+                return { qrcode: qr, pairingCode: response.data?.pairingCode || null, status: 'ok' };
             }
-
-            return { status: 'waiting', pairingCode: null };
-        } catch (error) {
-            // 404 implies instance doesn't exist or is improperly configured
-            if (error.response?.status === 404) {
-                return { status: 'disconnected' }; // Prompt frontend to create again
+            // If instance is already open (connected), report that
+            const state = response.data?.instance?.state || response.data?.state;
+            if (state === 'open') {
+                return { status: 'connected' };
             }
-            this.logger.error(`Failed to get QR code: ${error.message}`);
-            return { status: 'error' };
+            this.logger.debug(`/connect: no QR yet (state=${state}, data=${JSON.stringify(response.data).slice(0, 200)})`);
+        } catch (e) {
+            this.logger.debug(`/connect failed: ${e.message}`);
         }
+
+        // B. Fallback: /fetchInstances
+        try {
+            const fetchRes = await axios.get(
+                `${apiUrl}/instance/fetchInstances`,
+                { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true, params: { instanceName: instance } },
+            );
+            const instances = Array.isArray(fetchRes.data) ? fetchRes.data : [fetchRes.data];
+            const inst = instances.find((item: any) => item.instance?.instanceName === instance);
+            if (inst?.qrcode?.base64) {
+                return { qrcode: inst.qrcode.base64, status: 'ok' };
+            }
+        } catch (e) {
+            this.logger.debug(`/fetchInstances failed: ${e.message}`);
+        }
+
+        return { status: 'waiting' };
     }
 
     /** Disconnect and delete instance */
