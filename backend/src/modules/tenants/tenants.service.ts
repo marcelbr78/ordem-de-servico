@@ -30,7 +30,7 @@ export class TenantsService {
         // Gerar subdomain único a partir do nome
         const subdomain = data.subdomain ||
             data.name.toLowerCase()
-                .normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .replace(/[^a-z0-9]/g, '-')
                 .replace(/-+/g, '-')
                 .replace(/^-|-$/g, '')
