@@ -534,6 +534,21 @@ export const Settings: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Instância — somente leitura, gerenciada pelo sistema */}
+            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px' }}>
+                <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Instância</h3>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', margin: '0 0 12px' }}>
+                    Nome técnico da instância na Evolution API. Gerenciado automaticamente pelo sistema.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '9px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', userSelect: 'none' }}>Nome:</span>
+                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace' }}>
+                        {settings['whatsapp_instance_name'] || '(gerado automaticamente)'}
+                    </span>
+                    <span style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }}>somente leitura</span>
+                </div>
+            </div>
         </div>
     );
 
