@@ -26,7 +26,7 @@ export class TenantsService {
         phone?: string;
         city?: string;
         cnpj?: string;
-    }): Promise<Tenant> {
+    }): Promise<any> {
         // Gerar subdomain único a partir do nome
         const subdomain = data.subdomain ||
             data.name.toLowerCase()
@@ -46,6 +46,6 @@ export class TenantsService {
     }
 
     async findAll(): Promise<any[]> {
-        return this.repo.find({ order: { createdAt: 'DESC' } as any });
+        return (this.repo as any).find({ order: { createdAt: 'DESC' } });
     }
 }
