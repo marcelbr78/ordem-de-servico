@@ -223,9 +223,36 @@ html {
 }
 
 /* Inputs sem zoom no iOS (mínimo 16px) */
-input, select, textarea {
+input:not([type=checkbox]):not([type=radio]), select, textarea {
     font-size: max(16px, 1em) !important;
     -webkit-appearance: none;
+}
+
+/* Restaurar aparência nativa de checkbox e radio */
+input[type=checkbox],
+input[type=radio] {
+    -webkit-appearance: auto;
+    appearance: auto;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Selects nativos — fundo escuro para o tema dark */
+select {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+select option {
+    background-color: #1a1b26;
+    color: var(--text-primary);
 }
 
 /* Scrollbar fina e discreta */
