@@ -235,6 +235,8 @@ export class WhatsappService {
             return { success: false, error: 'O servidor WhatsApp não respondeu. Tente novamente em alguns instantes.' };
         }
 
+        // Tenta criar a instância; se já existir, usa a existente
+        let instanceAlreadyExists = false;
         try {
             const response = await axios.post(
                 `${apiUrl}/instance/create`,
@@ -247,44 +249,49 @@ export class WhatsappService {
                 {
                     headers: { apikey: apiKey, 'Content-Type': 'application/json' },
                     timeout: 30000,
+                    validateStatus: (status) => status < 500,
                 },
             );
 
-            // Save instance name in settings
-            await this.settingsService.set('whatsapp_instance_name', instanceName);
+            const alreadyInUse = response.data?.response?.message?.toString().includes('already in use')
+                || response.data?.message?.toString().includes('already in use');
 
-            this.logger.log(`Instance ${instanceName} created`);
-
-            // Tenta extrair QR do response do create (Evolution v2 às vezes retorna aqui)
-            let qrcode = response.data?.qrcode?.base64 || response.data?.hash || null;
-
-            // Se não veio no create, busca via /instance/connect (padrão Evolution v2)
-            if (!qrcode) {
-                this.logger.log('QR not in create response, fetching via /instance/connect...');
-                for (let i = 0; i < 8; i++) {
-                    try {
-                        const connectRes = await axios.get(
-                            `${apiUrl}/instance/connect/${instanceName}`,
-                            { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
-                        );
-                        qrcode = connectRes.data?.qrcode?.base64 || connectRes.data?.base64 || connectRes.data?.urlCode || null;
-                        if (qrcode) {
-                            this.logger.log('QR code obtained via /instance/connect');
-                            break;
-                        }
-                    } catch (e) {
-                        this.logger.debug(`QR fetch attempt ${i + 1}: ${e.message}`);
-                    }
-                    await new Promise(r => setTimeout(r, 2000));
-                }
+            if (alreadyInUse || response.status === 403) {
+                this.logger.log(`Instance ${instanceName} already exists, will connect directly.`);
+                instanceAlreadyExists = true;
+            } else if (response.status >= 400) {
+                const errMsg = response.data?.response?.message || response.data?.message || `HTTP ${response.status}`;
+                return { success: false, error: Array.isArray(errMsg) ? errMsg.join(', ') : String(errMsg) };
             }
-
-            return { success: true, instance: response.data, qrcode };
         } catch (error) {
             this.logger.error(`Failed to create instance: ${error.message}`);
-            const errMsg = error.response?.data?.response?.message || error.response?.data?.message || error.message;
-            return { success: false, error: Array.isArray(errMsg) ? errMsg.join(', ') : errMsg };
+            return { success: false, error: error.message };
         }
+
+        await this.settingsService.set('whatsapp_instance_name', instanceName);
+        this.logger.log(`Instance ${instanceName} ${instanceAlreadyExists ? 'already existed' : 'created'}, fetching QR...`);
+
+        // Busca QR via /instance/connect
+        let qrcode: string | null = null;
+        for (let i = 0; i < 10; i++) {
+            try {
+                const connectRes = await axios.get(
+                    `${apiUrl}/instance/connect/${instanceName}`,
+                    { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
+                );
+                qrcode = connectRes.data?.qrcode?.base64 || connectRes.data?.base64 || connectRes.data?.urlCode || null;
+                if (qrcode) {
+                    this.logger.log('QR code obtained via /instance/connect');
+                    break;
+                }
+                this.logger.debug(`QR attempt ${i + 1}: no QR yet (${JSON.stringify(connectRes.data)})`);
+            } catch (e) {
+                this.logger.debug(`QR attempt ${i + 1} failed: ${e.message}`);
+            }
+            await new Promise(r => setTimeout(r, 2000));
+        }
+
+        return { success: true, qrcode };
     }
 
     /** Check connection status of the Evolution API instance */
