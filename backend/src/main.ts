@@ -69,28 +69,10 @@ async function bootstrap() {
     const frontendUrl = process.env.FRONTEND_URL;
     const allowedOrigins = frontendUrl
         ? frontendUrl.split(',').map(u => u.trim())
-        : [];
-
-    // Adicionar domínios padrão caso não estejam no ENV
-    const defaultOrigins = [
-        'https://os4u.com.br',
-        'https://www.os4u.com.br',
-        'https://ordem-de-servico-frontend.onrender.com'
-    ];
-    
-    const finalOrigins = [...new Set([...allowedOrigins, ...defaultOrigins])];
+        : true;
 
     app.enableCors({
-        origin: (origin, callback) => {
-            // Permitir requests sem origin (como mobile apps ou ferramentas de debug) 
-            // ou se o origin estiver na lista ou for subdomínio de os4u.com.br
-            if (!origin || finalOrigins.includes(origin) || origin.endsWith('.os4u.com.br')) {
-                callback(null, true);
-            } else {
-                console.warn(`🔒 CORS bloqueado para origin: ${origin}`);
-                callback(null, false); // Não trava a req, mas não manda headers de allow
-            }
-        },
+        origin: allowedOrigins,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
     });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
     Search, Plus, Package, ArrowRightLeft, Pencil, X, RefreshCw,
@@ -359,6 +360,8 @@ export const Inventory: React.FC = () => {
     const [filterType, setFilterType] = useState<'all' | 'product' | 'service'>('all');
     const [filterAbc, setFilterAbc] = useState<'' | 'A' | 'B' | 'C'>('');
     const [showModal, setShowModal] = useState(false);
+    const [searchParams] = useSearchParams();
+    useEffect(() => { if (searchParams.get('new') === '1') setShowModal(true); }, []);
     const [editProduct, setEditProduct] = useState<Product | null>(null);
     const [moveProduct, setMoveProduct] = useState<Product | null>(null);
     const [movFrom, setMovFrom]     = useState('');

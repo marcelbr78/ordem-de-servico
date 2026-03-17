@@ -16,22 +16,46 @@ interface SidebarProps {
     onToggleCollapse: () => void;
 }
 
-const MAIN_LINKS = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Ordens de Serviço', path: '/orders', icon: ShoppingCart },
-    { name: 'Kanban', path: '/kanban', icon: Kanban },
-    { name: 'Agenda', path: '/schedule', icon: Calendar },
-    { name: 'Garantias', path: '/warranty', icon: Shield },
-    { name: 'Clientes', path: '/clients', icon: Users },
-    { name: 'Fornecedores', path: '/suppliers', icon: Truck },
-    { name: 'Estoque', path: '/inventory', icon: Package },
-    { name: 'Financeiro', path: '/finance', icon: DollarSign },
-    { name: 'Comissões', path: '/commissions', icon: Award },
-    { name: 'Contas Bancárias', path: '/bank-accounts', icon: Landmark },
-    { name: 'Relatórios', path: '/reports', icon: BarChart2 },
-    { name: 'Diagnóstico de Placa', path: '/diagnostico', icon: Cpu },
-    { name: 'App Store', path: '/marketplace', icon: Blocks },
+// Links agrupados por seção
+const LINK_GROUPS = [
+    {
+        label: 'OS & Atendimento',
+        links: [
+            { name: 'Dashboard',        path: '/dashboard', icon: LayoutDashboard },
+            { name: 'Ordens de Serviço', path: '/orders',   icon: ShoppingCart },
+            { name: 'Kanban',           path: '/kanban',    icon: Kanban },
+            { name: 'Agenda',           path: '/schedule',  icon: Calendar },
+            { name: 'Garantias',        path: '/warranty',  icon: Shield },
+        ],
+    },
+    {
+        label: 'Cadastros',
+        links: [
+            { name: 'Clientes',    path: '/clients',   icon: Users },
+            { name: 'Fornecedores', path: '/suppliers', icon: Truck },
+            { name: 'Estoque',     path: '/inventory', icon: Package },
+        ],
+    },
+    {
+        label: 'Financeiro',
+        links: [
+            { name: 'Financeiro',      path: '/finance',        icon: DollarSign },
+            { name: 'Comissões',       path: '/commissions',    icon: Award },
+            { name: 'Contas Bancárias', path: '/bank-accounts', icon: Landmark },
+        ],
+    },
+    {
+        label: 'Relatórios & Ferramentas',
+        links: [
+            { name: 'Relatórios',          path: '/reports',     icon: BarChart2 },
+            { name: 'Diagnóstico de Placa', path: '/diagnostico', icon: Cpu },
+            { name: 'App Store',           path: '/marketplace', icon: Blocks },
+        ],
+    },
 ];
+
+// Flat list para compatibilidade
+const MAIN_LINKS = LINK_GROUPS.flatMap(g => g.links);
 
 const BOTTOM_LINKS = [
     { name: 'Notas Fiscais', path: '/fiscal', icon: Receipt },
@@ -163,12 +187,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, isDesktop, collapsed, 
                 overflowX: 'hidden',
                 WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
             }}>
-                {!collapsed && (
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 12px 8px', marginTop: '4px' }}>
-                        Sistema
-                    </div>
-                )}
-                {MAIN_LINKS.map(item => renderLink(item))}
+                {LINK_GROUPS.map((group, gi) => (
+                    <React.Fragment key={group.label}>
+                        {gi > 0 && <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
+                        {!collapsed && (
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.22)', textTransform: 'uppercase', letterSpacing: '1px', padding: '4px 12px 4px', marginTop: gi === 0 ? '4px' : '0' }}>
+                                {group.label}
+                            </div>
+                        )}
+                        {group.links.map(item => renderLink(item))}
+                    </React.Fragment>
+                ))}
                 <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
                 {BOTTOM_LINKS.map(item => renderLink(item))}
                 {isSuperAdmin && (

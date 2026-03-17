@@ -322,8 +322,6 @@ export const Settings: React.FC = () => {
     const [waConnecting, setWaConnecting] = useState(false);
     const [testNumber, setTestNumber] = useState('');
     const [sendingTest, setSendingTest] = useState(false);
-    const [waUsingEnv, setWaUsingEnv] = useState(false);
-    const [waConfigured, setWaConfigured] = useState(false);
     const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
@@ -363,12 +361,6 @@ export const Settings: React.FC = () => {
     const checkWhatsapp = async () => {
         setWaStep('loading');
         try {
-            // Check config status (API URL/Key)
-            const c = await api.get('/whatsapp/config');
-            setWaConfigured(c.data.configured);
-            setWaUsingEnv(c.data.usingEnv);
-
-            // Check connection status (Logged in?)
             const r = await api.get('/whatsapp/status');
             setWaStep(r.data.connected ? 'connected' : 'disconnected');
         } catch { setWaStep('disconnected'); }
@@ -377,13 +369,7 @@ export const Settings: React.FC = () => {
     const handleConnect = async () => {
         setWaConnecting(true);
         try {
-            // Se não tiver nome de instância salvo, gera um automático "loja-XXXX"
-            let instName = settings.whatsapp_instance_name;
-            if (!instName) {
-                instName = `os4u-${Math.random().toString(36).substring(2, 7)}`;
-                await handleSave('whatsapp_instance_name', instName);
-            }
-
+            const instName = settings.whatsapp_instance_name || 'instance';
             const r = await api.post('/whatsapp/instance', { instanceName: instName });
             if (r.data.qrcode) { setWaQrCode(r.data.qrcode); setWaStep('qrcode'); }
             if (qrPollRef.current) clearInterval(qrPollRef.current);
@@ -393,11 +379,7 @@ export const Settings: React.FC = () => {
                     if (s.data.connected) { setWaStep('connected'); setWaQrCode(null); clearInterval(qrPollRef.current!); }
                 } catch {}
             }, 4000);
-        } catch (err: any) {
-            setWaConnecting(false);
-            const msg = err.response?.data?.error || err.message;
-            alert('Erro ao conectar: ' + msg);
-        }
+        } catch { setWaConnecting(false); }
         finally { setWaConnecting(false); }
     };
 
@@ -476,35 +458,25 @@ export const Settings: React.FC = () => {
                     </div>
                 )}
             </div>
-
-            {/* Configuração de Instância - Só exibe se NÃO estiver usando Env Vars do servidor */}
-            {!waUsingEnv && (
-                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px' }}>
-                    <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configuração</h3>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', margin: '0 0 14px' }}>
-                        Defina um nome único para identificar sua loja no WhatsApp. Use apenas letras, números e hífens.
+            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px' }}>
+                <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configuração</h3>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', margin: '0 0 14px' }}>
+                    Defina um nome único para identificar sua loja no WhatsApp. Use apenas letras, números e hífens.
+                </p>
+                <div>
+                    <label style={lbl}>Nome da Instância</label>
+                    <input
+                        value={settings['whatsapp_instance_name'] || ''}
+                        onChange={e => setSettings(p => ({ ...p, whatsapp_instance_name: e.target.value }))}
+                        onBlur={e => handleSave('whatsapp_instance_name', e.target.value)}
+                        placeholder="minha-assistencia"
+                        style={inp}
+                    />
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '6px' }}>
+                        Ex: assistencia-blumenau, tecinfo, reparo-cel
                     </p>
-                    <div>
-                        <label style={lbl}>Nome da Instância</label>
-                        <input
-                            value={settings['whatsapp_instance_name'] || ''}
-                            onChange={e => setSettings(p => ({ ...p, whatsapp_instance_name: e.target.value }))}
-                            onBlur={e => handleSave('whatsapp_instance_name', e.target.value)}
-                            placeholder="minha-assistencia"
-                            style={inp}
-                        />
-                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '6px' }}>
-                            Ex: assistencia-blumenau, tecinfo, reparo-cel
-                        </p>
-                    </div>
                 </div>
-            )}
-
-            {!waConfigured && waUsingEnv && (
-                <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px' }}>
-                    ⚠️ Erro de configuração no servidor. Verifique as variáveis de ambiente.
-                </div>
-            )}
+            </div>
         </div>
     );
 
