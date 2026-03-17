@@ -10,6 +10,8 @@ import { OrderHistory } from './entities/order-history.entity';
 import { OrderPhoto } from './entities/order-photo.entity';
 import { OrderPart } from './entities/order-part.entity';
 import { OrderConversation } from './entities/order-conversation.entity';
+import { OrderServiceItem } from './entities/order-service-item.entity';
+import { OrderServiceItemsController } from './order-service-items.controller';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { ClientsModule } from '../clients/clients.module';
 import { InventoryModule } from '../inventory/inventory.module';
@@ -26,12 +28,12 @@ import { ConversationService } from './conversation.service';
     imports: [
         TypeOrmModule.forFeature([
             OrderService, OrderEquipment, OrderHistory,
-            OrderPhoto, OrderPart, OrderConversation, Plan,
+            OrderPhoto, OrderPart, OrderConversation, Plan, OrderServiceItem,
         ]),
         WhatsappModule, ClientsModule, InventoryModule,
         CloudinaryModule, SettingsModule, FinanceModule, TenantsModule,
     ],
-    controllers: [OrdersController, PublicOrdersController],
+    controllers: [OrdersController, PublicOrdersController, OrderServiceItemsController],
     providers: [OrdersService, LookupService, OrderPdfService, PlansService, ConversationService],
     exports: [OrdersService, ConversationService],
 })

@@ -8,6 +8,7 @@ export enum HistoryActionType {
     SYSTEM = 'SYSTEM',
     PHOTO = 'PHOTO',
     INTEGRATION = 'INTEGRATION',
+    ITEM_EDIT = 'ITEM_EDIT',
 }
 
 @Entity('order_history')

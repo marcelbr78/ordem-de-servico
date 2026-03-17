@@ -13,7 +13,6 @@ import { ConversationTab } from './ConversationTab';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import type { Order } from '../../types';
-import api from '../../services/api';
 import { ActiveQuote } from '../smartparts/ActiveQuote';
 import { PhotoGallery } from '../common/PhotoGallery';
 import { FiscalTab } from '../fiscal/FiscalTab';
@@ -122,6 +121,10 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             fetchTransactions();
             api.get('/bank-accounts').then(res => setBankAccounts(res.data || []));
         }
+        if (activeTab === 'Peças/Serviços') {
+            loadServiceItems();
+            loadSvcCatalog();
+        }
     }, [activeTab]);
 
     const handleAddPayment = async () => {
@@ -167,6 +170,64 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             return 'https://os4u.com.br';
         }
         return origin;
+    };
+
+    // ── Itens de Serviço (mão de obra) ──────────────────────────
+    const [serviceItems, setServiceItems] = useState<any[]>([]);
+    const [newSvcName, setNewSvcName] = useState('');
+    const [newSvcDesc, setNewSvcDesc] = useState('');
+    const [newSvcPrice, setNewSvcPrice] = useState('');
+    const [editingSvcId, setEditingSvcId] = useState<string | null>(null);
+    const [editSvcData, setEditSvcData] = useState<any>({});
+    const [svcCatalog, setSvcCatalog] = useState<any[]>([]);
+    const [svcSearch, setSvcSearch] = useState('');
+
+    const loadServiceItems = async () => {
+        try {
+            const r = await api.get(`/orders/${order.id}/service-items`);
+            setServiceItems(r.data);
+        } catch {}
+    };
+
+    const loadSvcCatalog = async () => {
+        try {
+            const r = await api.get('/inventory?type=service');
+            setSvcCatalog(r.data.filter((p: any) => p.type === 'service'));
+        } catch {}
+    };
+
+    const handleAddServiceItem = async (fromCatalog?: any) => {
+        const name = fromCatalog?.name || newSvcName.trim();
+        const price = fromCatalog ? fromCatalog.priceSell : parseFloat(newSvcPrice.replace(',', '.'));
+        if (!name || !price) return;
+        try {
+            await api.post(`/orders/${order.id}/service-items`, {
+                name,
+                description: fromCatalog?.description || newSvcDesc.trim() || undefined,
+                price,
+                catalogId: fromCatalog?.id || undefined,
+            });
+            setNewSvcName(''); setNewSvcDesc(''); setNewSvcPrice(''); setSvcSearch('');
+            await loadServiceItems();
+            onUpdate();
+        } catch {}
+    };
+
+    const handleUpdateServiceItem = async (itemId: string) => {
+        try {
+            await api.patch(`/orders/${order.id}/service-items/${itemId}`, editSvcData);
+            setEditingSvcId(null);
+            await loadServiceItems();
+            onUpdate();
+        } catch {}
+    };
+
+    const handleRemoveServiceItem = async (itemId: string) => {
+        try {
+            await api.delete(`/orders/${order.id}/service-items/${itemId}`);
+            await loadServiceItems();
+            onUpdate();
+        } catch {}
     };
 
     // Peças e Serviços State
@@ -252,7 +313,9 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
         }
     };
 
-    const totalParts = (order.parts || []).reduce((acc, part) => acc + (Number(part.unitPrice) * part.quantity), 0);
+    const totalPartsOnly = (order.parts || []).reduce((acc, part) => acc + (Number(part.unitPrice) * part.quantity), 0);
+    const totalServiceItems = serviceItems.reduce((acc, s) => acc + Number(s.price), 0);
+    const totalParts = totalPartsOnly + totalServiceItems;
 
     // Click Outside Handling
     React.useEffect(() => {
@@ -1003,6 +1066,86 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     </div>
                                 </div>
 
+                                {/* ── Serviços de Mão de Obra ─────────────────── */}
+                                <div style={{ marginBottom: '28px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                        <DollarSign size={15} color="#a855f7" />
+                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Serviços de Mão de Obra</span>
+                                        <span style={{ marginLeft: 'auto', fontSize: '13px', color: '#a855f7', fontWeight: 600 }}>
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalServiceItems)}
+                                        </span>
+                                    </div>
+
+                                    {/* Lista de serviços já adicionados */}
+                                    {serviceItems.map(svc => (
+                                        <div key={svc.id} style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
+                                            {editingSvcId === svc.id ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <input value={editSvcData.name ?? svc.name} onChange={e => setEditSvcData((p: any) => ({ ...p, name: e.target.value }))}
+                                                        placeholder="Nome do serviço" style={{ padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: '13px', outline: 'none' }} />
+                                                    <input value={editSvcData.description ?? svc.description ?? ''} onChange={e => setEditSvcData((p: any) => ({ ...p, description: e.target.value }))}
+                                                        placeholder="Descrição (opcional)" style={{ padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: '13px', outline: 'none' }} />
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <input type="number" value={editSvcData.price ?? svc.price} onChange={e => setEditSvcData((p: any) => ({ ...p, price: e.target.value }))}
+                                                            placeholder="Valor R$" style={{ flex: 1, padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: '13px', outline: 'none' }} />
+                                                        <button onClick={() => handleUpdateServiceItem(svc.id)} style={{ padding: '8px 16px', borderRadius: '7px', background: '#a855f7', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Salvar</button>
+                                                        <button onClick={() => setEditingSvcId(null)} style={{ padding: '8px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer' }}>✕</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>{svc.name}</div>
+                                                        {svc.description && <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', marginTop: '2px' }}>{svc.description}</div>}
+                                                    </div>
+                                                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#a855f7', whiteSpace: 'nowrap' }}>
+                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(svc.price)}
+                                                    </div>
+                                                    <button onClick={() => { setEditingSvcId(svc.id); setEditSvcData({}); }}
+                                                        style={{ background: 'rgba(168,85,247,0.1)', border: 'none', color: '#a855f7', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px', fontSize: '12px' }}>✏️</button>
+                                                    <button onClick={() => handleRemoveServiceItem(svc.id)}
+                                                        style={{ background: 'rgba(244,63,94,0.08)', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px' }}><Trash2 size={13} /></button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {/* Formulário para adicionar serviço */}
+                                    <div style={{ background: 'rgba(168,85,247,0.04)', border: '1px dashed rgba(168,85,247,0.25)', borderRadius: '10px', padding: '12px 14px' }}>
+                                        {/* Busca rápida no catálogo */}
+                                        {svcCatalog.length > 0 && (
+                                            <div style={{ marginBottom: '10px', position: 'relative' }}>
+                                                <select onChange={e => { const s = svcCatalog.find((c: any) => c.id === e.target.value); if (s) handleAddServiceItem(s); e.target.value = ''; }}
+                                                    style={{ width: '100%', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
+                                                    <option value="">⚡ Adicionar do catálogo...</option>
+                                                    {svcCatalog.map((s: any) => (
+                                                        <option key={s.id} value={s.id}>{s.name} — {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.priceSell)}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            <input value={newSvcName} onChange={e => setNewSvcName(e.target.value)} placeholder="Nome do serviço *"
+                                                style={{ flex: 2, minWidth: '140px', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '13px', outline: 'none' }} />
+                                            <input value={newSvcDesc} onChange={e => setNewSvcDesc(e.target.value)} placeholder="Descrição (opcional)"
+                                                style={{ flex: 3, minWidth: '140px', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '13px', outline: 'none' }} />
+                                            <input type="number" value={newSvcPrice} onChange={e => setNewSvcPrice(e.target.value)} placeholder="R$ Valor *"
+                                                style={{ width: '100px', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '13px', outline: 'none' }} />
+                                            <button onClick={() => handleAddServiceItem()} disabled={!newSvcName.trim() || !newSvcPrice}
+                                                style={{ padding: '8px 14px', borderRadius: '7px', background: newSvcName.trim() && newSvcPrice ? '#a855f7' : 'rgba(168,85,247,0.2)', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <Plus size={14} /> Adicionar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Divisor */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+                                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '5px' }}><Package size={12} /> Peças do Estoque</span>
+                                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+                                </div>
+
                                 {/* Product Search */}
                                 <div style={{ position: 'relative', marginBottom: '24px' }}>
                                     <div style={{ position: 'relative' }}>
@@ -1011,7 +1154,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => handleSearchProducts(e.target.value)}
-                                            placeholder="Buscar peça ou serviço no estoque (mín. 2 letras)..."
+                                            placeholder="Buscar peça no estoque (mín. 2 letras)..."
                                             style={{
                                                 width: '100%', padding: '12px 12px 12px 42px', borderRadius: '10px',
                                                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
@@ -1250,7 +1393,45 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                                         </div>
                                                                     ) : (
                                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                            <span>{hist.actionType}</span>
+                                                                            {hist.actionType === 'ITEM_EDIT' ? (
+                                                                                <span style={{
+                                                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                                                    padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                                                                                    background: 'rgba(99,102,241,0.15)', color: '#818cf8',
+                                                                                    border: '1px solid rgba(99,102,241,0.2)',
+                                                                                }}>
+                                                                                    🔧 Serviço
+                                                                                </span>
+                                                                            ) : hist.actionType === 'COMMENT' ? (
+                                                                                <span style={{
+                                                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                                                    padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                                                                                    background: 'rgba(16,185,129,0.15)', color: '#34d399',
+                                                                                    border: '1px solid rgba(16,185,129,0.2)',
+                                                                                }}>
+                                                                                    💬 Comentário
+                                                                                </span>
+                                                                            ) : hist.actionType === 'PHOTO' ? (
+                                                                                <span style={{
+                                                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                                                    padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                                                                                    background: 'rgba(245,158,11,0.15)', color: '#fbbf24',
+                                                                                    border: '1px solid rgba(245,158,11,0.2)',
+                                                                                }}>
+                                                                                    📷 Foto
+                                                                                </span>
+                                                                            ) : hist.actionType === 'SYSTEM' ? (
+                                                                                <span style={{
+                                                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                                                    padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                                                                                    background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)',
+                                                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                                                }}>
+                                                                                    ⚙️ Sistema
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span>{hist.actionType}</span>
+                                                                            )}
                                                                             {hist.waMsgSent && hist.actionType === 'INTEGRATION' && (
                                                                                 <span style={{
                                                                                     display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -1277,7 +1458,17 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                                 </div>
                                                             </div>
                                                             {hist.comments && (
-                                                                <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>{hist.comments}</p>
+                                                                hist.actionType === 'ITEM_EDIT' ? (
+                                                                    <div style={{ margin: '8px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+                                                                        {hist.comments.split('\n').map((line: string, i: number) => (
+                                                                            <div key={i} style={i === 0 ? { fontWeight: 500, color: 'rgba(255,255,255,0.75)', marginBottom: '4px' } : { paddingLeft: '8px', borderLeft: '2px solid rgba(99,102,241,0.3)', marginBottom: '2px', fontSize: '12px' }}>
+                                                                                {line}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>{hist.comments}</p>
+                                                                )
                                                             )}
                                                             {hist.waMsgSent && hist.waMsgContent && hist.waMsgContent !== hist.comments && expandedWaMsgs.has(hist.id) && (
                                                                 <div className="animate-fade" style={{
