@@ -54,7 +54,8 @@ export class WhatsappService {
             || '';
         // Instância: específica por tenant para isolamento
         const savedInstance = await (this.settingsService as any).findByKey('whatsapp_instance_name', tenantId);
-        const instance = savedInstance || 'instance';
+        // Gera nome único por tenant; fallback para 'instance' se não tiver tenantId (legado)
+        const instance = savedInstance || (tenantId ? `os4u-${tenantId.slice(0, 8)}` : 'instance');
         return { apiUrl, apiKey, instance };
     }
 
@@ -256,8 +257,8 @@ export class WhatsappService {
         }
     }
 
-    async createInstance(instanceName: string, number?: string, tenantId?: string): Promise<{ success: boolean; qrcode?: string; alreadyConnected?: boolean; error?: string }> {
-        const { apiUrl, apiKey } = await this.getConfig(tenantId);
+    async createInstance(tenantId?: string): Promise<{ success: boolean; qrcode?: string; alreadyConnected?: boolean; error?: string }> {
+        const { apiUrl, apiKey, instance: instanceName } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey) {
             return { success: false, error: 'API URL e Token não configurados. Contate o suporte.' };

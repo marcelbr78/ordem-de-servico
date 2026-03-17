@@ -24,8 +24,8 @@ export class WhatsappController {
     }
 
     @Post('instance')
-    async createInstance(@Body() body: { instanceName: string; number?: string }, @Request() req) {
-        return this.whatsappService.createInstance(body.instanceName, body.number, req.user?.tenantId);
+    async createInstance(@Request() req) {
+        return this.whatsappService.createInstance(req.user?.tenantId);
     }
 
     @Delete('disconnect')

@@ -373,8 +373,7 @@ export const Settings: React.FC = () => {
         if (qrPollRef.current) clearInterval(qrPollRef.current);
 
         try {
-            const instName = settings.whatsapp_instance_name || 'instance';
-            const r = await api.post('/whatsapp/instance', { instanceName: instName }, { timeout: 35000 });
+            const r = await api.post('/whatsapp/instance', {}, { timeout: 35000 });
 
             if (r.data.success === false) {
                 setWaError(r.data.error || 'Falha ao criar instância WhatsApp.');
@@ -534,25 +533,6 @@ export const Settings: React.FC = () => {
                         </button>
                     </div>
                 )}
-            </div>
-            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configuração</h3>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', margin: '0 0 14px' }}>
-                    Defina um nome único para identificar sua loja no WhatsApp. Use apenas letras, números e hífens.
-                </p>
-                <div>
-                    <label style={lbl}>Nome da Instância</label>
-                    <input
-                        value={settings['whatsapp_instance_name'] || ''}
-                        onChange={e => setSettings(p => ({ ...p, whatsapp_instance_name: e.target.value }))}
-                        onBlur={e => handleSave('whatsapp_instance_name', e.target.value)}
-                        placeholder="minha-assistencia"
-                        style={inp}
-                    />
-                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '6px' }}>
-                        Ex: assistencia-blumenau, tecinfo, reparo-cel
-                    </p>
-                </div>
             </div>
         </div>
     );
