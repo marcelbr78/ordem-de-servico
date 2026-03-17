@@ -548,6 +548,18 @@ export const Settings: React.FC = () => {
                     </span>
                     <span style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }}>somente leitura</span>
                 </div>
+                <button
+                    onClick={async () => {
+                        if (!window.confirm('Redefinir instância? O WhatsApp precisará ser conectado novamente.')) return;
+                        await api.post('/whatsapp/reset');
+                        setSettings(p => ({ ...p, whatsapp_instance_name: '' }));
+                        setWaStep('disconnected');
+                        setWaQrCode(null);
+                    }}
+                    style={{ marginTop: '10px', fontSize: '12px', color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                >
+                    Redefinir instância
+                </button>
             </div>
         </div>
     );

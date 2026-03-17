@@ -28,6 +28,11 @@ export class WhatsappController {
         return this.whatsappService.createInstance(req.user?.tenantId);
     }
 
+    @Post('reset')
+    async reset(@Request() req) {
+        return this.whatsappService.resetInstance(req.user?.tenantId);
+    }
+
     @Delete('disconnect')
     async disconnect(@Request() req) {
         return this.whatsappService.disconnectInstance(req.user?.tenantId);

@@ -440,6 +440,17 @@ export class WhatsappService {
         }
     }
 
+    /** Apaga o nome de instância salvo para que o sistema gere um novo */
+    async resetInstance(tenantId?: string): Promise<{ success: boolean }> {
+        try {
+            await this.settingsService.delete('whatsapp_instance_name', tenantId);
+            // Também tenta apagar o registro global (legado sem tenantId)
+            await this.settingsService.delete('whatsapp_instance_name');
+        } catch {}
+        this.logger.log(`Instance name reset for tenant ${tenantId}`);
+        return { success: true };
+    }
+
     /** Send a test message */
     async sendTestMessage(to: string, tenantId?: string): Promise<{ success: boolean; error?: string }> {
         try {
