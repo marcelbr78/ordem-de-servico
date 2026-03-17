@@ -26,6 +26,8 @@ export class Transaction {
 
     @Column({ nullable: true }) description: string;
 
+    @Column({ nullable: true }) tenantId: string;
+
     @Column({ nullable: true }) orderId: string;
 
     @Column({ nullable: true }) bankAccountId: string;

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, UseGuards, Request } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -9,32 +9,32 @@ export class WhatsappController {
 
     /** Returns whether the Evolution API server is configured (env or DB) */
     @Get('config')
-    async getConfig() {
-        return this.whatsappService.getConfigStatus();
+    async getConfig(@Request() req) {
+        return this.whatsappService.getConfigStatus(req.user?.tenantId);
     }
 
     @Get('status')
-    async getStatus() {
-        return this.whatsappService.checkConnectionStatus();
+    async getStatus(@Request() req) {
+        return this.whatsappService.checkConnectionStatus(req.user?.tenantId);
     }
 
     @Get('qrcode')
-    async getQRCode() {
-        return this.whatsappService.getQRCode();
+    async getQRCode(@Request() req) {
+        return this.whatsappService.getQRCode(req.user?.tenantId);
     }
 
     @Post('instance')
-    async createInstance(@Body() body: { instanceName: string; number?: string }) {
-        return this.whatsappService.createInstance(body.instanceName, body.number);
+    async createInstance(@Body() body: { instanceName: string; number?: string }, @Request() req) {
+        return this.whatsappService.createInstance(body.instanceName, body.number, req.user?.tenantId);
     }
 
     @Delete('disconnect')
-    async disconnect() {
-        return this.whatsappService.disconnectInstance();
+    async disconnect(@Request() req) {
+        return this.whatsappService.disconnectInstance(req.user?.tenantId);
     }
 
     @Post('test')
-    async sendTest(@Body() body: { number: string }) {
-        return this.whatsappService.sendTestMessage(body.number);
+    async sendTest(@Body() body: { number: string }, @Request() req) {
+        return this.whatsappService.sendTestMessage(body.number, req.user?.tenantId);
     }
 }

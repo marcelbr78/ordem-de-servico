@@ -1,27 +1,25 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { BankAccountsService } from './bank-accounts.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @Controller('bank-accounts')
 @UseGuards(JwtAuthGuard)
 export class BankAccountsController {
-    constructor(private readonly bankAccountsService: BankAccountsService) { }
+    constructor(private readonly bankAccountsService: BankAccountsService) {}
 
     @Post()
-    @UsePipes(new ValidationPipe({ whitelist: false, forbidNonWhitelisted: false, transform: false }))
-    create(@Body() dto: Record<string, unknown>) {
-        console.log('[BankAccounts] POST body:', JSON.stringify(dto));
-        return this.bankAccountsService.createFromRaw(dto);
+    create(@Body() dto: Record<string, unknown>, @Request() req) {
+        return this.bankAccountsService.createFromRaw(dto, req.user?.tenantId);
     }
 
     @Get()
-    findAll() {
-        return this.bankAccountsService.findAll();
+    findAll(@Request() req) {
+        return this.bankAccountsService.findAll(req.user?.tenantId);
     }
 
     @Get('summary')
-    getTotalBalance() {
-        return this.bankAccountsService.getTotalBalance();
+    getSummary(@Request() req) {
+        return this.bankAccountsService.getTotalBalance(req.user?.tenantId);
     }
 
     @Get(':id')
@@ -30,7 +28,6 @@ export class BankAccountsController {
     }
 
     @Patch(':id')
-    @UsePipes(new ValidationPipe({ whitelist: false, forbidNonWhitelisted: false, transform: false }))
     update(@Param('id') id: string, @Body() dto: Record<string, unknown>) {
         return this.bankAccountsService.updateFromRaw(id, dto);
     }

@@ -132,15 +132,25 @@ export class AuthService {
         const existing = await this.usersService.findByEmail(data.ownerEmail);
         if (existing) throw new UnauthorizedException('E-mail já cadastrado.');
 
-        // 2. Criar usuário admin (sem tenant — sistema single-tenant)
-        const admin = await this.usersService.createAdminUserForTenant({
+        // 2. Criar Tenant (loja)
+        const tenant = await this.tenantsService.create({
+            name: data.storeName,
+            ownerEmail: data.ownerEmail,
+            phone: data.phone,
+            city: data.city,
+            cnpj: data.cnpj,
+        });
+
+        // 3. Criar usuário Admin vinculado ao tenant
+        await this.usersService.createAdminUserForTenant({
             name: data.ownerName,
             email: data.ownerEmail,
             password: data.password,
+            tenantId: tenant.id,
             mustChangePassword: false,
         });
 
-        // 3. Auto-login
+        // 4. Auto-login
         const user = await this.usersService.findByEmail(data.ownerEmail);
         return this.login(user, ip, userAgent);
     }

@@ -535,22 +535,52 @@ export const Settings: React.FC = () => {
     const groups = [...new Set(TABS.map(t => t.group))];
     const currentTab = TABS.find(t => t.key === activeTab);
 
-    return (
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+    const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
 
-            {/* Menu lateral — desktop */}
-            <div style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* Botão mobile para abrir menu */}
-                <button onClick={() => setShowMobileMenu(true)} style={{ display: 'none', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', color: '#fff', fontWeight: 600, fontSize: '14px', cursor: 'pointer', width: '100%' }}
-                    className="settings-mobile-btn">
-                    <Menu size={16} /> {currentTab?.label}
-                </button>
+    return (
+        <div className="settings-layout" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+
+            {/* Menu lateral — desktop / tabs topo no mobile */}
+            <div style={{ width: isMobileView ? '100%' : '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <style>{`
                     @media (max-width: 767px) {
                         .settings-sidebar { display: none !important; }
-                        .settings-mobile-btn { display: flex !important; }
+                        .settings-layout { flex-direction: column !important; }
+                        .settings-content { width: 100% !important; }
+                        .settings-mobile-tabs { display: flex !important; }
+                    }
+                    @media (min-width: 768px) {
+                        .settings-mobile-tabs { display: none !important; }
                     }
                 `}</style>
+
+                {/* Tabs horizontais — apenas mobile */}
+                <div className="settings-mobile-tabs" style={{
+                    display: 'none',
+                    overflowX: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    scrollbarWidth: 'none',
+                    gap: '6px',
+                    paddingBottom: '4px',
+                }}>
+                    {TABS.map(tab => {
+                        const Icon = tab.icon;
+                        const active = activeTab === tab.key;
+                        return (
+                            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                                display: 'flex', alignItems: 'center', gap: '6px',
+                                padding: '8px 14px', borderRadius: '20px', border: 'none',
+                                background: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.06)',
+                                color: active ? '#60a5fa' : 'rgba(255,255,255,0.5)',
+                                fontWeight: active ? 700 : 400, fontSize: '13px',
+                                cursor: 'pointer', whiteSpace: 'nowrap', minHeight: '36px',
+                                flexShrink: 0,
+                            }}>
+                                <Icon size={13} /> {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
 
                 <div className="settings-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '200px' }}>
                     {groups.map(group => (
@@ -574,7 +604,7 @@ export const Settings: React.FC = () => {
             </div>
 
             {/* Conteúdo */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="settings-content" style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {currentTab && React.createElement(currentTab.icon, { size: 18, color: 'var(--accent-primary)' })}
                     {currentTab?.label}
@@ -587,7 +617,10 @@ export const Settings: React.FC = () => {
                 )}
 
                 {loading ? (
-                    <div style={{ padding: '48px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>Carregando...</div>
+                    <div style={{ padding: '48px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                        <div>Carregando configurações...</div>
+                        <button onClick={fetchSettings} style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa', cursor: 'pointer', fontSize: '13px' }}>Tentar novamente</button>
+                    </div>
                 ) : (
                     <>
                         {activeTab === 'company'       && <CompanySettings settings={settings} onSave={handleSave} />}

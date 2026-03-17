@@ -126,4 +126,29 @@ export class ClientsController {
     async getStats(@Param('id') id: string, @Req() req: any) {
         return this.clientsService.getClientStats(id, req.user?.tenantId);
     }
+    @Post('import')
+    async importClients(@Body() body: { data: any[] }, @Req() req: any) {
+        const tenantId = req.user?.tenantId;
+        let imported = 0;
+        const erros: string[] = [];
+        for (const row of (body.data || [])) {
+            try {
+                if (!row.nome && !row.name) continue;
+                await this.clientsService.create({
+                    name: row.nome || row.name,
+                    phone: row.telefone || row.phone || '',
+                    email: row.email || '',
+                    cpf: row.cpf || '',
+                    address: row.endereco || row.address || '',
+                    city: row.cidade || row.city || '',
+                    notes: row.observacoes || row.notes || '',
+                    tenantId,
+                } as any);
+                imported++;
+            } catch (e: any) {
+                erros.push(e.message);
+            }
+        }
+        return { imported, errors: erros.length, details: erros.slice(0, 5) };
+    }
 }

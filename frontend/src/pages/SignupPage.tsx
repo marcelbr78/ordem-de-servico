@@ -74,7 +74,7 @@ export const SignupPage: React.FC = () => {
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
-    // const [loading /*, setLoading */] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [apiError /*, setApiError */] = useState('');
     const [step, setStep] = useState<1 | 2>(1);
 
@@ -107,11 +107,31 @@ export const SignupPage: React.FC = () => {
 
     const handleSubmit = async (ev: React.FormEvent) => {
         ev.preventDefault();
-        alert('O auto-cadastro está temporariamente em manutenção. Por favor, entre em contato com nosso suporte para criar sua conta.');
-        return;
-
         if (!validateStep2()) return;
-        // ... (remaining code remains but reachable code is blocked)
+        setLoading(true);
+        try {
+            const res = await api.post('/auth/signup', {
+                storeName: form.storeName,
+                ownerName: form.ownerName,
+                ownerEmail: form.email,
+                password: form.password,
+                phone: form.phone,
+                city: form.city,
+            });
+            // Login automático — salvar token e redirecionar
+            if (res.data?.accessToken) {
+                localStorage.setItem('access_token', res.data.accessToken);
+                if (res.data.refreshToken) {
+                    localStorage.setItem('refresh_token', res.data.refreshToken);
+                }
+                window.location.href = '/dashboard';
+            }
+        } catch (e: any) {
+            const msg = e?.response?.data?.message || 'Erro ao criar conta. Tente novamente.';
+            setErrors({ submit: Array.isArray(msg) ? msg.join(', ') : msg });
+        } finally {
+            setLoading(false);
+        }
     };
 
 
@@ -203,7 +223,12 @@ export const SignupPage: React.FC = () => {
                                 <Field label="WhatsApp" icon={Phone} value={form.phone} onChange={set('phone')} placeholder="(11) 99999-9999" />
                                 <Field label="Cidade" icon={MapPin} value={form.city} onChange={set('city')} placeholder="São Paulo – SP" />
                             </div>
-                            <button type="submit" style={{ marginTop: '8px', padding: '14px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff', borderRadius: '12px', border: 'none', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            {errors.submit && (
+                            <div style={{ padding: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', color: '#ef4444', fontSize: '13px', textAlign: 'center' }}>
+                                {errors.submit}
+                            </div>
+                        )}
+                        <button type="submit" disabled={loading} style={{ marginTop: '8px', padding: '14px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff', borderRadius: '12px', border: 'none', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                                 Continuar <ArrowRight size={18} />
                             </button>
                         </form>

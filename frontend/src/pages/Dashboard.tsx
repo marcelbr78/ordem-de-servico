@@ -187,23 +187,11 @@ export const Dashboard: React.FC = () => {
         </div>
     );
 
-    if (!stats) return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '12px', color: 'rgba(255,255,255,0.4)' }}>
-            <AlertCircle size={20} /> Não foi possível carregar o dashboard.
-            <button onClick={load} style={{ marginLeft: '10px', padding: '8px 16px', borderRadius: '8px', background: 'var(--accent-primary)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Tentar novamente</button>
-        </div>
-    );
+    const s = stats!;
 
-    const s = {
-        ...stats,
-        byStatus: stats.byStatus || {},
-        slaViolations: stats.slaViolations || [],
-        recentOrders: stats.recentOrders || [],
-        last7days: stats.last7days || [],
-    };
-    const activeOS = (s.byStatus.aberta || 0) + (s.byStatus.em_diagnostico || 0) + (s.byStatus.aguardando_peca || 0) + (s.byStatus.em_reparo || 0) + (s.byStatus.testes || 0);
+    const activeOS = (s.byStatus?.aberta || 0) + (s.byStatus?.em_diagnostico || 0) + (s.byStatus?.aguardando_peca || 0) + (s.byStatus?.em_reparo || 0) + (s.byStatus?.testes || 0);
     const revTrend = pctChange(s.monthlyRevenue, s.prevMonthRevenue);
-    const slaWarning = s.slaViolations.filter(o => o.hoursOpen > 48).length;
+    const slaWarning = (s.slaViolations || []).filter((o:any) => o.hoursOpen > 48).length;
     const hora = new Date().getHours();
     const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
 
@@ -256,8 +244,8 @@ export const Dashboard: React.FC = () => {
                 <KpiCard label="OS Ativas" value={activeOS} icon={ClipboardList} color="#3b82f6" sub="em andamento" onClick={() => navigate('/orders')} />
                 <KpiCard label="Abertas Hoje" value={s.todayOpened || 0} icon={Zap} color="#a855f7" sub="novas entradas" />
                 <KpiCard label="Entregues Hoje" value={s.todayDelivered || 0} icon={CheckCircle} color="#22c55e" sub="concluídas hoje" />
-                <KpiCard label="Ag. Peça" value={s.byStatus.aguardando_peca || 0} icon={Package} color="#f59e0b" sub="paradas" onClick={() => navigate('/orders')} urgent={(s.byStatus.aguardando_peca || 0) > 5} />
-                <KpiCard label="SLA em Risco" value={s.slaViolations.length} icon={Timer} color="#ef4444" sub="+24h sem mover" urgent={s.slaViolations.length > 0} onClick={() => navigate('/orders')} />
+                <KpiCard label="Ag. Peça" value={s.byStatus?.aguardando_peca || 0} icon={Package} color="#f59e0b" sub="paradas" onClick={() => navigate('/orders')} urgent={(s.byStatus?.aguardando_peca || 0) > 5} />
+                <KpiCard label="SLA em Risco" value={(s.slaViolations || []).length} icon={Timer} color="#ef4444" sub="+24h sem mover" urgent={(s.slaViolations || []).length > 0} onClick={() => navigate('/orders')} />
                 <KpiCard label="Faturamento Mês" value={R$(s.monthlyRevenue)} icon={TrendingUp} color="#22c55e" sub="mês atual" trend={revTrend} onClick={() => navigate('/finance')} />
             </div>
 
@@ -273,7 +261,7 @@ export const Dashboard: React.FC = () => {
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{s.total} total</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {Object.entries(s.byStatus).filter(([, v]) => v > 0).sort(([, a], [, b]) => b - a).map(([status, count]) => {
+                        {Object.entries(s.byStatus || {}).filter(([, v]) => v > 0).sort(([, a], [, b]) => b - a).map(([status, count]) => {
                             const pct = Math.round((count / (s.total || 1)) * 100);
                             const color = STATUS_COLOR[status] || '#94a3b8';
                             return (
@@ -325,21 +313,21 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* ── SLA — OS sem mover ── */}
-            {s.slaViolations.length > 0 && (
+            {(s.slaViolations || []).length > 0 && (
                 <div style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '14px', overflow: 'hidden' }}>
                     <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Timer size={16} color="#ef4444"/>
                             <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>OS Paradas — SLA em Risco</span>
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '1px 7px', borderRadius: '20px', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>{s.slaViolations.length}</span>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '1px 7px', borderRadius: '20px', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>{(s.slaViolations || []).length}</span>
                         </div>
                         <button onClick={() => navigate('/orders')} style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             Ver todas <ChevronRight size={13}/>
                         </button>
                     </div>
                     <div style={{ padding: '4px 0' }}>
-                        {s.slaViolations.slice(0, 6).map((item, i) => (
-                            <div key={item.id} onClick={() => navigate('/orders')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 18px', borderBottom: i < Math.min(s.slaViolations.length, 6) - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', transition: 'background 0.12s' }}
+                        {(s.slaViolations || []).slice(0, 6).map((item, i) => (
+                            <div key={item.id} onClick={() => navigate('/orders')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 18px', borderBottom: i < Math.min((s.slaViolations || []).length, 6) - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', transition: 'background 0.12s' }}
                                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                                 <div style={{ flexShrink: 0 }}>
@@ -382,7 +370,7 @@ export const Dashboard: React.FC = () => {
                             {(s.recentOrders || []).length === 0 ? (
                                 <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>Nenhuma OS encontrada</td></tr>
                             ) : (s.recentOrders || []).map((o, i) => (
-                                <tr key={o.id} onClick={() => navigate('/orders')} style={{ borderBottom: i < s.recentOrders.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', transition: 'background 0.12s' }}
+                                <tr key={o.id} onClick={() => navigate('/orders')} style={{ borderBottom: i < (s.recentOrders || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', transition: 'background 0.12s' }}
                                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
                                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                                     <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: '#60a5fa', fontWeight: 700 }}>#{o.protocol}</td>

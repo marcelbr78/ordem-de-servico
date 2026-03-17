@@ -12,6 +12,9 @@ export class BankAccount {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Column({ nullable: true })
+    tenantId: string;
+
     @Column()
     name: string; // Ex: "Conta Bradesco Principal"
 

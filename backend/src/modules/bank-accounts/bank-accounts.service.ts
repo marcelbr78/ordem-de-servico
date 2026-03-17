@@ -32,10 +32,11 @@ export class BankAccountsService {
         private bankAccountRepository: Repository<BankAccount>,
     ) { }
 
-    async createFromRaw(raw: Record<string, unknown>): Promise<BankAccount> {
+    async createFromRaw(raw: Record<string, unknown>, tenantId?: string): Promise<BankAccount> {
         const data = sanitise(raw);
         const account = Object.assign(new BankAccount(), {
             ...data,
+            tenantId,
             currentBalance: (data.initialBalance as number) ?? 0,
         });
         return this.bankAccountRepository.save(account);
@@ -48,8 +49,9 @@ export class BankAccountsService {
         return this.bankAccountRepository.save(account);
     }
 
-    async findAll(): Promise<BankAccount[]> {
+    async findAll(tenantId?: string): Promise<BankAccount[]> {
         return this.bankAccountRepository.find({
+            where: tenantId ? { tenantId } : {},
             order: { createdAt: 'DESC' },
         });
     }
@@ -73,8 +75,8 @@ export class BankAccountsService {
         return this.bankAccountRepository.save(account);
     }
 
-    async getTotalBalance(): Promise<{ total: number; accounts: BankAccount[] }> {
-        const accounts = await this.findAll();
+    async getTotalBalance(tenantId?: string): Promise<{ total: number; accounts: BankAccount[] }> {
+        const accounts = await this.findAll(tenantId);
         const total = accounts.reduce((sum, acc) => sum + Number(acc.currentBalance), 0);
         return { total, accounts };
     }

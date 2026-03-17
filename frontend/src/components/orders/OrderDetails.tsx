@@ -13,6 +13,7 @@ import { ConversationTab } from './ConversationTab';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import type { Order } from '../../types';
+import api from '../../services/api';
 import { ActiveQuote } from '../smartparts/ActiveQuote';
 import { PhotoGallery } from '../common/PhotoGallery';
 import { FiscalTab } from '../fiscal/FiscalTab';
@@ -790,8 +791,16 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                         </div>
                     </div>
 
-                    {/* Tabs */}
-                    <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 24px', background: 'rgba(0,0,0,0.2)' }}>
+                    {/* Tabs — scroll horizontal no mobile */}
+                    <div style={{
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        WebkitOverflowScrolling: 'touch',
+                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(0,0,0,0.2)',
+                        scrollbarWidth: 'none',
+                    }}>
+                        <div style={{ display: 'flex', padding: '0 16px', minWidth: 'max-content' }}>
                         {[
                             'Histórico', 'Laudo Técnico', 'Peças/Serviços',
                             'Equipamentos', 'Cotações', 'Fotos',
@@ -802,15 +811,24 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 style={{
-                                    padding: '16px 24px', background: 'transparent', border: 'none',
+                                    padding: '14px 16px',
+                                    background: 'transparent',
+                                    border: 'none',
                                     borderBottom: activeTab === tab ? '2px solid var(--primary)' : '2px solid transparent',
                                     color: activeTab === tab ? 'var(--primary)' : 'rgba(255,255,255,0.5)',
-                                    fontWeight: 600, fontSize: '14px', cursor: 'pointer', marginBottom: '-1px'
+                                    fontWeight: 600,
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    marginBottom: '-1px',
+                                    whiteSpace: 'nowrap',
+                                    minHeight: '44px',
+                                    WebkitTapHighlightColor: 'transparent',
                                 }}
                             >
                                 {tab}
                             </button>
                         ))}
+                        </div>
                     </div>
 
                     {/* Content */}

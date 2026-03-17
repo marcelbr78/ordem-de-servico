@@ -116,4 +116,31 @@ export class InventoryController {
         if (type === 'IN') return this.stockService.manualEntry(id, qty);
         return this.stockService.manualExit(id, qty);
     }
+    @Post('import')
+    async importProducts(@Body() body: { data: any[] }, @Req() req: any) {
+        const tenantId = req.user?.tenantId;
+        let imported = 0;
+        const erros: string[] = [];
+        for (const row of (body.data || [])) {
+            try {
+                if (!row.nome && !row.name) continue;
+                await this.inventoryService.create({
+                    name: row.nome || row.name,
+                    sku: row.sku || '',
+                    brand: row.marca || row.brand || '',
+                    category: row.categoria || row.category || '',
+                    priceCost: parseFloat(row.precoCusto || row.priceCost || '0') || 0,
+                    priceSell: parseFloat(row.precoVenda || row.priceSell || '0') || 0,
+                    quantity: parseInt(row.quantidade || row.quantity || '0') || 0,
+                    minQuantity: parseInt(row.estoqueMinimo || row.minQuantity || '0') || 0,
+                    type: 'product',
+                    tenantId,
+                } as any);
+                imported++;
+            } catch (e: any) {
+                erros.push(e.message);
+            }
+        }
+        return { imported, errors: erros.length, details: erros.slice(0, 5) };
+    }
 }

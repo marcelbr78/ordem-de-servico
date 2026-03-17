@@ -30,30 +30,26 @@ export class WhatsappService {
     }
 
     /** Resolve config: DB settings take priority, env vars as fallback */
-    private async getConfig(): Promise<{ apiUrl: string; apiKey: string; instance: string }> {
+    private async getConfig(tenantId?: string): Promise<{ apiUrl: string; apiKey: string; instance: string }> {
         // URL e Key fixas do servidor — cliente não precisa configurar
         const apiUrl = this.configService.get<string>('EVOLUTION_API_URL')
-            || (await this.settingsService.findByKey('whatsapp_api_url'))
+            || (await this.settingsService.findByKey('whatsapp_api_url', tenantId))
             || '';
         const apiKey = this.configService.get<string>('EVOLUTION_API_KEY')
-            || (await this.settingsService.findByKey('whatsapp_api_token'))
+            || (await this.settingsService.findByKey('whatsapp_api_token', tenantId))
             || '';
-        // Instância: definida pelo cliente ou gerada automaticamente
-        const instance = (await this.settingsService.findByKey('whatsapp_instance_name'))
-            || this.configService.get<string>('EVOLUTION_INSTANCE_ID')
-            || 'os4u-default';
+        // Instância: específica por tenant para isolamento
+        const savedInstance = await this.settingsService.findByKey('whatsapp_instance_name', tenantId);
+        const instance = savedInstance
+            || (tenantId ? `os4u-${tenantId.slice(0, 8)}` : 'os4u-default');
         return { apiUrl, apiKey, instance };
     }
 
     /** Public method: tells frontend if API is configured */
-    async getConfigStatus(): Promise<{ configured: boolean; usingEnv: boolean; hasInstance: boolean; apiUrl?: string; instanceName?: string }> {
-        const apiUrlEnv = this.configService.get<string>('EVOLUTION_API_URL');
-        const apiKeyEnv = this.configService.get<string>('EVOLUTION_API_KEY');
-        const { apiUrl, apiKey, instance } = await this.getConfig();
-        
+    async getConfigStatus(tenantId?: string): Promise<{ configured: boolean; hasInstance: boolean; apiUrl?: string; instanceName?: string }> {
+        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
         return {
             configured: !!(apiUrl && apiKey),
-            usingEnv: !!(apiUrlEnv && apiKeyEnv),
             hasInstance: !!instance,
             apiUrl: apiUrl ? apiUrl.replace(/\/+$/, '') : undefined,
             instanceName: instance,
@@ -223,7 +219,7 @@ export class WhatsappService {
     }
 
     /** Create a new instance on Evolution API */
-    async createInstance(instanceName: string, number?: string): Promise<{ success: boolean; instance?: any; qrcode?: string; error?: string }> {
+    async createInstance(instanceName: string, number?: string, tenantId?: string): Promise<{ success: boolean; instance?: any; qrcode?: string; error?: string }> {
         const { apiUrl, apiKey } = await this.getConfig();
 
         if (!apiUrl || !apiKey) {
@@ -268,8 +264,8 @@ export class WhatsappService {
     }
 
     /** Check connection status of the Evolution API instance */
-    async checkConnectionStatus(): Promise<{ connected: boolean; status: string; number?: string; details?: any }> {
-        const { apiUrl, apiKey, instance } = await this.getConfig();
+    async checkConnectionStatus(tenantId?: string): Promise<{ connected: boolean; status: string; number?: string; details?: any }> {
+        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey || !instance) {
             return { connected: false, status: 'not_configured' };
@@ -299,8 +295,8 @@ export class WhatsappService {
     }
 
     /** Get QR code for pairing */
-    async getQRCode(): Promise<{ qrcode?: string; status: string; pairingCode?: string }> {
-        const { apiUrl, apiKey, instance } = await this.getConfig();
+    async getQRCode(tenantId?: string): Promise<{ qrcode?: string; status: string; pairingCode?: string }> {
+        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey || !instance) {
             return { status: 'not_configured' };
@@ -362,7 +358,7 @@ export class WhatsappService {
     }
 
     /** Disconnect and delete instance */
-    async disconnectInstance(): Promise<{ success: boolean; error?: string }> {
+    async disconnectInstance(tenantId?: string): Promise<{ success: boolean; error?: string }> {
         const { apiUrl, apiKey, instance } = await this.getConfig();
 
         if (!apiUrl || !apiKey || !instance) {
@@ -383,7 +379,7 @@ export class WhatsappService {
     }
 
     /** Send a test message */
-    async sendTestMessage(to: string): Promise<{ success: boolean; error?: string }> {
+    async sendTestMessage(to: string, tenantId?: string): Promise<{ success: boolean; error?: string }> {
         try {
             await this.sendMessage(to, '🧪 *Mensagem de Teste*\n\nSua integração WhatsApp está funcionando corretamente! ✅');
             return { success: true };

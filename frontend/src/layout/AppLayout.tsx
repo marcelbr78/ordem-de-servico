@@ -39,6 +39,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     };
     const toggleCollapse = () => setIsCollapsed(prev => !prev);
 
+    // Fechar overlay quando vai para desktop
+    useEffect(() => {
+        if (isDesktop) {
+            setIsSidebarOpen(true);
+        }
+    }, [isDesktop]);
+
     // Padding do conteúdo principal
     const mainPadding = isMobile ? '12px 12px 80px' : isTablet ? '20px 20px 24px' : '28px 32px';
 

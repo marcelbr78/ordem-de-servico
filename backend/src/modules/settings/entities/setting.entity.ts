@@ -12,7 +12,10 @@ export class SystemSetting {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({ unique: true })
+    @Column({ nullable: true })
+    tenantId: string;
+
+    @Column()
     key: string;
 
     @Column({ type: 'text' })
