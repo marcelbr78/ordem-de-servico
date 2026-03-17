@@ -3,6 +3,7 @@ import { Exclude } from 'class-transformer';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { ManyToOne, JoinColumn } from 'typeorm';
 
+
 export enum UserRole {
     ADMIN = 'admin',
     TECHNICIAN = 'technician',
@@ -11,6 +12,7 @@ export enum UserRole {
 }
 
 @Entity('users')
+@Index(['tenantId', 'email'], { unique: true, where: '"tenantId" IS NOT NULL' })
 export class User {
     @PrimaryGeneratedColumn('uuid')
     id: string;
@@ -23,7 +25,7 @@ export class User {
     @JoinColumn({ name: 'tenantId' })
     tenant: Tenant;
 
-    @Column({ unique: true })
+    @Column()
     email: string;
 
     @Exclude()

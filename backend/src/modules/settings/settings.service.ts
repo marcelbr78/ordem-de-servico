@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemSetting, SettingType } from './entities/setting.entity';
@@ -10,33 +10,42 @@ export class SettingsService {
         private settingsRepository: Repository<SystemSetting>,
     ) {}
 
-    async findAll(): Promise<SystemSetting[]> {
+    async findAll(tenantId?: string): Promise<SystemSetting[]> {
+        if (tenantId) {
+            return this.settingsRepository.find({ where: { tenantId }, order: { key: 'ASC' } });
+        }
         return this.settingsRepository.find({ order: { key: 'ASC' } });
     }
 
-    async findByKey(key: string): Promise<string> {
-        const setting = await this.settingsRepository.findOne({ where: { key } });
+    async findByKey(key: string, tenantId?: string): Promise<string> {
+        const where: any = { key };
+        if (tenantId) where.tenantId = tenantId;
+        const setting = await this.settingsRepository.findOne({ where });
         if (!setting) return null;
         return setting.value;
     }
 
-    async set(key: string, value: string, type: SettingType = SettingType.STRING, description?: string, isPublic: boolean = false): Promise<SystemSetting> {
-        let setting = await this.settingsRepository.findOne({ where: { key } });
+    async set(key: string, value: string, type: SettingType = SettingType.STRING, description?: string, isPublic: boolean = false, tenantId?: string): Promise<SystemSetting> {
+        const where: any = { key };
+        if (tenantId) where.tenantId = tenantId;
+        let setting = await this.settingsRepository.findOne({ where });
         if (setting) {
             setting.value = value;
             if (description) setting.description = description;
             setting.isPublic = isPublic;
         } else {
-            setting = this.settingsRepository.create({ key, value, type, description, isPublic });
+            setting = this.settingsRepository.create({ key, value, type, description, isPublic, tenantId: tenantId || null });
         }
         return this.settingsRepository.save(setting);
     }
 
-    async delete(key: string): Promise<void> {
-        await this.settingsRepository.delete({ key });
+    async delete(key: string, tenantId?: string): Promise<void> {
+        const where: any = { key };
+        if (tenantId) where.tenantId = tenantId;
+        await this.settingsRepository.delete(where);
     }
 
-    async seedDefaults() {
+    async seedDefaults(tenantId?: string) {
         const defaults: { key: string; value: string; type: SettingType; description: string; isPublic: boolean }[] = [
             // ── Empresa ──────────────────────────────────────────────────
             { key: 'company_name',                value: 'Minha Assistência',  type: SettingType.STRING, description: 'Razão Social', isPublic: true },
@@ -114,6 +123,10 @@ export class SettingsService {
             { key: 'ui_show_kanban_default',       value: 'false',              type: SettingType.BOOLEAN, description: 'Abrir Kanban por padrão', isPublic: false },
             // ── Termos ───────────────────────────────────────────────────
             { key: 'service_terms',                value: '', type: SettingType.STRING, description: 'Termos de garantia e entrega', isPublic: true },
+            { key: 'terms_general',                value: '', type: SettingType.STRING, description: 'Termos gerais de serviço', isPublic: true },
+            { key: 'terms_warranty',               value: '', type: SettingType.STRING, description: 'Termos de garantia', isPublic: true },
+            { key: 'terms_delivery',               value: '', type: SettingType.STRING, description: 'Termos de entrega', isPublic: true },
+            { key: 'terms_require_digital_sign',   value: 'false', type: SettingType.BOOLEAN, description: 'Exigir aceite digital nos termos', isPublic: false },
             // ── OS workflow ──────────────────────────────────────────────
             { key: 'os_custom_workflow',           value: JSON.stringify({
                 labels: {
@@ -133,9 +146,7 @@ export class SettingsService {
                     entregue: [], cancelada: [],
                 },
             }), type: SettingType.JSON, description: 'Fluxo e labels de status da OS', isPublic: true },
-
             // ── Logo & Horários ──────────────────────────────────────────
-            { key: 'company_logo_url',             value: '',       type: SettingType.STRING,  description: 'URL do logo', isPublic: true },
             { key: 'company_favicon_url',          value: '',       type: SettingType.STRING,  description: 'URL do favicon', isPublic: true },
             { key: 'company_opening_hours_json',   value: JSON.stringify({
                 seg: { open: true, from: '09:00', to: '18:00' },
@@ -149,7 +160,6 @@ export class SettingsService {
             { key: 'company_social_instagram',     value: '', type: SettingType.STRING, description: 'Instagram', isPublic: true },
             { key: 'company_social_facebook',      value: '', type: SettingType.STRING, description: 'Facebook', isPublic: true },
             { key: 'company_social_whatsapp',      value: '', type: SettingType.STRING, description: 'WhatsApp público', isPublic: true },
-
             // ── OS — SLA e campos ────────────────────────────────────────
             { key: 'os_sla_low',                   value: '72',  type: SettingType.STRING, description: 'SLA prioridade baixa (horas)', isPublic: false },
             { key: 'os_sla_normal',                value: '48',  type: SettingType.STRING, description: 'SLA prioridade normal (horas)', isPublic: false },
@@ -161,7 +171,6 @@ export class SettingsService {
             { key: 'os_enable_multi_equipment',    value: 'true',  type: SettingType.BOOLEAN, description: 'Permitir múltiplos equipamentos por OS', isPublic: false },
             { key: 'os_auto_number_format',        value: 'YYYYMMDD-{N}', type: SettingType.STRING, description: 'Formato do número automático', isPublic: false },
             { key: 'os_public_status_fields',      value: JSON.stringify(['status','equipment','technician','estimated_date']), type: SettingType.JSON, description: 'Campos visíveis no status público', isPublic: false },
-
             // ── Impressão térmica ────────────────────────────────────────
             { key: 'thermal_enabled',              value: 'false', type: SettingType.BOOLEAN, description: 'Habilitar impressora térmica', isPublic: false },
             { key: 'thermal_connection',           value: 'bluetooth', type: SettingType.STRING, description: 'Tipo: bluetooth|usb|network', isPublic: false },
@@ -172,7 +181,6 @@ export class SettingsService {
             { key: 'thermal_show_qrcode',          value: 'true', type: SettingType.BOOLEAN, description: 'QR Code no recibo', isPublic: false },
             { key: 'thermal_auto_print_entry',     value: 'false', type: SettingType.BOOLEAN, description: 'Imprimir automaticamente ao abrir OS', isPublic: false },
             { key: 'thermal_copies',               value: '1', type: SettingType.STRING, description: 'Cópias padrão da térmica', isPublic: false },
-
             // ── E-mail SMTP ──────────────────────────────────────────────
             { key: 'smtp_enabled',                 value: 'false', type: SettingType.BOOLEAN, description: 'Habilitar SMTP próprio', isPublic: false },
             { key: 'smtp_host',                    value: '', type: SettingType.STRING, description: 'Host SMTP', isPublic: false },
@@ -182,7 +190,6 @@ export class SettingsService {
             { key: 'smtp_from_name',               value: '', type: SettingType.STRING, description: 'Nome do remetente', isPublic: false },
             { key: 'smtp_from_email',              value: '', type: SettingType.STRING, description: 'E-mail remetente', isPublic: false },
             { key: 'smtp_tls',                     value: 'true', type: SettingType.BOOLEAN, description: 'Usar TLS/SSL', isPublic: false },
-
             // ── Integrações ──────────────────────────────────────────────
             { key: 'integration_pagbank_token',    value: '', type: SettingType.STRING, description: 'Token PagBank', isPublic: false },
             { key: 'integration_pagbank_sandbox',  value: 'true', type: SettingType.BOOLEAN, description: 'PagBank sandbox', isPublic: false },
@@ -192,32 +199,22 @@ export class SettingsService {
             { key: 'integration_imei_token',       value: '', type: SettingType.STRING, description: 'Token API IMEI', isPublic: false },
             { key: 'integration_google_maps_key',  value: '', type: SettingType.STRING, description: 'Chave Google Maps', isPublic: false },
             { key: 'integration_viacep_enabled',   value: 'true', type: SettingType.BOOLEAN, description: 'Busca automática de endereço por CEP', isPublic: false },
-
             // ── Financeiro — comissões e metas ───────────────────────────
             { key: 'finance_commission_enabled',   value: 'false', type: SettingType.BOOLEAN, description: 'Habilitar comissões', isPublic: false },
             { key: 'finance_commission_default',   value: '10', type: SettingType.STRING, description: 'Comissão padrão (%)', isPublic: false },
             { key: 'finance_commission_rules',     value: JSON.stringify([]), type: SettingType.JSON, description: 'Regras de comissão por técnico', isPublic: false },
             { key: 'finance_monthly_goal',         value: '0', type: SettingType.STRING, description: 'Meta mensal de faturamento (R$)', isPublic: false },
             { key: 'finance_min_margin',           value: '0', type: SettingType.STRING, description: 'Margem mínima por OS (%)', isPublic: false },
-
             // ── Status público ───────────────────────────────────────────
             { key: 'public_status_show_technician', value: 'false', type: SettingType.BOOLEAN, description: 'Mostrar nome do técnico no status público', isPublic: false },
             { key: 'public_status_show_price',     value: 'false', type: SettingType.BOOLEAN, description: 'Mostrar valor no status público', isPublic: false },
             { key: 'public_status_show_timeline',  value: 'true',  type: SettingType.BOOLEAN, description: 'Mostrar timeline no status público', isPublic: false },
             { key: 'public_status_custom_message', value: '', type: SettingType.STRING, description: 'Mensagem customizada no topo do status público', isPublic: true },
             { key: 'public_status_accent_color',   value: '#3b82f6', type: SettingType.STRING, description: 'Cor de destaque no status público', isPublic: true },
-
             // ── Automações ───────────────────────────────────────────────
             { key: 'automation_rules',             value: JSON.stringify([]), type: SettingType.JSON, description: 'Regras de automação configuradas', isPublic: false },
             { key: 'automation_follow_up_days',    value: '3', type: SettingType.STRING, description: 'Follow-up automático após X dias sem resposta', isPublic: false },
             { key: 'automation_abandoned_days',    value: '30', type: SettingType.STRING, description: 'Alerta de OS abandonada após X dias', isPublic: false },
-
-            // ── Termos ───────────────────────────────────────────────────
-            { key: 'terms_general',                value: '', type: SettingType.STRING, description: 'Termos gerais de serviço', isPublic: true },
-            { key: 'terms_warranty',               value: '', type: SettingType.STRING, description: 'Termos de garantia', isPublic: true },
-            { key: 'terms_delivery',               value: '', type: SettingType.STRING, description: 'Termos de entrega', isPublic: true },
-            { key: 'terms_require_digital_sign',   value: 'false', type: SettingType.BOOLEAN, description: 'Exigir aceite digital nos termos', isPublic: false },
-
             // ── Aparência ────────────────────────────────────────────────
             { key: 'ui_primary_color',             value: '#3b82f6', type: SettingType.STRING, description: 'Cor primária do sistema', isPublic: true },
             { key: 'ui_secondary_color',           value: '#7c3aed', type: SettingType.STRING, description: 'Cor secundária', isPublic: true },
@@ -228,9 +225,11 @@ export class SettingsService {
         ];
 
         for (const def of defaults) {
-            const exists = await this.settingsRepository.findOne({ where: { key: def.key } });
+            const where: any = { key: def.key };
+            if (tenantId) where.tenantId = tenantId;
+            const exists = await this.settingsRepository.findOne({ where });
             if (!exists) {
-                await this.set(def.key, def.value, def.type, def.description, def.isPublic);
+                await this.set(def.key, def.value, def.type, def.description, def.isPublic, tenantId);
             }
         }
     }
