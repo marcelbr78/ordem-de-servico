@@ -33,13 +33,13 @@ export class WhatsappService {
     private async getConfig(tenantId?: string): Promise<{ apiUrl: string; apiKey: string; instance: string }> {
         // URL e Key fixas do servidor — cliente não precisa configurar
         const apiUrl = this.configService.get<string>('EVOLUTION_API_URL')
-            || (await this.settingsService.findByKey('whatsapp_api_url', tenantId))
+            || (await (this.settingsService as any).findByKey('whatsapp_api_url', tenantId))
             || '';
         const apiKey = this.configService.get<string>('EVOLUTION_API_KEY')
-            || (await this.settingsService.findByKey('whatsapp_api_token', tenantId))
+            || (await (this.settingsService as any).findByKey('whatsapp_api_token', tenantId))
             || '';
         // Instância: específica por tenant para isolamento
-        const savedInstance = await this.settingsService.findByKey('whatsapp_instance_name', tenantId);
+        const savedInstance = await (this.settingsService as any).findByKey('whatsapp_instance_name', tenantId);
         const instance = savedInstance
             || (tenantId ? `os4u-${tenantId.slice(0, 8)}` : 'os4u-default');
         return { apiUrl, apiKey, instance };

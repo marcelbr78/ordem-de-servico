@@ -45,7 +45,7 @@ export class TenantsService {
         return this.repo.save(tenant);
     }
 
-    async findAll(): Promise<Tenant[]> {
+    async findAll(): Promise<any[]> {
         return this.repo.find({ order: { createdAt: 'DESC' } as any });
     }
 }
