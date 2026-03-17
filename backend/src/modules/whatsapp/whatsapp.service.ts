@@ -61,10 +61,13 @@ export class WhatsappService {
         this.logger.log(`Checking if WhatsApp server at ${apiUrl} is awake...`);
         for (let i = 0; i < 15; i++) { // Try for 75 seconds (15 * 5s)
             try {
-                await axios.get(apiUrl, { timeout: 5000 });
+                // validateStatus: () => true aceita qualquer resposta HTTP (incluindo 404)
+                // como prova de que o servidor está no ar
+                await axios.get(apiUrl, { timeout: 5000, validateStatus: () => true });
                 this.logger.log('WhatsApp server is awake!');
                 return true;
             } catch (error) {
+                // Só cai aqui em caso de timeout/ECONNREFUSED — servidor realmente dormindo
                 this.logger.debug(`Waiting for server to wake up... (${i + 1}/15)`);
                 await new Promise(r => setTimeout(r, 5000));
             }
@@ -252,8 +255,29 @@ export class WhatsappService {
 
             this.logger.log(`Instance ${instanceName} created`);
 
-            // Extract QR code from create response (v2.2.3 returns it here)
-            const qrcode = response.data?.qrcode?.base64 || response.data?.hash || null;
+            // Tenta extrair QR do response do create (Evolution v2 às vezes retorna aqui)
+            let qrcode = response.data?.qrcode?.base64 || response.data?.hash || null;
+
+            // Se não veio no create, busca via /instance/connect (padrão Evolution v2)
+            if (!qrcode) {
+                this.logger.log('QR not in create response, fetching via /instance/connect...');
+                for (let i = 0; i < 8; i++) {
+                    try {
+                        const connectRes = await axios.get(
+                            `${apiUrl}/instance/connect/${instanceName}`,
+                            { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
+                        );
+                        qrcode = connectRes.data?.qrcode?.base64 || connectRes.data?.base64 || connectRes.data?.urlCode || null;
+                        if (qrcode) {
+                            this.logger.log('QR code obtained via /instance/connect');
+                            break;
+                        }
+                    } catch (e) {
+                        this.logger.debug(`QR fetch attempt ${i + 1}: ${e.message}`);
+                    }
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+            }
 
             return { success: true, instance: response.data, qrcode };
         } catch (error) {

@@ -320,6 +320,7 @@ export const Settings: React.FC = () => {
     const [waStep, setWaStep] = useState<'loading'|'disconnected'|'qrcode'|'connected'>('loading');
     const [waQrCode, setWaQrCode] = useState<string | null>(null);
     const [waConnecting, setWaConnecting] = useState(false);
+    const [waError, setWaError] = useState<string | null>(null);
     const [testNumber, setTestNumber] = useState('');
     const [sendingTest, setSendingTest] = useState(false);
     const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -368,10 +369,35 @@ export const Settings: React.FC = () => {
 
     const handleConnect = async () => {
         setWaConnecting(true);
+        setWaError(null);
         try {
             const instName = settings.whatsapp_instance_name || 'instance';
             const r = await api.post('/whatsapp/instance', { instanceName: instName });
-            if (r.data.qrcode) { setWaQrCode(r.data.qrcode); setWaStep('qrcode'); }
+
+            if (r.data.success === false) {
+                setWaError(r.data.error || 'Falha ao criar instância WhatsApp.');
+                return;
+            }
+
+            // QR pode vir direto do create ou precisar de busca adicional
+            let qr: string | null = r.data.qrcode || null;
+
+            // Se não veio no create, tenta buscar via endpoint dedicado
+            if (!qr) {
+                try {
+                    const qrRes = await api.get('/whatsapp/qrcode');
+                    qr = qrRes.data?.qrcode || null;
+                } catch {}
+            }
+
+            if (qr) {
+                setWaQrCode(qr);
+                setWaStep('qrcode');
+            } else {
+                setWaError('QR Code não foi gerado. Verifique as configurações da Evolution API.');
+                return;
+            }
+
             if (qrPollRef.current) clearInterval(qrPollRef.current);
             qrPollRef.current = setInterval(async () => {
                 try {
@@ -379,8 +405,11 @@ export const Settings: React.FC = () => {
                     if (s.data.connected) { setWaStep('connected'); setWaQrCode(null); clearInterval(qrPollRef.current!); }
                 } catch {}
             }, 4000);
-        } catch { setWaConnecting(false); }
-        finally { setWaConnecting(false); }
+        } catch (e: any) {
+            setWaError(e?.response?.data?.message || 'Erro ao conectar. Tente novamente.');
+        } finally {
+            setWaConnecting(false);
+        }
     };
 
     const handleDisconnect = async () => {
@@ -432,6 +461,11 @@ export const Settings: React.FC = () => {
                         {waStep === 'connected' ? 'Conectado' : waStep === 'qrcode' ? 'Aguardando QR Code' : waStep === 'loading' ? 'Verificando...' : 'Desconectado'}
                     </span>
                 </div>
+                {waError && (
+                    <div style={{ marginBottom: '12px', padding: '10px 14px', borderRadius: '9px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: '13px' }}>
+                        {waError}
+                    </div>
+                )}
                 {waStep === 'disconnected' && (
                     <button onClick={handleConnect} disabled={waConnecting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 22px', borderRadius: '10px', background: '#25d366', color: '#fff', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', minHeight: '44px' }}>
                         {waConnecting ? <><RefreshCw size={15} style={{ animation: 'spin 1s linear infinite' }} /> Conectando...</> : <><Wifi size={15} /> Conectar WhatsApp</>}
