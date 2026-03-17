@@ -382,6 +382,13 @@ export const Settings: React.FC = () => {
                 return;
             }
 
+            // Instância já estava conectada
+            if (r.data.alreadyConnected) {
+                setWaStep('connected');
+                setWaConnecting(false);
+                return;
+            }
+
             // Se veio QR direto, mostra já
             if (r.data.qrcode) {
                 setWaQrCode(r.data.qrcode);
