@@ -13,7 +13,6 @@ import { ConversationTab } from './ConversationTab';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import type { Order } from '../../types';
-import api from '../../services/api';
 import { ActiveQuote } from '../smartparts/ActiveQuote';
 import { PhotoGallery } from '../common/PhotoGallery';
 import { FiscalTab } from '../fiscal/FiscalTab';

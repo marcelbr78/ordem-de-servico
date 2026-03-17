@@ -346,7 +346,8 @@ export const Suppliers: React.FC = () => {
                                     <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#fff', margin: 0 }}>{detail.name}</h3>
                                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
                                         <Stars n={detail.reliability} />
-                                        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '20px', background: `${CATEGORY_COLORS[detail.category] || '#94a3b8'}15`, color: CATEGORY_COLORS[detail.category] || '#94a3b8', fontWeight: 600, fontSize: '10px' }}>{CATEGORY_LABELS[detail.category]}</span>
+                                        <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '20px', background: `${CATEGORY_COLORS[detail.category] || '#94a3b8'}15`, color: CATEGORY_COLORS[detail.category] || '#94a3b8', fontWeight: 600 }}>{CATEGORY_LABELS[detail.category]}</span>
+
                                     </div>
                                 </div>
                             </div>
