@@ -56,3 +56,5 @@ coverage/
 
 # ── Docker volumes locais ────────────────────────────────────────
 postgres_data/
+*.bak
+tmp_v*/
