@@ -321,6 +321,8 @@ export const Settings: React.FC = () => {
     const [waQrCode, setWaQrCode] = useState<string | null>(null);
     const [waConnecting, setWaConnecting] = useState(false);
     const [waError, setWaError] = useState<string | null>(null);
+    const [waNumber, setWaNumber] = useState<string | null>(null);
+    const [waConnectedAt, setWaConnectedAt] = useState<string | null>(null);
     const [testNumber, setTestNumber] = useState('');
     const [sendingTest, setSendingTest] = useState(false);
     const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -363,7 +365,15 @@ export const Settings: React.FC = () => {
         setWaStep('loading');
         try {
             const r = await api.get('/whatsapp/status');
-            setWaStep(r.data.connected ? 'connected' : 'disconnected');
+            if (r.data.connected) {
+                setWaStep('connected');
+                setWaNumber(r.data.number || null);
+                setWaConnectedAt(r.data.connectedAt || null);
+            } else {
+                setWaStep('disconnected');
+                setWaNumber(null);
+                setWaConnectedAt(null);
+            }
         } catch { setWaStep('disconnected'); }
     };
 
@@ -440,6 +450,8 @@ export const Settings: React.FC = () => {
                 if (s.data.connected) {
                     setWaStep('connected');
                     setWaQrCode(null);
+                    setWaNumber(s.data.number || null);
+                    setWaConnectedAt(s.data.connectedAt || new Date().toISOString());
                     clearInterval(qrPollRef.current!);
                 }
             } catch {}
@@ -522,6 +534,23 @@ export const Settings: React.FC = () => {
                 )}
                 {waStep === 'connected' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {/* Info: número e data de conexão */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                            {waNumber && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Número:</span>
+                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#22c55e', fontFamily: 'monospace' }}>+{waNumber}</span>
+                                </div>
+                            )}
+                            {waConnectedAt && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Conectado em:</span>
+                                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
+                                        {new Date(waConnectedAt).toLocaleString('pt-BR')}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                             <input value={testNumber} onChange={e => setTestNumber(e.target.value)} placeholder="Número para teste (5547999999999)" style={{ ...inp, flex: 1, minWidth: '200px', fontSize: '14px' }} />
                             <button onClick={handleSendTest} disabled={sendingTest || !testNumber} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', borderRadius: '10px', background: '#25d366', color: '#fff', border: 'none', fontWeight: 600, fontSize: '14px', cursor: 'pointer', minHeight: '44px' }}>

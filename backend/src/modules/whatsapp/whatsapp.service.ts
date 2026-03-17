@@ -339,8 +339,8 @@ export class WhatsappService {
         return { success: true };
     }
 
-    /** Check connection status of the Evolution API instance */
-    async checkConnectionStatus(tenantId?: string): Promise<{ connected: boolean; status: string; number?: string; details?: any }> {
+    /** Check connection status — also returns connected phone number when open */
+    async checkConnectionStatus(tenantId?: string): Promise<{ connected: boolean; status: string; number?: string; connectedAt?: string }> {
         const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey || !instance) {
@@ -350,23 +350,41 @@ export class WhatsappService {
         try {
             const response = await axios.get(
                 `${apiUrl}/instance/connectionState/${instance}`,
-                { headers: { apikey: apiKey }, timeout: API_TIMEOUT },
+                { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
             );
             const state = response.data?.instance?.state || response.data?.state || 'unknown';
 
-            // Handle specific case where instance exists but is disconnected/closed
-            if (state === 'close') {
-                return { connected: false, status: 'disconnected', details: response.data };
+            if (state !== 'open') {
+                return { connected: false, status: state === 'close' ? 'disconnected' : state };
             }
 
-            return {
-                connected: state === 'open',
-                status: state,
-                details: response.data,
-            };
+            // Instância conectada — busca o número do WhatsApp vinculado
+            let number: string | undefined;
+            try {
+                const fetchRes = await axios.get(
+                    `${apiUrl}/instance/fetchInstances`,
+                    { headers: { apikey: apiKey }, timeout: 8000, validateStatus: () => true, params: { instanceName: instance } },
+                );
+                const instances = Array.isArray(fetchRes.data) ? fetchRes.data : [fetchRes.data];
+                const inst = instances.find((i: any) => i.instance?.instanceName === instance);
+                const owner: string = inst?.instance?.owner || inst?.instance?.ownerJid || '';
+                if (owner) {
+                    // Remove @s.whatsapp.net e formata como número brasileiro
+                    number = owner.replace('@s.whatsapp.net', '').replace('@c.us', '');
+                }
+            } catch {}
+
+            // Salva timestamp de conexão nas settings do tenant (primeira vez)
+            const savedAt = await this.settingsService.findByKey('whatsapp_connected_at', tenantId);
+            if (!savedAt) {
+                await this.settingsService.set('whatsapp_connected_at', new Date().toISOString(), undefined, undefined, undefined, tenantId);
+            }
+            const connectedAt = savedAt || new Date().toISOString();
+
+            return { connected: true, status: 'open', number, connectedAt };
         } catch (error) {
             this.logger.error(`Failed to check WhatsApp status: ${error.message}`);
-            return { connected: false, status: 'error', details: error.message };
+            return { connected: false, status: 'error' };
         }
     }
 
@@ -433,6 +451,8 @@ export class WhatsappService {
                 { headers: { apikey: apiKey }, timeout: API_TIMEOUT },
             );
             this.logger.log(`Instance ${instance} logged out`);
+            // Limpa timestamp de conexão para mostrar corretamente na próxima conexão
+            await this.settingsService.delete('whatsapp_connected_at', tenantId).catch(() => {});
             return { success: true };
         } catch (error) {
             this.logger.error(`Failed to logout instance: ${error.message}`);
