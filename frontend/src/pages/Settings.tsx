@@ -373,7 +373,7 @@ export const Settings: React.FC = () => {
         if (qrPollRef.current) clearInterval(qrPollRef.current);
 
         try {
-            const instName = settings.whatsapp_instance_name || `os4u-${Date.now().toString(36)}`;
+            const instName = settings.whatsapp_instance_name || 'instance';
             const r = await api.post('/whatsapp/instance', { instanceName: instName }, { timeout: 35000 });
 
             if (r.data.success === false) {

@@ -18,11 +18,17 @@ export class SettingsService {
     }
 
     async findByKey(key: string, tenantId?: string): Promise<string> {
-        const where: any = { key };
-        if (tenantId) where.tenantId = tenantId;
-        const setting = await this.settingsRepository.findOne({ where });
-        if (!setting) return null;
-        return setting.value;
+        if (tenantId) {
+            // Try tenant-specific first
+            const tenantSetting = await this.settingsRepository.findOne({ where: { key, tenantId } });
+            if (tenantSetting) return tenantSetting.value;
+            // Fall back to global (tenantId IS NULL) — backward compatibility
+            const globalSetting = await this.settingsRepository.findOne({ where: { key, tenantId: null } });
+            if (globalSetting) return globalSetting.value;
+            return null;
+        }
+        const setting = await this.settingsRepository.findOne({ where: { key } });
+        return setting?.value ?? null;
     }
 
     async set(key: string, value: string, type: SettingType = SettingType.STRING, description?: string, isPublic: boolean = false, tenantId?: string): Promise<SystemSetting> {

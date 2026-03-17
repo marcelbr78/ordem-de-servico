@@ -54,8 +54,7 @@ export class WhatsappService {
             || '';
         // Instância: específica por tenant para isolamento
         const savedInstance = await (this.settingsService as any).findByKey('whatsapp_instance_name', tenantId);
-        const instance = savedInstance
-            || (tenantId ? `os4u-${tenantId.slice(0, 8)}` : 'os4u-default');
+        const instance = savedInstance || 'instance';
         return { apiUrl, apiKey, instance };
     }
 
