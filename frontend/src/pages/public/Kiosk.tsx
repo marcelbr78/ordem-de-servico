@@ -1,8 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3005';
+
+// ── Voz (Text-to-Speech) ──────────────────────────────────────────────────
+const speak = (text: string) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'pt-BR';
+    utter.rate = 0.95;
+    utter.pitch = 1.05;
+    // Prefer a Brazilian Portuguese voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const ptVoice = voices.find(v => v.lang === 'pt-BR') || voices.find(v => v.lang.startsWith('pt'));
+    if (ptVoice) utter.voice = ptVoice;
+    window.speechSynthesis.speak(utter);
+};
 
 type Step =
     | 'LOADING'
@@ -134,9 +149,14 @@ export const Kiosk: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [countdown, setCountdown] = useState(12);
+    const [muted, setMuted] = useState(false);
     const phoneRef = useRef<HTMLInputElement>(null);
     const nameRef = useRef<HTMLInputElement>(null);
     const modelRef = useRef<HTMLInputElement>(null);
+
+    const say = useCallback((text: string) => {
+        if (!muted) speak(text);
+    }, [muted]);
 
     // Load tenant on mount
     useEffect(() => {
@@ -145,6 +165,25 @@ export const Kiosk: React.FC = () => {
             .then(r => { setTenant(r.data); setStep('WELCOME'); })
             .catch(() => setStep('NOT_FOUND'));
     }, [slug]);
+
+    // Voz em cada etapa
+    useEffect(() => {
+        if (muted) return;
+        const hour = new Date().getHours();
+        const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+        const msgs: Partial<Record<Step, string>> = {
+            WELCOME:         `${greet}! Toque no botão para iniciar seu atendimento.`,
+            PHONE:           'Digite o número do seu WhatsApp.',
+            CONFIRM_CLIENT:  `Encontramos seu cadastro. ${foundName}, é você?`,
+            NAME:            'Qual é o seu nome completo?',
+            EQUIP_TYPE:      'Qual é o tipo do aparelho?',
+            EQUIP_BRAND:     'Qual é a marca do aparelho?',
+            EQUIP_MODEL:     'Qual é o modelo?',
+            PROBLEM:         'Descreva o problema do aparelho.',
+            CONFIRM:         'Confira os dados. Está tudo correto?',
+        };
+        if (msgs[step]) speak(msgs[step]!);
+    }, [step, muted]);
 
     // Auto-focus inputs
     useEffect(() => {
@@ -222,14 +261,39 @@ export const Kiosk: React.FC = () => {
         setLoading(true);
         try {
             const res = await axios.post(`${BASE_URL}/kiosk/public/${slug}/open-os`, data);
-            setProtocol(res.data.protocol);
+            const proto = res.data.protocol as string;
+            setProtocol(proto);
             setStep('SUCCESS');
+            // Lê o protocolo em voz separando os dígitos para ficar mais claro
+            if (!muted) {
+                const digits = proto.replace('-', '... ').split('').join(' ');
+                setTimeout(() => speak(`Pronto! Sua ordem de serviço foi aberta. O número do protocolo é... ${digits}. Aguarde ser chamado.`), 400);
+            }
         } catch (e: any) {
             setError(e.response?.data?.message || 'Erro ao abrir OS. Tente novamente.');
         } finally {
             setLoading(false);
         }
     };
+
+    // Botão mudo fixo no canto
+    const MuteBtn = () => (
+        <button
+            onClick={() => { setMuted(m => !m); window.speechSynthesis?.cancel(); }}
+            title={muted ? 'Ativar voz' : 'Silenciar'}
+            style={{
+                position: 'fixed', bottom: '20px', right: '20px', zIndex: 999,
+                width: '48px', height: '48px', borderRadius: '50%',
+                background: muted ? 'rgba(255,255,255,0.08)' : `${ACCENT}33`,
+                border: `1px solid ${muted ? BORDER : ACCENT}`,
+                color: muted ? MUTED : ACCENT2,
+                fontSize: '22px', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+            }}
+        >
+            {muted ? '🔇' : '🔊'}
+        </button>
+    );
 
     // ── LOADING ──────────────────────────────────────────────────
     if (step === 'LOADING') {
@@ -250,6 +314,7 @@ export const Kiosk: React.FC = () => {
                 <div style={{ ...subtitle, textAlign: 'center', marginTop: '8px' }}>
                     Verifique se o endereço está correto.
                 </div>
+                <MuteBtn />
             </div>
         );
     }
@@ -302,6 +367,7 @@ export const Kiosk: React.FC = () => {
                     INICIAR ATENDIMENTO
                 </button>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -339,6 +405,7 @@ export const Kiosk: React.FC = () => {
                     </button>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -377,6 +444,7 @@ export const Kiosk: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -407,6 +475,7 @@ export const Kiosk: React.FC = () => {
                     </button>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -432,6 +501,7 @@ export const Kiosk: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -458,6 +528,7 @@ export const Kiosk: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -490,6 +561,7 @@ export const Kiosk: React.FC = () => {
                     </button>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -542,6 +614,7 @@ export const Kiosk: React.FC = () => {
                     </button>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -584,6 +657,7 @@ export const Kiosk: React.FC = () => {
                     </button>
                 </div>
             </div>
+            <MuteBtn />
         );
     }
 
@@ -641,6 +715,7 @@ export const Kiosk: React.FC = () => {
                     Novo Atendimento
                 </button>
             </div>
+            <MuteBtn />
         );
     }
 
