@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard, Activity, Brain, Users, UserPlus,
     BarChart3, CreditCard, ToggleRight, Megaphone,
-    MessageSquare, Shield, TrendingUp,
+    MessageSquare, Shield, TrendingUp, Monitor,
 } from 'lucide-react';
 
 const GROUPS = [
@@ -36,6 +36,7 @@ const GROUPS = [
         items: [
             { name: 'Comunicados',     path: '/masteradmin/broadcasts',      icon: Megaphone },
             { name: 'Suporte',         path: '/masteradmin/support',         icon: MessageSquare },
+            { name: 'Kiosk',           path: '/masteradmin/kiosk',           icon: Monitor },
             { name: 'Feature Flags',   path: '/masteradmin/feature-flags',   icon: ToggleRight },
             { name: 'Auditoria',       path: '/masteradmin/audit',           icon: Shield },
         ],
