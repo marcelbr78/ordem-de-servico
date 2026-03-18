@@ -156,7 +156,7 @@ export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
         consumer
             .apply(TenantMiddleware)
-            .exclude('admin/(.*)', 'kiosk/public/(.*)')
+            .exclude('admin/(.*)', 'kiosk/public/(.*)', 'kiosk/admin/(.*)')
             .forRoutes('*');
     }
 }

@@ -55,6 +55,7 @@ import { OnboardingPage } from './admin/pages/OnboardingPage';
 import { AnalyticsPage } from './admin/pages/AnalyticsPage';
 import { AuditPage } from './admin/pages/AuditPage';
 import { FeatureFlagsPage } from './admin/pages/FeatureFlagsPage';
+import { KioskAdminPage } from './admin/pages/KioskAdminPage';
 
 // Layout unificado
 import { AppLayout } from './layout/AppLayout';
@@ -167,6 +168,7 @@ function App() {
           <Route path="/masteradmin/audit" element={<PrivateRoute requireAdmin><AppLayout><AuditPage /></AppLayout></PrivateRoute>} />
           <Route path="/masteradmin/feature-flags" element={<PrivateRoute requireAdmin><AppLayout><FeatureFlagsPage /></AppLayout></PrivateRoute>} />
           <Route path="/masteradmin/infra" element={<PrivateRoute requireAdmin><AppLayout><MasterInfra /></AppLayout></PrivateRoute>} />
+          <Route path="/masteradmin/kiosk" element={<PrivateRoute requireAdmin><AppLayout><KioskAdminPage /></AppLayout></PrivateRoute>} />
           <Route path="/masteradmin/settings" element={<PrivateRoute requireAdmin><AppLayout><MasterSettings /></AppLayout></PrivateRoute>} />
           <Route path="/masteradmin/audit" element={<PrivateRoute requireAdmin><AppLayout><AuditLogs isGlobal /></AppLayout></PrivateRoute>} />
 

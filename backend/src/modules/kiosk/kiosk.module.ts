@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { KioskService } from './kiosk.service';
-import { KioskController } from './kiosk.controller';
+import { KioskController, KioskAdminController } from './kiosk.controller';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { Client } from '../clients/entities/client.entity';
 import { ClientContact } from '../clients/entities/client-contact.entity';
@@ -9,6 +9,7 @@ import { OrderService } from '../orders/entities/order-service.entity';
 import { OrderEquipment } from '../orders/entities/order-equipment.entity';
 import { OrderHistory } from '../orders/entities/order-history.entity';
 import { User } from '../users/entities/user.entity';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
     imports: [
@@ -21,8 +22,9 @@ import { User } from '../users/entities/user.entity';
             OrderHistory,
             User,
         ]),
+        SettingsModule,
     ],
-    controllers: [KioskController],
+    controllers: [KioskController, KioskAdminController],
     providers: [KioskService],
 })
 export class KioskModule {}

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Like } from 'typeorm';
 import { Tenant } from '../tenants/entities/tenant.entity';
@@ -8,6 +8,7 @@ import { OrderService, OSStatus, OSPriority } from '../orders/entities/order-ser
 import { OrderEquipment } from '../orders/entities/order-equipment.entity';
 import { OrderHistory, HistoryActionType } from '../orders/entities/order-history.entity';
 import { User } from '../users/entities/user.entity';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class KioskService {
@@ -17,6 +18,7 @@ export class KioskService {
         @InjectRepository(ClientContact) private contactRepo: Repository<ClientContact>,
         @InjectRepository(User) private userRepo: Repository<User>,
         private dataSource: DataSource,
+        private settingsService: SettingsService,
     ) {}
 
     async getTenantConfig(slug: string) {
@@ -24,11 +26,40 @@ export class KioskService {
             where: { subdomain: slug, isActive: true },
         });
         if (!tenant) throw new NotFoundException('Loja não encontrada ou inativa');
+
+        const enabled = await this.settingsService.findByKey('kiosk_enabled', tenant.id);
+        if (enabled !== 'true') {
+            throw new ForbiddenException('Módulo Kiosk não habilitado para esta loja');
+        }
+
         return {
             id: tenant.id,
             storeName: tenant.storeName || tenant.name,
             subdomain: tenant.subdomain,
         };
+    }
+
+    /** Usado pelo master admin para listar todos os tenants com status do kiosk */
+    async listTenantsKioskStatus() {
+        const tenants = await this.tenantRepo.find({ where: { isActive: true }, order: { storeName: 'ASC' } });
+        const result = await Promise.all(tenants.map(async t => {
+            const enabled = await this.settingsService.findByKey('kiosk_enabled', t.id);
+            const slug = t.subdomain || (t.storeName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+            return {
+                id: t.id,
+                storeName: t.storeName || t.name,
+                subdomain: slug,
+                kioskEnabled: enabled === 'true',
+                kioskUrl: slug ? `/kiosk/${slug}` : null,
+            };
+        }));
+        return result;
+    }
+
+    /** Habilita ou desabilita o kiosk para um tenant */
+    async setKioskEnabled(tenantId: string, enabled: boolean) {
+        await this.settingsService.set('kiosk_enabled', enabled ? 'true' : 'false', undefined, undefined, undefined, tenantId);
+        return { success: true, enabled };
     }
 
     async identifyClient(tenantId: string, telefone: string) {

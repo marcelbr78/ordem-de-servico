@@ -5,7 +5,7 @@ import {
     LayoutDashboard, ShoppingCart, Users, Package, DollarSign,
     Settings, ScrollText, Landmark, Blocks, Cpu,
     ChevronLeft, ChevronRight, Box, Activity, CreditCard, Award,
-    LayoutGrid, UserPlus, Brain, Store, BarChart2, Kanban, Calendar, Shield, Receipt, Truck,
+    LayoutGrid, UserPlus, Brain, Store, BarChart2, Kanban, Calendar, Shield, Receipt, Truck, Monitor,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -70,6 +70,7 @@ const SAAS_LINKS = [
     { name: 'Planos', path: '/masteradmin/plans', icon: LayoutGrid },
     { name: 'Signups', path: '/masteradmin/signups', icon: UserPlus },
     { name: 'AI Insights', path: '/masteradmin/insights', icon: Brain },
+    { name: 'Kiosk', path: '/masteradmin/kiosk', icon: Monitor },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, isDesktop, collapsed, onClose, onToggleCollapse }) => {
