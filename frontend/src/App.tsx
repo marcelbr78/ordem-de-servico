@@ -115,6 +115,7 @@ function App() {
           <Route path="/status" element={<PublicStatus />} />
           <Route path="/status/:id" element={<PublicStatus />} />
           <Route path="/monitor" element={<MonitorDashboard />} />
+          <Route path="/kiosk/:slug" element={<Kiosk />} />
           <Route path="/kiosk" element={<Kiosk />} />
 
           {/* Acesso master */}

@@ -1,455 +1,648 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
-import { User, Phone, FileText, CheckCircle, ArrowRight, ArrowLeft, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
 
-type Step = 'WELCOME' | 'FORM' | 'SUCCESS';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3005';
+
+type Step =
+    | 'LOADING'
+    | 'NOT_FOUND'
+    | 'WELCOME'
+    | 'PHONE'
+    | 'CONFIRM_CLIENT'
+    | 'NAME'
+    | 'EQUIP_TYPE'
+    | 'EQUIP_BRAND'
+    | 'EQUIP_MODEL'
+    | 'PROBLEM'
+    | 'CONFIRM'
+    | 'SUCCESS';
+
+interface TenantConfig { id: string; storeName: string; subdomain: string; }
+interface KioskData {
+    nome: string;
+    telefone: string;
+    clientId?: string;
+    equipType: string;
+    equipBrand: string;
+    equipModel: string;
+    problem: string;
+}
+
+const EQUIP_TYPES = [
+    { label: 'Celular', icon: '📱' },
+    { label: 'Notebook', icon: '💻' },
+    { label: 'MacBook', icon: '🍎' },
+    { label: 'Tablet', icon: '📲' },
+    { label: 'Desktop', icon: '🖥️' },
+    { label: 'Outros', icon: '🔧' },
+];
+
+const BRANDS: Record<string, string[]> = {
+    Celular:   ['Samsung', 'Apple', 'Motorola', 'Xiaomi', 'LG', 'Positivo', 'Outro'],
+    Notebook:  ['Dell', 'HP', 'Lenovo', 'Asus', 'Acer', 'Samsung', 'Outro'],
+    MacBook:   ['Apple'],
+    Tablet:    ['Apple', 'Samsung', 'Lenovo', 'Positivo', 'Outro'],
+    Desktop:   ['Dell', 'HP', 'Lenovo', 'Asus', 'Positivo', 'Outro'],
+    Outros:    ['Outro'],
+};
+
+const PROBLEMS: Record<string, string[]> = {
+    Celular:  ['Tela quebrada', 'Não liga', 'Bateria fraca', 'Molhou', 'Câmera com defeito', 'Não carrega', 'Travando/lento', 'Outro'],
+    Notebook: ['Não liga', 'Tela quebrada', 'Teclado/touchpad', 'Muito lento', 'Bateria fraca', 'Molhou', 'Superaquecendo', 'Outro'],
+    MacBook:  ['Não liga', 'Tela quebrada', 'Teclado/touchpad', 'Muito lento', 'Bateria fraca', 'Molhou', 'Outro'],
+    Tablet:   ['Tela quebrada', 'Não liga', 'Bateria fraca', 'Molhou', 'Não carrega', 'Outro'],
+    Desktop:  ['Não liga', 'Sem imagem', 'Muito lento', 'Travando', 'Superaquecendo', 'Barulho estranho', 'Outro'],
+    Outros:   ['Não liga', 'Com defeito', 'Outro'],
+};
+
+// ── Estilos compartilhados ────────────────────────────────────────────────
+
+const BG = '#0a0a0f';
+const CARD = 'rgba(255,255,255,0.04)';
+const BORDER = 'rgba(255,255,255,0.08)';
+const ACCENT = '#6366f1';
+const ACCENT2 = '#818cf8';
+const TEXT = '#f1f5f9';
+const MUTED = 'rgba(255,255,255,0.4)';
+
+const fullPage: React.CSSProperties = {
+    minHeight: '100dvh', width: '100vw', background: BG,
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    padding: '24px', color: TEXT, fontFamily: 'system-ui, -apple-system, sans-serif',
+    boxSizing: 'border-box',
+};
+
+const card: React.CSSProperties = {
+    width: '100%', maxWidth: '520px',
+    background: CARD, border: `1px solid ${BORDER}`,
+    borderRadius: '24px', padding: '40px 32px',
+    display: 'flex', flexDirection: 'column', gap: '24px',
+};
+
+const title: React.CSSProperties = {
+    fontSize: '28px', fontWeight: 800, color: TEXT, lineHeight: 1.2,
+};
+
+const subtitle: React.CSSProperties = {
+    fontSize: '16px', color: MUTED, marginTop: '-12px',
+};
+
+const bigBtn = (active = true, secondary = false): React.CSSProperties => ({
+    padding: '18px 32px', borderRadius: '16px', border: 'none',
+    fontSize: '18px', fontWeight: 700, cursor: active ? 'pointer' : 'not-allowed',
+    background: secondary ? CARD : `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
+    border: secondary ? `1px solid ${BORDER}` : 'none',
+    color: active ? '#fff' : 'rgba(255,255,255,0.3)',
+    transition: 'all 0.15s', width: '100%',
+    opacity: active ? 1 : 0.5,
+});
+
+const gridBtn = (selected = false): React.CSSProperties => ({
+    padding: '20px 12px', borderRadius: '14px', border: `1px solid ${selected ? ACCENT : BORDER}`,
+    background: selected ? `${ACCENT}22` : CARD,
+    color: selected ? ACCENT2 : TEXT,
+    fontSize: '15px', fontWeight: selected ? 700 : 500,
+    cursor: 'pointer', display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: '8px', transition: 'all 0.15s',
+});
+
+const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '18px 20px', fontSize: '20px', borderRadius: '14px',
+    border: `1px solid ${BORDER}`, background: 'rgba(255,255,255,0.03)',
+    color: TEXT, outline: 'none', boxSizing: 'border-box',
+    fontFamily: 'inherit',
+};
+
+const backBtn: React.CSSProperties = {
+    background: 'none', border: 'none', color: MUTED, fontSize: '16px',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+    padding: '8px 0', alignSelf: 'flex-start',
+};
+
+// ── Componente principal ──────────────────────────────────────────────────
 
 export const Kiosk: React.FC = () => {
-    const [step, setStep] = useState<Step>('WELCOME');
-    const [greeting, setGreeting] = useState('');
-
-    // Form State
-    const [nome, setNome] = useState('');
-    const [telefone, setTelefone] = useState('');
-    const [cpf, setCpf] = useState('');
+    const { slug } = useParams<{ slug: string }>();
+    const [step, setStep] = useState<Step>('LOADING');
+    const [tenant, setTenant] = useState<TenantConfig | null>(null);
+    const [data, setData] = useState<KioskData>({
+        nome: '', telefone: '', equipType: '', equipBrand: '', equipModel: '', problem: '',
+    });
+    const [foundName, setFoundName] = useState('');
+    const [protocol, setProtocol] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [countdown, setCountdown] = useState(12);
+    const phoneRef = useRef<HTMLInputElement>(null);
+    const nameRef = useRef<HTMLInputElement>(null);
+    const modelRef = useRef<HTMLInputElement>(null);
 
-    // Address State
-    const [cep, setCep] = useState('');
-    const [rua, setRua] = useState('');
-    const [numero, setNumero] = useState('');
-    const [complemento, setComplemento] = useState('');
-    const [bairro, setBairro] = useState('');
-    const [cidade, setCidade] = useState('');
-    const [estado, setEstado] = useState('');
-    const [cepLoading, setCepLoading] = useState(false);
-    const [aceitaNotificacoes, setAceitaNotificacoes] = useState(true);
+    // Load tenant on mount
+    useEffect(() => {
+        if (!slug) { setStep('NOT_FOUND'); return; }
+        axios.get(`${BASE_URL}/kiosk/public/${slug}`)
+            .then(r => { setTenant(r.data); setStep('WELCOME'); })
+            .catch(() => setStep('NOT_FOUND'));
+    }, [slug]);
 
-    const handleCepChange = async (val: string) => {
-        const digits = val.replace(/\D/g, '');
-        // Mask 00000-000
-        let formatted = digits;
-        if (digits.length > 5) formatted = `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
-        setCep(formatted);
+    // Auto-focus inputs
+    useEffect(() => {
+        if (step === 'PHONE') setTimeout(() => phoneRef.current?.focus(), 200);
+        if (step === 'NAME') setTimeout(() => nameRef.current?.focus(), 200);
+        if (step === 'EQUIP_MODEL') setTimeout(() => modelRef.current?.focus(), 200);
+    }, [step]);
 
-        if (digits.length === 8) {
-            setCepLoading(true);
-            try {
-                // Use backend proxy to avoid CORS/Mixed Content/SSL issues on old devices
-                const res = await api.get(`/clients/public/cep/${digits}`);
-                const data = res.data;
+    // Countdown after success → reset
+    useEffect(() => {
+        if (step !== 'SUCCESS') return;
+        setCountdown(12);
+        const interval = setInterval(() => setCountdown(c => c - 1), 1000);
+        const timeout = setTimeout(() => resetKiosk(), 12000);
+        return () => { clearInterval(interval); clearTimeout(timeout); };
+    }, [step]);
 
-                if (!data.erro) {
-                    setRua(data.logradouro || '');
-                    setBairro(data.bairro || '');
-                    setCidade(data.localidade || '');
-                    setEstado(data.uf || '');
-                    // Focus number field?
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setCepLoading(false);
-            }
-        }
+    const resetKiosk = () => {
+        setData({ nome: '', telefone: '', equipType: '', equipBrand: '', equipModel: '', problem: '' });
+        setFoundName('');
+        setProtocol('');
+        setError('');
+        setStep('WELCOME');
     };
 
-    useEffect(() => {
-        const hour = new Date().getHours();
-        if (hour < 12) setGreeting('Bom dia');
-        else if (hour < 18) setGreeting('Boa tarde');
-        else setGreeting('Boa noite');
-    }, []);
+    const formatPhone = (val: string) => {
+        const d = val.replace(/\D/g, '').slice(0, 11);
+        if (d.length > 6) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+        if (d.length > 2) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+        return d;
+    };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // PHONE step — search client
+    const handlePhoneNext = async () => {
+        const digits = data.telefone.replace(/\D/g, '');
+        if (digits.length < 10) { setError('Digite um número válido'); return; }
         setError('');
         setLoading(true);
-
         try {
-            await api.post('/clients/public/register', {
-                nome,
-                telefone,
-                cpf: cpf || undefined,
-                cep: cep.replace(/\D/g, '') || undefined,
-                rua: rua || undefined,
-                numero: numero || undefined,
-                complemento: complemento || undefined,
-                bairro: bairro || undefined,
-                cidade: cidade || undefined,
-                estado: estado || undefined,
-                observacoes: aceitaNotificacoes ? 'Cliente aceitou receber notificações via WhatsApp no cadastro.' : 'Cliente NÃO aceitou receber notificações.',
-            });
-            setStep('SUCCESS');
-            // Reset form
-            setNome('');
-            setTelefone('');
-            setCpf('');
-            setCep('');
-            setRua('');
-            setNumero('');
-            setComplemento('');
-            setBairro('');
-            setCidade('');
-            setEstado('');
-            setAceitaNotificacoes(true);
-            // Auto reset after 5 seconds
-            setTimeout(() => setStep('WELCOME'), 5000);
-        } catch (err: any) {
-            console.error(err);
-            setError(err.response?.data?.message || 'Erro ao realizar cadastro. Tente novamente.');
+            const res = await axios.post(`${BASE_URL}/kiosk/public/${slug}/identify`, { telefone: data.telefone });
+            if (res.data.found) {
+                setFoundName(res.data.nome);
+                setData(d => ({ ...d, clientId: res.data.clientId }));
+                setStep('CONFIRM_CLIENT');
+            } else {
+                setStep('NAME');
+            }
+        } catch {
+            setError('Erro ao buscar cliente. Tente novamente.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value.replace(/\D/g, '');
-        if (val.length > 11) val = val.slice(0, 11);
-        // Mask (99) 99999-9999
-        if (val.length > 2) val = `(${val.slice(0, 2)}) ${val.slice(2)}`;
-        if (val.length > 9) val = `${val.slice(0, 9)}-${val.slice(9)}`;
-        setTelefone(val);
+    // EQUIP_TYPE step — auto-skip brand if only one option
+    const handleEquipType = (type: string) => {
+        const brands = BRANDS[type] || ['Outro'];
+        if (brands.length === 1) {
+            setData(d => ({ ...d, equipType: type, equipBrand: brands[0] }));
+            setStep('EQUIP_MODEL');
+        } else {
+            setData(d => ({ ...d, equipType: type, equipBrand: '' }));
+            setStep('EQUIP_BRAND');
+        }
     };
 
-    const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value.replace(/\D/g, '');
-        if (val.length > 11) val = val.slice(0, 11);
-        // Mask 999.999.999-99
-        if (val.length > 3) val = `${val.slice(0, 3)}.${val.slice(3)}`;
-        if (val.length > 7) val = `${val.slice(0, 7)}.${val.slice(7)}`;
-        if (val.length > 11) val = `${val.slice(0, 11)}-${val.slice(11)}`;
-        setCpf(val);
+    // PROBLEM — quick select + fill textarea
+    const handleQuickProblem = (p: string) => {
+        setData(d => ({ ...d, problem: p === 'Outro' ? '' : p }));
     };
 
-    if (step === 'WELCOME') {
+    // CONFIRM → submit
+    const handleOpenOS = async () => {
+        setError('');
+        setLoading(true);
+        try {
+            const res = await axios.post(`${BASE_URL}/kiosk/public/${slug}/open-os`, data);
+            setProtocol(res.data.protocol);
+            setStep('SUCCESS');
+        } catch (e: any) {
+            setError(e.response?.data?.message || 'Erro ao abrir OS. Tente novamente.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ── LOADING ──────────────────────────────────────────────────
+    if (step === 'LOADING') {
         return (
-            <div style={{
-                minHeight: '100vh', width: '100vw', background: 'linear-gradient(135deg, #14532d 0%, #052e16 100%)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                padding: '40px', textAlign: 'center', color: '#fff'
-            }}>
-                <div style={{ marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <div style={fullPage}>
+                <div style={{ width: '40px', height: '40px', border: `3px solid ${ACCENT}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+        );
+    }
+
+    // ── NOT FOUND ─────────────────────────────────────────────────
+    if (step === 'NOT_FOUND') {
+        return (
+            <div style={fullPage}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+                <div style={{ ...title, textAlign: 'center' }}>Loja não encontrada</div>
+                <div style={{ ...subtitle, textAlign: 'center', marginTop: '8px' }}>
+                    Verifique se o endereço está correto.
+                </div>
+            </div>
+        );
+    }
+
+    // ── WELCOME ───────────────────────────────────────────────────
+    if (step === 'WELCOME') {
+        const hour = new Date().getHours();
+        const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+        return (
+            <div style={{ ...fullPage, gap: '40px', textAlign: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                     <div style={{
-                        width: '80px', height: '80px', borderRadius: '16px', background: 'rgba(255,255,255,0.1)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', fontWeight: 'bold'
+                        width: '80px', height: '80px', borderRadius: '20px',
+                        background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '36px', fontWeight: 900, color: '#fff',
+                        boxShadow: `0 20px 60px ${ACCENT}44`,
                     }}>
-                        I
+                        {tenant?.storeName?.charAt(0)?.toUpperCase() || 'A'}
                     </div>
-                    <div>
-                        <h2 style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '1px' }}>INFOSEND</h2>
-                        <span style={{ fontSize: '14px', opacity: 0.7 }}>ASSISTÊNCIA TÉCNICA</span>
+                    <div style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '1px', color: TEXT }}>
+                        {tenant?.storeName?.toUpperCase()}
                     </div>
+                    <div style={{ fontSize: '14px', color: MUTED }}>ASSISTÊNCIA TÉCNICA</div>
                 </div>
 
-                <h1 style={{ fontSize: '48px', fontWeight: 800, color: '#fff', marginBottom: '16px' }}>
-                    {greeting}!
-                </h1>
-                <p style={{ fontSize: '24px', color: 'rgba(255,255,255,0.6)', marginBottom: '80px' }}>
-                    Seja bem-vindo(a) à nossa assistência.
-                </p>
+                <div>
+                    <div style={{ fontSize: '48px', fontWeight: 800, color: TEXT }}>{greet}!</div>
+                    <div style={{ fontSize: '20px', color: MUTED, marginTop: '8px' }}>
+                        Toque abaixo para iniciar seu atendimento
+                    </div>
+                </div>
 
                 <button
-                    onClick={() => setStep('FORM')}
+                    onClick={() => setStep('PHONE')}
                     style={{
-                        background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                        background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
                         border: 'none', borderRadius: '24px',
-                        padding: '40px 80px',
-                        fontSize: '32px', fontWeight: 700, color: '#fff',
-                        cursor: 'pointer',
-                        boxShadow: '0 20px 50px rgba(20, 83, 45, 0.5)',
-                        transition: 'transform 0.2s',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px'
+                        padding: '32px 64px', fontSize: '28px', fontWeight: 700, color: '#fff',
+                        cursor: 'pointer', boxShadow: `0 20px 60px ${ACCENT}44`,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+                        transition: 'transform 0.1s',
                     }}
-                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+                    onTouchStart={e => e.currentTarget.style.transform = 'scale(0.96)'}
+                    onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.96)'}
                     onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                 >
-                    <User size={64} />
-                    FAZER CADASTRO
+                    <span style={{ fontSize: '48px' }}>👆</span>
+                    INICIAR ATENDIMENTO
                 </button>
-
-                <p style={{ marginTop: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '18px' }}>
-                    Toque no botão acima para começar
-                </p>
-
-                <div style={{
-                    marginTop: 'auto', paddingTop: '40px',
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    color: 'rgba(255,255,255,0.5)', fontSize: '16px'
-                }}>
-                    <MapPin size={20} />
-                    <span>Rua Amazonas, 550 - Blumenau</span>
-                </div>
             </div>
         );
     }
 
-    if (step === 'SUCCESS') {
+    // ── PHONE ─────────────────────────────────────────────────────
+    if (step === 'PHONE') {
         return (
-            <div style={{
-                height: '100vh', width: '100vw', background: '#14532d',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                padding: '40px', textAlign: 'center'
-            }}>
-                <div style={{ marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <h2 style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '1px', color: '#fff' }}>INFOSEND</h2>
-                </div>
+            <div style={fullPage}>
+                <div style={card}>
+                    <button style={backBtn} onClick={() => setStep('WELCOME')}>← Voltar</button>
+                    <div style={title}>📱 Qual é o seu<br />WhatsApp?</div>
+                    <div style={subtitle}>Vamos verificar se você já é cadastrado</div>
 
-                <div style={{
-                    width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '40px'
-                }}>
-                    <CheckCircle size={64} color="#22c55e" />
-                </div>
+                    <input
+                        ref={phoneRef}
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="(00) 00000-0000"
+                        value={data.telefone}
+                        onChange={e => {
+                            setError('');
+                            setData(d => ({ ...d, telefone: formatPhone(e.target.value) }));
+                        }}
+                        onKeyDown={e => e.key === 'Enter' && handlePhoneNext()}
+                        style={{ ...inputStyle, letterSpacing: '2px' }}
+                    />
 
-                <h1 style={{ fontSize: '42px', fontWeight: 800, color: '#fff', marginBottom: '24px' }}>
-                    Cadastro Realizado!
-                </h1>
-                <p style={{ fontSize: '24px', color: 'rgba(255,255,255,0.6)' }}>
-                    Obrigado por se cadastrar.<br />Um atendente irá chamá-lo em breve.
-                </p>
-
-                <div style={{ marginTop: '80px', width: '100%', maxWidth: '400px', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: '#4ade80', animation: 'progress 5s linear forwards' }} />
-                </div>
-
-                <style>{`
-                    @keyframes progress {
-                        from { width: 100%; }
-                        to { width: 0%; }
-                    }
-                `}</style>
-            </div>
-        );
-    }
-
-    // FORM STEP
-    return (
-        <div style={{
-            minHeight: '100vh', width: '100vw', background: '#14532d',
-            display: 'flex', flexDirection: 'column',
-            padding: '40px' // Added padding for better safe area
-        }}>
-            <button
-                onClick={() => setStep('WELCOME')}
-                style={{
-                    alignSelf: 'flex-start', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)',
-                    display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px', padding: '16px', marginBottom: '20px'
-                }}
-            >
-                <ArrowLeft size={24} /> Voltar
-            </button>
-
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '600px', width: '100%', margin: '0 auto', overflowY: 'auto', paddingRight: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <h2 style={{ fontSize: '32px', fontWeight: 700, color: '#fff' }}>
-                        Seus Dados
-                    </h2>
-                    <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 'bold' }}>INFOSEND</span>
-                </div>
-                <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '40px', fontSize: '18px' }}>
-                    Preencha para agilizar seu atendimento
-                </p>
-
-                {error && (
-                    <div style={{
-                        padding: '16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)',
-                        color: '#ef4444', borderRadius: '12px', marginBottom: '24px', fontSize: '18px'
-                    }}>
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
-                    <div>
-                        <label style={{ display: 'block', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontSize: '18px' }}>Seu Nome Completo</label>
-                        <div style={{ position: 'relative' }}>
-                            <User size={24} style={{ position: 'absolute', left: '16px', top: '20px', color: 'rgba(255,255,255,0.4)' }} />
-                            <input
-                                required
-                                value={nome}
-                                onChange={e => setNome(e.target.value)}
-                                placeholder="Ex: João Silva"
-                                style={{
-                                    width: '100%', padding: '20px 20px 20px 56px', fontSize: '20px', borderRadius: '16px',
-                                    border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                    color: '#fff', outline: 'none'
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style={{ display: 'block', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontSize: '18px' }}>Seu WhatsApp</label>
-                        <div style={{ position: 'relative' }}>
-                            <Phone size={24} style={{ position: 'absolute', left: '16px', top: '20px', color: 'rgba(255,255,255,0.4)' }} />
-                            <input
-                                required
-                                value={telefone}
-                                onChange={handlePhoneChange}
-                                placeholder="(00) 00000-0000"
-                                maxLength={15}
-                                style={{
-                                    width: '100%', padding: '20px 20px 20px 56px', fontSize: '20px', borderRadius: '16px',
-                                    border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                    color: '#fff', outline: 'none'
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style={{ display: 'block', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontSize: '18px' }}>CPF (Opcional)</label>
-                        <div style={{ position: 'relative' }}>
-                            <FileText size={24} style={{ position: 'absolute', left: '16px', top: '20px', color: 'rgba(255,255,255,0.4)' }} />
-                            <input
-                                value={cpf}
-                                onChange={handleCpfChange}
-                                placeholder="000.000.000-00"
-                                maxLength={14}
-                                style={{
-                                    width: '100%', padding: '20px 20px 20px 56px', fontSize: '20px', borderRadius: '16px',
-                                    border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                    color: '#fff', outline: 'none'
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    <div style={{ padding: '24px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#fff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            Endereço (Opcional)
-                        </h3>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '16px' }}>
-                            <div>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', fontSize: '14px' }}>CEP</label>
-                                <div style={{ position: 'relative' }}>
-                                    <input
-                                        value={cep}
-                                        onChange={e => handleCepChange(e.target.value)}
-                                        placeholder="00000-000"
-                                        maxLength={9}
-                                        style={{
-                                            width: '100%', padding: '16px', fontSize: '16px', borderRadius: '12px',
-                                            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                            color: '#fff', outline: 'none'
-                                        }}
-                                    />
-                                    {cepLoading && <span style={{ position: 'absolute', right: 12, top: 18, color: '#fff' }}>⏳</span>}
-                                </div>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', fontSize: '14px' }}>Rua</label>
-                                <input
-                                    value={rua}
-                                    onChange={e => setRua(e.target.value)}
-                                    placeholder="Rua, Av..."
-                                    style={{
-                                        width: '100%', padding: '16px', fontSize: '16px', borderRadius: '12px',
-                                        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                        color: '#fff', outline: 'none'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                            <div>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', fontSize: '14px' }}>Número</label>
-                                <input
-                                    value={numero}
-                                    onChange={e => setNumero(e.target.value)}
-                                    placeholder="Nº"
-                                    style={{
-                                        width: '100%', padding: '16px', fontSize: '16px', borderRadius: '12px',
-                                        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                        color: '#fff', outline: 'none'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', fontSize: '14px' }}>Bairro</label>
-                                <input
-                                    value={bairro}
-                                    onChange={e => setBairro(e.target.value)}
-                                    placeholder="Bairro"
-                                    style={{
-                                        width: '100%', padding: '16px', fontSize: '16px', borderRadius: '12px',
-                                        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                        color: '#fff', outline: 'none'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-                            <div>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', fontSize: '14px' }}>Cidade</label>
-                                <input
-                                    value={cidade}
-                                    onChange={e => setCidade(e.target.value)}
-                                    placeholder="Cidade"
-                                    style={{
-                                        width: '100%', padding: '16px', fontSize: '16px', borderRadius: '12px',
-                                        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                        color: '#fff', outline: 'none'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', fontSize: '14px' }}>UF</label>
-                                <input
-                                    value={estado}
-                                    onChange={e => setEstado(e.target.value)}
-                                    placeholder="UF"
-                                    maxLength={2}
-                                    style={{
-                                        width: '100%', padding: '16px', fontSize: '16px', borderRadius: '12px',
-                                        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-                                        color: '#fff', outline: 'none', textTransform: 'uppercase'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div style={{ marginBottom: '8px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px' }}>
-                            <input
-                                type="checkbox"
-                                checked={aceitaNotificacoes}
-                                onChange={e => setAceitaNotificacoes(e.target.checked)}
-                                style={{ width: '24px', height: '24px', cursor: 'pointer', accentColor: '#22c55e' }}
-                            />
-                            <span style={{ fontSize: '18px', color: '#fff' }}>Aceito receber notificações e atualizações pelo WhatsApp</span>
-                        </label>
-                    </div>
+                    {error && <div style={{ color: '#f87171', fontSize: '15px' }}>{error}</div>}
 
                     <button
-                        type="submit"
-                        disabled={loading}
-                        style={{
-                            marginTop: '24px',
-                            background: loading ? 'rgba(74, 222, 128, 0.5)' : '#22c55e',
-                            border: 'none', borderRadius: '16px',
-                            padding: '24px',
-                            fontSize: '20px', fontWeight: 700, color: '#fff',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px'
-                        }}
+                        disabled={loading || data.telefone.replace(/\D/g,'').length < 10}
+                        onClick={handlePhoneNext}
+                        style={bigBtn(!loading && data.telefone.replace(/\D/g,'').length >= 10)}
                     >
-                        {loading ? 'Cadastrando...' : (
-                            <>
-                                FINALIZAR <ArrowRight size={24} />
-                            </>
-                        )}
+                        {loading ? 'Buscando...' : 'CONTINUAR →'}
                     </button>
-                </form>
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
+
+    // ── CONFIRM CLIENT ────────────────────────────────────────────
+    if (step === 'CONFIRM_CLIENT') {
+        return (
+            <div style={fullPage}>
+                <div style={card}>
+                    <div style={{ fontSize: '48px', textAlign: 'center' }}>👋</div>
+                    <div style={{ ...title, textAlign: 'center' }}>Encontramos você!</div>
+                    <div style={{
+                        padding: '24px', background: `${ACCENT}11`, border: `1px solid ${ACCENT}33`,
+                        borderRadius: '16px', textAlign: 'center',
+                    }}>
+                        <div style={{ fontSize: '13px', color: MUTED, marginBottom: '4px' }}>Nome cadastrado</div>
+                        <div style={{ fontSize: '24px', fontWeight: 700, color: TEXT }}>{foundName}</div>
+                    </div>
+                    <div style={{ ...subtitle, textAlign: 'center' }}>É você mesmo?</div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            onClick={() => setStep('EQUIP_TYPE')}
+                            style={{ ...bigBtn(), flex: 1 }}
+                        >
+                            ✅ Sim, sou eu
+                        </button>
+                        <button
+                            onClick={() => {
+                                setData(d => ({ ...d, clientId: undefined }));
+                                setStep('NAME');
+                            }}
+                            style={{ ...bigBtn(true, true), flex: 1 }}
+                        >
+                            ❌ Não
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ── NAME ──────────────────────────────────────────────────────
+    if (step === 'NAME') {
+        return (
+            <div style={fullPage}>
+                <div style={card}>
+                    <button style={backBtn} onClick={() => setStep('PHONE')}>← Voltar</button>
+                    <div style={title}>👤 Qual é o seu<br />nome completo?</div>
+
+                    <input
+                        ref={nameRef}
+                        type="text"
+                        placeholder="Ex: Maria da Silva"
+                        value={data.nome}
+                        onChange={e => setData(d => ({ ...d, nome: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && data.nome.trim().length > 2 && setStep('EQUIP_TYPE')}
+                        style={inputStyle}
+                    />
+
+                    <button
+                        disabled={data.nome.trim().length < 3}
+                        onClick={() => setStep('EQUIP_TYPE')}
+                        style={bigBtn(data.nome.trim().length >= 3)}
+                    >
+                        CONTINUAR →
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ── EQUIP TYPE ────────────────────────────────────────────────
+    if (step === 'EQUIP_TYPE') {
+        return (
+            <div style={fullPage}>
+                <div style={card}>
+                    <button style={backBtn} onClick={() => setStep(data.clientId ? 'CONFIRM_CLIENT' : 'NAME')}>← Voltar</button>
+                    <div style={title}>🔧 Qual é o<br />aparelho?</div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                        {EQUIP_TYPES.map(t => (
+                            <button
+                                key={t.label}
+                                onClick={() => handleEquipType(t.label)}
+                                style={gridBtn(data.equipType === t.label)}
+                            >
+                                <span style={{ fontSize: '28px' }}>{t.icon}</span>
+                                <span>{t.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ── EQUIP BRAND ───────────────────────────────────────────────
+    if (step === 'EQUIP_BRAND') {
+        const brands = BRANDS[data.equipType] || ['Outro'];
+        return (
+            <div style={fullPage}>
+                <div style={card}>
+                    <button style={backBtn} onClick={() => setStep('EQUIP_TYPE')}>← Voltar</button>
+                    <div style={title}>🏷️ Qual a marca?</div>
+                    <div style={{ fontSize: '14px', color: MUTED }}>{data.equipType}</div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                        {brands.map(b => (
+                            <button
+                                key={b}
+                                onClick={() => { setData(d => ({ ...d, equipBrand: b })); setStep('EQUIP_MODEL'); }}
+                                style={gridBtn(data.equipBrand === b)}
+                            >
+                                <span style={{ fontSize: '22px', fontWeight: 700 }}>{b}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ── EQUIP MODEL ───────────────────────────────────────────────
+    if (step === 'EQUIP_MODEL') {
+        return (
+            <div style={fullPage}>
+                <div style={card}>
+                    <button style={backBtn} onClick={() => setStep(BRANDS[data.equipType]?.length === 1 ? 'EQUIP_TYPE' : 'EQUIP_BRAND')}>← Voltar</button>
+                    <div style={title}>📋 Qual o modelo?</div>
+                    <div style={{ fontSize: '14px', color: MUTED }}>{data.equipType} · {data.equipBrand}</div>
+
+                    <input
+                        ref={modelRef}
+                        type="text"
+                        placeholder={data.equipType === 'Celular' ? 'Ex: Galaxy A54, iPhone 12' : 'Ex: Inspiron 15, IdeaPad 3'}
+                        value={data.equipModel}
+                        onChange={e => setData(d => ({ ...d, equipModel: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && data.equipModel.trim().length > 1 && setStep('PROBLEM')}
+                        style={inputStyle}
+                    />
+                    <div style={{ fontSize: '13px', color: MUTED }}>Se não souber o modelo exato, escreva o que souber</div>
+
+                    <button
+                        disabled={data.equipModel.trim().length < 2}
+                        onClick={() => setStep('PROBLEM')}
+                        style={bigBtn(data.equipModel.trim().length >= 2)}
+                    >
+                        CONTINUAR →
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ── PROBLEM ───────────────────────────────────────────────────
+    if (step === 'PROBLEM') {
+        const probs = PROBLEMS[data.equipType] || PROBLEMS.Outros;
+        return (
+            <div style={{ ...fullPage, justifyContent: 'flex-start', paddingTop: '32px' }}>
+                <div style={{ ...card, maxHeight: 'calc(100dvh - 64px)', overflow: 'auto' }}>
+                    <button style={backBtn} onClick={() => setStep('EQUIP_MODEL')}>← Voltar</button>
+                    <div style={title}>💬 Qual é o problema?</div>
+                    <div style={{ fontSize: '14px', color: MUTED }}>{data.equipBrand} {data.equipModel}</div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {probs.map(p => (
+                            <button
+                                key={p}
+                                onClick={() => handleQuickProblem(p)}
+                                style={{
+                                    padding: '10px 18px', borderRadius: '100px',
+                                    border: `1px solid ${data.problem === p ? ACCENT : BORDER}`,
+                                    background: data.problem === p ? `${ACCENT}22` : CARD,
+                                    color: data.problem === p ? ACCENT2 : TEXT,
+                                    fontSize: '15px', fontWeight: data.problem === p ? 700 : 400,
+                                    cursor: 'pointer', transition: 'all 0.15s',
+                                }}
+                            >
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+
+                    <textarea
+                        placeholder="Descreva com mais detalhes (opcional)..."
+                        value={data.problem}
+                        onChange={e => setData(d => ({ ...d, problem: e.target.value }))}
+                        rows={4}
+                        style={{
+                            ...inputStyle, resize: 'none', fontSize: '16px',
+                            fontFamily: 'inherit', lineHeight: 1.6,
+                        }}
+                    />
+
+                    <button
+                        disabled={data.problem.trim().length < 3}
+                        onClick={() => setStep('CONFIRM')}
+                        style={bigBtn(data.problem.trim().length >= 3)}
+                    >
+                        CONTINUAR →
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ── CONFIRM ───────────────────────────────────────────────────
+    if (step === 'CONFIRM') {
+        const rows: [string, string][] = [
+            ['Cliente', data.nome || foundName],
+            ['Telefone', data.telefone],
+            ['Aparelho', `${data.equipBrand} ${data.equipModel}`],
+            ['Tipo', data.equipType],
+            ['Problema', data.problem],
+        ];
+        return (
+            <div style={fullPage}>
+                <div style={card}>
+                    <button style={backBtn} onClick={() => setStep('PROBLEM')}>← Voltar</button>
+                    <div style={title}>✅ Confirme<br />os dados</div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {rows.map(([label, value]) => (
+                            <div key={label} style={{
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                                padding: '14px 16px', background: CARD, borderRadius: '12px',
+                                border: `1px solid ${BORDER}`, gap: '12px',
+                            }}>
+                                <span style={{ fontSize: '13px', color: MUTED, whiteSpace: 'nowrap' }}>{label}</span>
+                                <span style={{ fontSize: '15px', fontWeight: 600, textAlign: 'right', wordBreak: 'break-word' }}>{value}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {error && <div style={{ color: '#f87171', fontSize: '15px' }}>{error}</div>}
+
+                    <button
+                        disabled={loading}
+                        onClick={handleOpenOS}
+                        style={bigBtn(!loading)}
+                    >
+                        {loading ? 'Abrindo OS...' : '🚀 ABRIR ORDEM DE SERVIÇO'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ── SUCCESS ───────────────────────────────────────────────────
+    if (step === 'SUCCESS') {
+        return (
+            <div style={{ ...fullPage, gap: '32px', textAlign: 'center' }}>
+                <div style={{
+                    width: '100px', height: '100px', borderRadius: '50%',
+                    background: 'rgba(34,197,94,0.15)', border: '2px solid rgba(34,197,94,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '48px',
+                }}>
+                    ✅
+                </div>
+
+                <div>
+                    <div style={{ fontSize: '36px', fontWeight: 800, color: TEXT }}>OS Aberta!</div>
+                    <div style={{ fontSize: '16px', color: MUTED, marginTop: '8px' }}>
+                        Aguarde ser chamado pelo técnico
+                    </div>
+                </div>
+
+                <div style={{
+                    padding: '28px 40px', background: CARD, border: `1px solid ${BORDER}`,
+                    borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '8px',
+                }}>
+                    <div style={{ fontSize: '14px', color: MUTED }}>Número do protocolo</div>
+                    <div style={{
+                        fontSize: '40px', fontWeight: 900, letterSpacing: '4px',
+                        color: ACCENT2, fontVariantNumeric: 'tabular-nums',
+                    }}>
+                        {protocol}
+                    </div>
+                </div>
+
+                <div style={{ fontSize: '16px', color: MUTED }}>
+                    Anote o número acima para acompanhar seu atendimento
+                </div>
+
+                {/* Countdown bar */}
+                <div style={{ width: '100%', maxWidth: '320px' }}>
+                    <div style={{ fontSize: '13px', color: MUTED, marginBottom: '8px', textAlign: 'center' }}>
+                        Reiniciando em {countdown}s...
+                    </div>
+                    <div style={{ height: '4px', background: BORDER, borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{
+                            height: '100%', background: ACCENT2, borderRadius: '2px',
+                            width: `${(countdown / 12) * 100}%`, transition: 'width 1s linear',
+                        }} />
+                    </div>
+                </div>
+
+                <button onClick={resetKiosk} style={{ ...bigBtn(true, true), maxWidth: '320px' }}>
+                    Novo Atendimento
+                </button>
+            </div>
+        );
+    }
+
+    return null;
 };

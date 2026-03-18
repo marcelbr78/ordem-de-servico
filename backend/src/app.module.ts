@@ -69,6 +69,7 @@ import { PowerSequenceStep } from './modules/power-sequence/entities/power-seque
 import { PowerSequenceAnalysis } from './modules/power-sequence/entities/power-sequence-analysis.entity';
 import { BoardDiagnosisModule } from './modules/board-diagnosis/board-diagnosis.module';
 import { Board as BoardDiagnosisBoard } from './modules/board-diagnosis/entities/board.entity';
+import { KioskModule } from './modules/kiosk/kiosk.module';
 import { SymptomCategory as BoardDiagnosisSymptomCategory } from './modules/board-diagnosis/entities/symptom-category.entity';
 import { Circuit as BoardDiagnosisCircuit } from './modules/board-diagnosis/entities/circuit.entity';
 import { PowerRail as BoardDiagnosisPowerRail } from './modules/board-diagnosis/entities/power-rail.entity';
@@ -141,6 +142,7 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
         SmartPartsSuggestionModule,
         PowerSequenceModule,
         BoardDiagnosisModule,
+        KioskModule,
     ],
 })
 export class AppModule implements NestModule {
@@ -154,7 +156,7 @@ export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
         consumer
             .apply(TenantMiddleware)
-            .exclude('admin/(.*)')
+            .exclude('admin/(.*)', 'kiosk/public/(.*)')
             .forRoutes('*');
     }
 }
