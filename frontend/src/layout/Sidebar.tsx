@@ -171,7 +171,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, isDesktop, collapsed, 
                                 OS4U
                             </span>
                             <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px', marginTop: '2px' }}>
-                                v{__APP_VERSION__}
+                                v1.1.2
                             </span>
                         </div>
                     )}
