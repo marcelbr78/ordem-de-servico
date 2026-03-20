@@ -46,8 +46,8 @@ const STATUS_LABELS: Record<string, string> = {
     'aguardando_peca': 'Aguardando Peça',
     'em_reparo': 'Em Reparo',
     'testes': 'Testes',
-    'finalizada': 'Finalizada',
-    'entregue': 'Entregue',
+    FINALIZADA: 'Finalizada',
+    ENTREGUE: 'Entregue',
     'cancelada': 'Cancelada',
 };
 
@@ -58,8 +58,8 @@ const STATUS_COLORS: Record<string, string> = {
     'aguardando_peca': '#f97316',
     'em_reparo': '#06b6d4',
     'testes': '#ec4899',
-    'finalizada': '#10b981',
-    'entregue': '#22c55e',
+    FINALIZADA: '#10b981',
+    ENTREGUE: '#22c55e',
     'cancelada': '#ef4444',
 };
 
@@ -70,8 +70,8 @@ const STATUS_ICONS: Record<string, string> = {
     'aguardando_peca': '📦',
     'em_reparo': '🔧',
     'testes': '🧪',
-    'finalizada': '✅',
-    'entregue': '🏁',
+    FINALIZADA: '✅',
+    ENTREGUE: '🏁',
     'cancelada': '❌',
 };
 
@@ -431,7 +431,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const [balanceToPay, setBalanceToPay] = useState<number>(0);
 
     React.useEffect(() => {
-        if (statusModalOpen && targetStatus === 'entregue') {
+        if (statusModalOpen && targetStatus === 'ENTREGUE') {
             api.get('/bank-accounts').then(res => {
                 setBankAccounts(res.data || []);
                 if (res.data?.length > 0) {
@@ -477,7 +477,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
         const statusLabel = getDynamicStatusLabel(newStatus);
 
         let intro = '';
-        if (newStatus === 'finalizada' || newStatus === 'entregue') {
+        if (newStatus === 'FINALIZADA' || newStatus === 'ENTREGUE') {
             const total = totalParts || order.finalValue || order.estimatedValue || 0;
             const totalFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
             intro = `Olá ${clientName}, o serviço no ${device} foi finalizado!\n\n📄 *Protocolo:* ${order.protocol}\n✅ *Status:* ${statusLabel}\n💰 *Total:* ${totalFormatted}`;
@@ -499,7 +499,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const confirmStatusChange = async () => {
         if (!targetStatus || !statusComment.trim()) return;
 
-        if (targetStatus === 'finalizada') {
+        if (targetStatus === 'FINALIZADA') {
             const allChecked = CHECKLIST_ITEMS.every(item => exitChecklist[item.id]);
             if (!allChecked) {
                 alert('Você precisa assinalar todo o Checklist de Saída para garantir que todos os testes foram executados!');
@@ -520,7 +520,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
         setChangingStatus(true);
         try {
             let finalComment = statusComment?.trim() || 'Status atualizado';
-            if (targetStatus === 'finalizada') {
+            if (targetStatus === 'FINALIZADA') {
                 finalComment += '\n\n[Checklist de Saída Executado: Todos os testes OK]';
             }
 
@@ -528,10 +528,10 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             await api.patch(`/orders/${order.id}/status`, {
                 status: targetStatus,
                 comments: finalComment,
-                paymentMethod: (targetStatus === 'entregue' && balanceToPay > 0) ? paymentMethod : undefined,
-                bankAccountId: (targetStatus === 'entregue' && balanceToPay > 0) ? bankAccountId : undefined,
-                paymentDate: (targetStatus === 'entregue' && balanceToPay > 0) ? new Date().toISOString() : undefined,
-                paymentAmount: (targetStatus === 'entregue' && balanceToPay > 0) ? balanceToPay : undefined
+                paymentMethod: (targetStatus === 'ENTREGUE' && balanceToPay > 0) ? paymentMethod : undefined,
+                bankAccountId: (targetStatus === 'ENTREGUE' && balanceToPay > 0) ? bankAccountId : undefined,
+                paymentDate: (targetStatus === 'ENTREGUE' && balanceToPay > 0) ? new Date().toISOString() : undefined,
+                paymentAmount: (targetStatus === 'ENTREGUE' && balanceToPay > 0) ? balanceToPay : undefined
             });
 
             // 2. Send WhatsApp if requested
@@ -814,7 +814,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     </div>
                                 )}
                                 {/* Expected Delivery Alert */}
-                                {order.expectedDeliveryDate && !['finalizada', 'entregue', 'cancelada'].includes(order.status) && (() => {
+                                {order.expectedDeliveryDate && !['FINALIZADA', 'ENTREGUE', 'cancelada'].includes(order.status) && (() => {
                                     const isOverdue = new Date(order.expectedDeliveryDate + 'T23:59:59') < new Date();
                                     const expectedFmt = new Date(order.expectedDeliveryDate + 'T12:00:00').toLocaleDateString('pt-BR');
                                     return (
@@ -900,7 +900,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                         <button onClick={() => triggerPrint('client')} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '13px', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                                             <FileText size={14} /> Ordem de Serviço
                                         </button>
-                                        {['finalizada', 'entregue'].includes(order.status) && (
+                                        {['FINALIZADA', 'ENTREGUE'].includes(order.status) && (
                                             <button onClick={() => triggerPrint('term')} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '13px', borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                                                 <FileCheck size={14} /> Termo Entrega
                                             </button>
@@ -982,7 +982,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                         <QuoteTab order={order} />
                     )}
                         {/* Botão Recibo de Entrega — aparece quando OS está finalizada ou entregue */}
-                        {(order.status === 'finalizada' || order.status === 'entregue') && activeTab === 'Financeiro 💰' && (
+                        {(order.status === 'FINALIZADA' || order.status === 'ENTREGUE') && activeTab === 'Financeiro 💰' && (
                             <div style={{ marginTop: '14px' }}>
                                 <button
                                     onClick={() => setShowDeliveryReceipt(true)}
@@ -1030,7 +1030,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     {/* Cabeçalho lançamentos */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#fff' }}>Lançamentos desta OS</h3>
-                                        {saldo > 0 && order.status !== 'entregue' && (
+                                        {saldo > 0 && order.status !== 'ENTREGUE' && (
                                             <button
                                                 onClick={() => setShowAddPayment(!showAddPayment)}
                                                 style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', background: 'var(--primary)', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
@@ -1182,7 +1182,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#a855f7', whiteSpace: 'nowrap' }}>
                                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(svc.price)}
                                                     </div>
-                                                    {order.status !== 'finalizada' && order.status !== 'entregue' && (
+                                                    {order.status !== 'FINALIZADA' && order.status !== 'ENTREGUE' && (
                                                         <>
                                                             <button onClick={() => { setEditingSvcId(svc.id); setEditSvcData({}); }}
                                                                 style={{ background: 'rgba(168,85,247,0.1)', border: 'none', color: '#a855f7', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px', fontSize: '12px' }}>✏️</button>
@@ -1196,7 +1196,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     ))}
 
                                     {/* Formulário para adicionar serviço */}
-                                    {order.status !== 'finalizada' && order.status !== 'entregue' && (
+                                    {order.status !== 'FINALIZADA' && order.status !== 'ENTREGUE' && (
                                     <div style={{ background: 'rgba(168,85,247,0.04)', border: '1px dashed rgba(168,85,247,0.25)', borderRadius: '10px', padding: '12px 14px' }}>
                                         {/* Busca rápida no catálogo */}
                                         {svcCatalog.length > 0 && (
@@ -1242,7 +1242,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 </div>
 
                                 {/* Product Search */}
-                                {order.status !== 'finalizada' && order.status !== 'entregue' && (
+                                {order.status !== 'FINALIZADA' && order.status !== 'ENTREGUE' && (
                                 <div style={{ position: 'relative', marginBottom: '24px' }}>
                                     <div style={{ position: 'relative' }}>
                                         <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
@@ -1325,7 +1325,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                         <td style={{ padding: '12px 16px' }}>
                                                             <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                 {part.product?.name}
-                                                                {part.product?.type === 'service' && <span style={{ padding: '2px 6px', fontSize: '10px', background: 'rgba(168,85,247,0.15)', color: '#a855f7', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.5px' }}>SERVIÇO</span>}
+                                                                {(part.product as any)?.type === 'service' && <span style={{ padding: '2px 6px', fontSize: '10px', background: 'rgba(168,85,247,0.15)', color: '#a855f7', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.5px' }}>SERVIÇO</span>}
                                                             </div>
                                                             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', marginTop: '2px' }}>{part.product?.sku || 'S/N'}</div>
                                                         </td>
@@ -1337,7 +1337,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.unitPrice * part.quantity)}
                                                         </td>
                                                         <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                                                            {order.status !== 'finalizada' && order.status !== 'entregue' && (
+                                                            {order.status !== 'FINALIZADA' && order.status !== 'ENTREGUE' && (
                                                             <button
                                                                 onClick={() => handleRemovePart(part.id)}
                                                                 style={{ background: 'transparent', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
@@ -1370,7 +1370,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     </div>
                                     <button
                                         onClick={handleSaveReport}
-                                        disabled={order.status === 'finalizada' || order.status === 'entregue' || savingReport || (technicalReport === order.technicalReport && observations === order.observations)}
+                                        disabled={order.status === 'FINALIZADA' || order.status === 'ENTREGUE' || savingReport || (technicalReport === order.technicalReport && observations === order.observations)}
                                         style={{
                                             padding: '8px 16px', borderRadius: '8px', border: 'none',
                                             background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '13px',
@@ -1385,7 +1385,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 </div>
 
                                 <textarea
-                                    readOnly={order.status === 'finalizada' || order.status === 'entregue'}
+                                    readOnly={order.status === 'FINALIZADA' || order.status === 'ENTREGUE'}
                                     value={technicalReport}
                                     onChange={(e) => setTechnicalReport(e.target.value)}
                                     placeholder="Descreva aqui o diagnóstico técnico, peças trocadas e a solução do problema..."
@@ -1400,7 +1400,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 <div style={{ marginBottom: '16px' }}>
                                     <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>Observações Livres (Impressas)</h4>
                                     <textarea
-                                        readOnly={order.status === 'finalizada' || order.status === 'entregue'}
+                                        readOnly={order.status === 'FINALIZADA' || order.status === 'ENTREGUE'}
                                         value={observations}
                                         onChange={(e) => setObservations(e.target.value)}
                                         placeholder="Ex: Cliente ciente de risco, tela paralela aceita pelo cliente... (Fica visível no termo de entrega e Via Cliente)"
@@ -1659,7 +1659,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                     ) : (
                                                         <div>
                                                             <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#fff' }}>{eq.brand} {eq.model}</h4>
-                                                            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>{eq.type} • {eq.serialNumber || 'Sem Serial / IMEI'}</div>
+                                                            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>{} • {eq.serialNumber || 'Sem Serial / IMEI'}</div>
                                                         </div>
                                                     )}
 
@@ -1674,7 +1674,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                                     Cancelar
                                                                 </button>
                                                             </>
-                                                        ) : ( order.status !== 'finalizada' && order.status !== 'entregue' && (
+                                                        ) : ( order.status !== 'FINALIZADA' && order.status !== 'ENTREGUE' && (
                                                             <button onClick={() => handleEditEq(eq)} style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                                                                 Editar
                                                             </button>
@@ -1917,7 +1917,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 Você está alterando o status para: <strong style={{ color: STATUS_COLORS[targetStatus || ''] }}>{getDynamicStatusLabel(targetStatus || '')}</strong>
                             </p>
 
-                            {targetStatus === 'entregue' && balanceToPay > 0 && (
+                            {targetStatus === 'ENTREGUE' && balanceToPay > 0 && (
                                 <div style={{
                                     padding: '16px',
                                     background: 'rgba(59,130,246,0.1)',
@@ -1977,12 +1977,12 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     width: '100%', minHeight: '100px', background: 'rgba(0,0,0,0.2)',
                                     border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
                                     padding: '12px', color: '#fff', fontSize: '14px', resize: 'vertical',
-                                    marginBottom: targetStatus === 'finalizada' ? '16px' : '0'
+                                    marginBottom: targetStatus === 'FINALIZADA' ? '16px' : '0'
                                 }}
                                 autoFocus
                             />
 
-                            {targetStatus === 'finalizada' && (
+                            {targetStatus === 'FINALIZADA' && (
                                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '16px' }}>
                                     <h4 style={{ margin: '0 0 12px', fontSize: '13px', color: '#fff' }}>Checklist Funcional de Saída (Obrigatório)</h4>
                                     <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '-8px', marginBottom: '16px' }}>Verifique se está tudo funcionando após o reparo.</p>

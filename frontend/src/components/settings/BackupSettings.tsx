@@ -279,7 +279,7 @@ export const BackupSettings: React.FC = () => {
                                             {importing === mod.key ? 'Importando...' : 'Importar CSV'}
                                         </button>
                                         <input
-                                            ref={el => fileInputs.current[mod.key] = el}
+                                            ref={el => { if (el) fileInputs.current[mod.key] = el; }}
                                             type="file" accept=".csv" style={{ display: 'none' }}
                                             onChange={e => { const f = e.target.files?.[0]; if (f) handleImport(mod, f); }}
                                         />

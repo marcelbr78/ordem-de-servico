@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Cpu, Eye, EyeOff, Store, User, Mail, Lock, Phone, MapPin, CheckCircle, ArrowRight } from 'lucide-react';
-// import api from '../services/api';
+import api from '../services/api';
 
 // ── Field component ────────────────────────────────────────────
 const Field = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, error, required = false, hint }: {

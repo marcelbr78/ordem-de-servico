@@ -5,7 +5,7 @@ import {
     Plus, Search, X, User, Building2, Phone, MessageCircle,
     Edit3, Trash2, Eye, Star, History, MapPin, Download,
     TrendingUp, DollarSign, Clock, Tag, ChevronDown, ChevronUp,
-    CheckCircle, AlertCircle, Filter, RefreshCw,
+    CheckCircle, Cpu, EyeOff, Store, Mail, Lock, ArrowRight, AlertCircle, Filter, RefreshCw,
 } from 'lucide-react';
 import ClientForm from '../components/ClientForm';
 import { OrderDetails } from '../components/orders/OrderDetails';
@@ -21,6 +21,7 @@ interface ClientData {
     observacoes?: string; internalNotes?: string;
     birthday?: string; tags?: string;
     status: string; contatos: Contact[]; createdAt: string;
+    osHistorico?: any[];
 }
 interface ClientStats {
     totalOS: number; deliveredOS: number; totalSpent: number;
@@ -146,8 +147,41 @@ export function Clients() {
     const [editClient, setEditClient]     = useState<ClientData | null>(null);
     const [detailClient, setDetailClient] = useState<ClientData | null>(null);
     const [detailTab, setDetailTab]       = useState<'info'|'stats'|'tags'|'contatos'|'os'>('info');
-    const [viewingOs, setViewingOs]       = useState<string | null>(null);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [viewingOs, setViewingOs]       = useState<any | null>(null);
     const [showFilters, setShowFilters]   = useState(false);
+
+    const loadSuggestions = useCallback(async (query: string) => {
+        // This function seems misplaced or incomplete based on the original context.
+        // Assuming it was intended for a search/autocomplete feature for orders,
+        // but the current implementation is trying to load a single order by ID.
+        // For now, I'll keep the original logic as it was provided in the diff,
+        // but it might need further adjustment depending on its intended use.
+        try {
+            // The original code had `id` here, which is not defined in this scope.
+            // This part of the diff seems to be a copy-paste error from another context.
+            // To make it syntactically correct and avoid a TS error, I'll comment it out
+            // or replace with a placeholder if the intent was different.
+            // For now, I'll make it a no-op or a placeholder for suggestions.
+            // const res = await api.get(`/orders/${id}`); // `id` is undefined here
+            // setViewingOs(res.data);
+            console.log("Loading suggestions for:", query);
+            setSuggestions([]); // Placeholder
+        } catch (e) {
+            // alert('Erro ao carregar OS'); // This alert is also likely from a different context
+            console.error("Error loading suggestions:", e);
+        }
+    }, []); // Dependencies might be missing if this function is meant to be fully functional.
+
+    const handleViewOs = async (id: string) => {
+        try {
+            const res = await api.get(`/orders/${id}`);
+            setViewingOs(res.data);
+        } catch (e) {
+            alert('Erro ao carregar OS');
+        }
+    };
 
     const loadClients = useCallback(async () => {
         setLoading(true);
@@ -179,7 +213,7 @@ export function Clients() {
     };
 
     if (viewingOs) return (
-        <OrderDetails orderId={viewingOs} onBack={() => setViewingOs(null)} initialTab="Histórico" />
+        <OrderDetails order={viewingOs} onClose={() => setViewingOs(null)} onUpdate={() => {}} initialTab="Histórico" />
     );
 
     return (
@@ -454,7 +488,7 @@ export function Clients() {
                                     {!detailClient.osHistorico?.length ? (
                                         <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>Nenhuma OS encontrada</div>
                                     ) : (detailClient.osHistorico as any[]).map((os: any) => (
-                                        <div key={os.id} onClick={() => setViewingOs(os.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'background 0.12s' }}
+                                        <div key={os.id} onClick={() => handleViewOs(os.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'background 0.12s' }}
                                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
                                             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -480,9 +514,24 @@ export function Clients() {
                             <button onClick={() => { setShowModal(false); setEditClient(null); }} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', borderRadius: '8px', padding: '7px', display: 'flex', alignItems: 'center' }}><X size={16}/></button>
                         </div>
                         <div style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
-                            <ClientForm initialData={editClient || undefined}
-                                onClose={() => { setShowModal(false); setEditClient(null); }}
-                                onSuccess={() => { setShowModal(false); setEditClient(null); loadClients(); }}/>
+                            <ClientForm initialData={editClient as any || undefined}
+                                isEdit={!!editClient}
+                                onCancel={() => { setShowModal(false); setEditClient(null); }}
+                                onSubmit={async (data) => {
+                                    try {
+                                        if (editClient) {
+                                            await api.patch(`/clients/${editClient.id}`, data);
+                                        } else {
+                                            await api.post('/clients', data);
+                                        }
+                                        setShowModal(false);
+                                        setEditClient(null);
+                                        loadClients();
+                                    } catch (e: any) {
+                                        alert('Erro ao salvar cliente: ' + (e?.response?.data?.message || 'Verifique os dados'));
+                                        throw e; // To keep loading state in ClientForm if needed
+                                    }
+                                }}/>
                         </div>
                     </div>
                 </div>

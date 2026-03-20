@@ -198,7 +198,7 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
     const isTerm = type === 'term';
 
     // Parse detailed fields from settings
-    const defaultFields = {
+    const defaultFields: Record<string, boolean> = {
         showDefect: true,
         showItemDescription: true,
         showFinancials: !isTerm,
@@ -207,7 +207,9 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
         showTechnicalReport: true,
         showEstimatedValue: true,
         showPaymentMethod: isTerm,
-        compactHeader: false
+        compactHeader: false,
+        showCondition: true,
+        showPassword: true
     };
 
     let fields = { ...defaultFields };

@@ -21,7 +21,7 @@ export function useAutocomplete(endpoint: string, extraParams: Record<string, st
     const [options, setOptions] = useState<Option[]>([]);
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const search = useCallback((q: string) => {
         if (debounceRef.current) clearTimeout(debounceRef.current);

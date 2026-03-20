@@ -17,6 +17,8 @@ interface OrderFormData {
     technicianId: string;
     priority: 'baixa' | 'normal' | 'alta' | 'urgente';
     initialObservations: string;
+    expectedDeliveryDate?: string;
+    observations?: string;
     equipments: {
         type: string;
         brand: string;
