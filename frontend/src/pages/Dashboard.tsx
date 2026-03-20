@@ -246,7 +246,7 @@ export const Dashboard: React.FC = () => {
                 <KpiCard label="Entregues Hoje" value={s.todayDelivered || 0} icon={CheckCircle} color="#22c55e" sub="concluídas hoje" />
                 <KpiCard label="Ag. Peça" value={s.byStatus?.aguardando_peca || 0} icon={Package} color="#f59e0b" sub="paradas" onClick={() => navigate('/orders')} urgent={(s.byStatus?.aguardando_peca || 0) > 5} />
                 <KpiCard label="SLA em Risco" value={(s.slaViolations || []).length} icon={Timer} color="#ef4444" sub="+24h sem mover" urgent={(s.slaViolations || []).length > 0} onClick={() => navigate('/orders')} />
-                <KpiCard label="Faturamento Mês" value={R$(s.monthlyRevenue)} icon={TrendingUp} color="#22c55e" sub="mês atual" trend={revTrend} onClick={() => navigate('/finance')} />
+                {user?.canViewFinancials !== false && <KpiCard label="Faturamento Mês" value={R$(s.monthlyRevenue)} icon={TrendingUp} color="#22c55e" sub="mês atual" trend={revTrend} onClick={() => navigate('/finance')} />}
             </div>
 
             {/* ── LINHA 2: Funil + Gráfico 7 dias ── */}
@@ -403,8 +403,9 @@ export const Dashboard: React.FC = () => {
                     { label: 'Nova OS', icon: '➕', color: '#3b82f6', path: '/orders' },
                     { label: 'Clientes', icon: '👥', color: '#a855f7', path: '/clients' },
                     { label: 'Estoque', icon: '📦', color: '#f97316', path: '/inventory' },
-                    { label: 'Financeiro', icon: '💰', color: '#22c55e', path: '/finance' },
-                    { label: 'Comissões', icon: '🏆', color: '#f59e0b', path: '/commissions' },
+                    ...(user?.canViewFinancials !== false ? [{ label: 'Financeiro', icon: '💰', color: '#22c55e', path: '/finance' }] : []),
+                    // Comissões (também envolve dinheiro, talvez esconder se quiser)
+                    ...(user?.canViewFinancials !== false ? [{ label: 'Comissões', icon: '🏆', color: '#f59e0b', path: '/commissions' }] : []),
                     { label: 'Relatórios', icon: '📊', color: '#06b6d4', path: '/reports' },
                 ].map(({ label, icon, color, path }) => (
                     <button key={label} onClick={() => navigate(path)} style={{ padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.15s', textAlign: 'left' }}

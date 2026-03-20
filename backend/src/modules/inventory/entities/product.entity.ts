@@ -55,6 +55,9 @@ export class Product {
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     priceSell: number;
 
+    @Column({ type: 'boolean', default: false })
+    allowNegativeStock: boolean;
+
     @CreateDateColumn()
     createdAt: Date;
 

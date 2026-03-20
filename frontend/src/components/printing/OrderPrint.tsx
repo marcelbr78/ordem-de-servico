@@ -115,6 +115,29 @@ const s = {
 
 // ─── REUSABLE COMPONENTS ───────────────────────────────────────────────────
 
+const PatternSVG = ({ pattern = '' }: { pattern?: string | number }) => {
+    const pStr = String(pattern || '');
+    const dots = [
+        { id: '1', x: 8, y: 8 }, { id: '2', x: 20, y: 8 }, { id: '3', x: 32, y: 8 },
+        { id: '4', x: 8, y: 20 }, { id: '5', x: 20, y: 20 }, { id: '6', x: 32, y: 20 },
+        { id: '7', x: 8, y: 32 }, { id: '8', x: 20, y: 32 }, { id: '9', x: 32, y: 32 },
+    ];
+    let lines = [];
+    if (pStr.length > 1) {
+        for (let i = 0; i < pStr.length - 1; i++) {
+            const curr = dots.find(d => d.id === pStr[i]);
+            const next = dots.find(d => d.id === pStr[i+1]);
+            if (curr && next) lines.push({ x1: curr.x, y1: curr.y, x2: next.x, y2: next.y });
+        }
+    }
+    return (
+        <svg width="35" height="35" viewBox="0 0 40 40">
+            {lines.map((l, i) => <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#333" strokeWidth="1.5" />)}
+            {dots.map(d => <circle key={d.id} cx={d.x} cy={d.y} r="2" fill={pStr.includes(d.id) ? '#333' : '#fff'} stroke="#333" strokeWidth="1" />)}
+        </svg>
+    );
+};
+
 const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: any, title?: string, compact?: boolean }) => (
     <div style={{ ...s.headerBox, padding: compact ? '8px' : '15px', marginBottom: compact ? '4px' : '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -124,8 +147,8 @@ const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: a
             <div>
                 <h1 style={{ fontSize: compact ? '14px' : '18px', fontWeight: 'bold', margin: '0 0 2px 0', textTransform: 'uppercase' }}>
                     {settings?.print_use_fantasy_name === 'true'
-                        ? (settings?.company_fantasy_name || settings?.company_name || 'MINHA ASSISTÊNCIA')
-                        : (settings?.company_name || 'MINHA ASSISTÊNCIA')
+                        ? (settings?.company_fantasy_name || settings?.company_name || settings?.storeName || settings?.companyName || 'NOME DA EMPRESA')
+                        : (settings?.company_name || settings?.companyName || settings?.storeName || 'NOME DA EMPRESA')
                     }
                 </h1>
                 <div style={{ fontSize: compact ? '10px' : '12px', color: '#444', lineHeight: '1.2' }}>
@@ -165,7 +188,7 @@ const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: a
                 Entrada: {safeDate(order.entryDate)}
             </div>
             <div style={{ fontSize: compact ? '9px' : '10px', fontWeight: 'bold' }}>
-                Saída: {safeDateOnly(order.exitDate)}
+                Saída: {order.exitDate ? safeDateOnly(order.exitDate) : (['finalizada', 'entregue'].includes(order.status) ? safeDateOnly(order.updatedAt) : '-')}
             </div>
         </div>
     </div>
@@ -183,6 +206,7 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
         showChecklist: true,
         showTechnicalReport: true,
         showEstimatedValue: true,
+        showPaymentMethod: isTerm,
         compactHeader: false
     };
 
@@ -238,28 +262,69 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                 <div style={cs.sectionBox}>
                     <div style={cs.sectionTitle}>Equipamento</div>
                     <div style={{ padding: '5px' }}>
-                        {order.equipments?.map((eq: any, i: number) => (
-                            <div key={i} style={{ marginBottom: '4px', fontSize: '11px' }}>
-                                <strong>{eq.type} {eq.brand} {eq.model}</strong>
-                                {eq.serialNumber && <span style={{ marginLeft: '10px', fontFamily: 'monospace' }}>SN: {eq.serialNumber}</span>}
+                        {order.equipments?.map((eq: any, i: number) => {
+                            let checklistData: any = {};
+                            try { checklistData = JSON.parse(eq.functionalChecklist || '{}'); } catch {}
+                            return (
+                                <div key={i} style={{ marginBottom: '4px', fontSize: '11px', display: 'flex', justifyContent: 'space-between' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <strong>{eq.type} {eq.brand} {eq.model}</strong>
+                                        {eq.serialNumber && <span style={{ marginLeft: '10px', fontFamily: 'monospace' }}>SN: {eq.serialNumber}</span>}
 
-                                {fields.showDefect && (
-                                    <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
-                                        <strong>Defeito:</strong> {eq.reportedDefect || order.reportedDefect || '-'}
+                                        {fields.showDefect && (
+                                            <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
+                                                <strong>Defeito:</strong> {eq.reportedDefect || order.reportedDefect || '-'}
+                                            </div>
+                                        )}
+
+                                        {fields.showCondition !== false && (
+                                            <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
+                                                <strong>Acessórios:</strong> {eq.accessories || 'Nenhum'} | <strong>Condição:</strong> {eq.condition || 'Padrão'}
+                                            </div>
+                                        )}
+
+                                        {fields.showPassword !== false && checklistData.password && (
+                                            <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
+                                                <strong>Senha / PIN:</strong> {checklistData.password}
+                                            </div>
+                                        )}
+
+                                        {fields.showChecklist && checklistData && Object.keys(checklistData).length > 0 && (
+                                            <div style={{ fontSize: '9px', color: '#444', marginTop: '4px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
+                                                <strong style={{ display: 'block', marginBottom: '2px', color: '#111' }}>Checklist de Entrada:</strong>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                    {[
+                                                        { id: 'cam_front', label: 'Câm. Frontal' },
+                                                        { id: 'cam_rear', label: 'Câm. Traseira' },
+                                                        { id: 'charging', label: 'Carga' },
+                                                        { id: 'screen', label: 'Tela' },
+                                                        { id: 'touch', label: 'Touch' },
+                                                        { id: 'audio', label: 'Som/Áudio' },
+                                                        { id: 'calling', label: 'Ligação' },
+                                                        { id: 'wifi', label: 'WiFi' },
+                                                        { id: 'signal', label: 'Sinal/Rede' },
+                                                        { id: 'face_id', label: 'Biometria' },
+                                                        { id: 'buttons', label: 'Botões' },
+                                                        { id: 'battery', label: 'Bateria' },
+                                                    ].map(item => (
+                                                        <span key={item.id} style={{ display: 'inline-block', background: checklistData[item.id] ? '#e8f5e9' : '#fff', border: '1px solid #ccc', padding: '1px 3px', borderRadius: '3px', fontSize: '8px' }}>
+                                                            {checklistData[item.id] ? '✅' : '[ ]'} {item.label}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-
-                                <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>
-                                    <strong>Acessórios:</strong> {eq.accessories || 'Nenhum'} | <strong>Condição:</strong> {eq.condition || 'Padrão'}
+                                    
+                                    {fields.showPassword !== false && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginLeft: '10px', borderLeft: '1px solid #ddd', paddingLeft: '10px' }}>
+                                            <strong style={{ fontSize: '8px', color: '#555', marginBottom: '2px' }}>DESENHO</strong>
+                                            <PatternSVG pattern={checklistData.pattern || ''} />
+                                        </div>
+                                    )}
                                 </div>
-
-                                {fields.showChecklist && eq.functionalChecklist && (
-                                    <div style={{ fontSize: '9px', color: '#888', marginTop: '2px', fontStyle: 'italic' }}>
-                                        Checklist: Identificado em sistema
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -308,7 +373,7 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                             <tfoot>
                                 <tr style={{ backgroundColor: '#f9f9f9' }}>
                                     <td colSpan={3} style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', fontSize: '10px' }}>TOTAL:</td>
-                                    <td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>{formatCurrency(order.total || 0)}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>{formatCurrency(order.finalValue || [...(order.services || []), ...(order.parts || [])].reduce((acc, i) => acc + ((i.unitPrice || i.price || 0) * (i.quantity || 1)), 0) || order.estimatedValue || 0)}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -322,21 +387,45 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                     </div>
                 )}
 
+                {/* FORMA DE PAGAMENTO */}
+                {fields.showPaymentMethod && (
+                    <div style={{ ...cs.sectionBox, padding: '6px', fontSize: '10px', backgroundColor: '#f9f9f9' }}>
+                        <strong>Forma de Pagamento utilizada:</strong> 
+                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Dinheiro</span>
+                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Pix</span>
+                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Cartão (Débito/Crédito)</span>
+                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Outro</span>
+                    </div>
+                )}
+
+                {/* OBSERVAÇÕES */}
+                <div style={{ ...cs.sectionBox, minHeight: order.observations ? 'auto' : '40px', marginBottom: '5px' }}>
+                    <div style={cs.sectionTitle}>Observações Adicionais</div>
+                    <div style={{ padding: '5px', fontSize: '10px' }}>
+                        {order.observations || ''}
+                    </div>
+                </div>
+
                 {/* TERMOS RESUMIDOS */}
-                <div style={{ fontSize: '9px', color: '#666', textAlign: 'justify', lineHeight: '1.2', marginBottom: '5px', border: '1px solid #eee', padding: '4px' }}>
-                    <strong>Termos e Condições:</strong> {settings?.service_terms?.slice(0, 250) || "Garantia de 90 dias para mão de obra. Equipamentos não retirados em 90 dias serão vendidos para custeio."}...
+                <div style={{ fontSize: '9px', color: '#666', textAlign: 'justify', lineHeight: '1.2', marginBottom: '5px', border: '1px solid #eee', padding: '8px', borderRadius: '4px' }}>
+                    <strong>Termos e Condições:</strong>
+                    <div style={{ whiteSpace: 'pre-wrap', marginTop: '4px' }}>
+                        {type === 'term' 
+                            ? (settings?.terms_delivery || settings?.terms_warranty || settings?.service_terms || "Garantia de 90 dias para mão de obra. Equipamentos não retirados em 90 dias serão vendidos para custeio.") 
+                            : (settings?.terms_general?.slice(0, 400) || settings?.service_terms?.slice(0, 400) || "Garantia de 90 dias para mão de obra. Equipamentos não retirados em 90 dias serão vendidos para custeio.")}
+                    </div>
                 </div>
             </div>
 
             {/* ASSINATURAS */}
             {fields.showSignatures && (
-                <div style={{ ...cs.footerGrid, marginTop: 'auto' }}>
+                <div style={{ ...cs.footerGrid, marginTop: '25px' }}>
                     <div style={cs.signatureLine}>
                         <p style={{ fontWeight: 'bold', fontSize: '10px', margin: 0 }}>{order.client?.nome || 'Cliente'}</p>
                         <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>Cliente</p>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ fontSize: '9px', color: '#888' }}>{isCopy ? '2ª VIA (LOJA)' : '1ª VIA (CLIENTE)'}</div>
+                        <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold' }}>ORDEM DE SERVIÇO</div>
                         <div style={{ fontSize: '9px', color: '#ccc' }}>{safeDate(new Date())}</div>
                     </div>
                     <div style={cs.signatureLine}>
@@ -351,28 +440,32 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
 
 const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: any, type: string }) => {
     // A4 Portrait: 210mm x 297mm. Half is ~148mm.
+    const isTerm = type === 'term';
     return (
         <div style={{ ...s.pageA4, padding: 0, height: '297mm', display: 'flex', flexDirection: 'column' }}>
-            {/* First Copy (Top) */}
+            {/* First Copy (Top or Full) */}
             <div style={{
-                height: '148.5mm',
+                flex: isTerm ? 1 : 'none',
+                height: isTerm ? '100%' : '148.5mm',
                 padding: '15px 20px',
-                borderBottom: '1px dashed #999',
+                borderBottom: isTerm ? 'none' : '1px dashed #999',
                 boxSizing: 'border-box',
                 overflow: 'hidden'
             }}>
                 <ReceiptContent order={order} settings={settings} type={type} />
             </div>
 
-            {/* Second Copy (Bottom) */}
-            <div style={{
-                height: '148.5mm',
-                padding: '15px 20px',
-                boxSizing: 'border-box',
-                overflow: 'hidden'
-            }}>
-                <ReceiptContent order={order} settings={settings} type={type} isCopy />
-            </div>
+            {/* Second Copy (Bottom - Only for Service Orders) */}
+            {!isTerm && (
+                <div style={{
+                    height: '148.5mm',
+                    padding: '15px 20px',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden'
+                }}>
+                    <ReceiptContent order={order} settings={settings} type={type} isCopy />
+                </div>
+            )}
         </div>
     );
 };
@@ -402,8 +495,8 @@ const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any
             <div style={{ textAlign: 'center', marginBottom: '10px', fontWeight: 'bold' }}>
                 <div style={{ fontSize: '14px', textTransform: 'uppercase' }}>
                     {settings?.print_use_fantasy_name === 'true'
-                        ? (settings?.company_fantasy_name || settings?.company_name || 'LOJA')
-                        : (settings?.company_name || 'LOJA')
+                        ? (settings?.company_fantasy_name || settings?.company_name || settings?.storeName || settings?.companyName || 'LOJA')
+                        : (settings?.company_name || settings?.companyName || settings?.storeName || 'LOJA')
                     }
                 </div>
                 {settings?.print_show_address !== 'false' && (

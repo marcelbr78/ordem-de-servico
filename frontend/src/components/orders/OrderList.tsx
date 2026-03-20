@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Eye, Clock, CheckCircle, AlertTriangle, Smartphone, Laptop,
+    Eye, Clock, CheckCircle, AlertTriangle, Smartphone,
     Wrench, XCircle, Trash2, DollarSign, Printer, Package, Settings,
     ChevronRight, User,
 } from 'lucide-react';
 import type { Order } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 
 interface OrderListProps {
     orders: Order[];
@@ -14,7 +15,7 @@ interface OrderListProps {
     showDeleted?: boolean;
 }
 
-const STATUS: Record<string, { label: string; color: string; icon: any }> = {
+const STATUS: Record<string, { label: string; color: string; icon: React.ElementType }> = {
     aberta:               { label: 'Aberta',         color: '#9ca3af', icon: Clock },
     em_diagnostico:       { label: 'Diagnóstico',    color: '#3b82f6', icon: Settings },
     aguardando_aprovacao: { label: 'Ag. Aprovação',  color: '#eab308', icon: AlertTriangle },
@@ -36,7 +37,6 @@ const fmtCurrency = (v?: number) => v ? new Intl.NumberFormat('pt-BR', { style: 
 // ── Badge de status ────────────────────────────────────────────
 const StatusBadge: React.FC<{ status: string; onClick?: (e: React.MouseEvent) => void }> = ({ status, onClick }) => {
     const cfg = STATUS[status] || { label: status, color: '#9ca3af', icon: Clock };
-    const Icon = cfg.icon;
     return (
         <button onClick={onClick} style={{
             display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -55,14 +55,28 @@ const OrderCard: React.FC<{
     order: Order;
     onView: () => void;
     onStatus: (e: React.MouseEvent) => void;
-    onFinance: (e: React.MouseEvent) => void;
+    onFinance?: (e: React.MouseEvent) => void;
     onPrint: (e: React.MouseEvent) => void;
     onDelete?: (e: React.MouseEvent) => void;
     showDeleted?: boolean;
 }> = ({ order, onView, onStatus, onFinance, onPrint, onDelete, showDeleted }) => {
     const eq = order.equipments?.find(e => e.isMain) || order.equipments?.[0];
     const pColor = PRIORITY_COLOR[order.priority] || '#3b82f6';
-    const total = fmtCurrency(order.totalValue);
+    const partsTotal = (order.parts || []).reduce((acc: number, p: any) => acc + (Number(p.unitPrice) * p.quantity), 0);
+    const servicesTotal = (order.services || []).reduce((acc: number, s: any) => acc + Number(s.price), 0);
+    const computedTotal = partsTotal + servicesTotal;
+    
+    const finalV = Number(order.finalValue) || 0;
+    const estV = Number(order.estimatedValue) || 0;
+    const totalValueRaw = finalV > 0 ? finalV : (computedTotal > 0 ? computedTotal : estV);
+    const total = totalValueRaw > 0 ? fmtCurrency(totalValueRaw) : null;
+    
+    let isOverdue = false;
+    let expectedFmt = null;
+    if (order.expectedDeliveryDate && !['finalizada', 'entregue', 'cancelada'].includes(order.status)) {
+        isOverdue = new Date(order.expectedDeliveryDate + 'T23:59:59') < new Date();
+        expectedFmt = new Date(order.expectedDeliveryDate + 'T12:00:00').toLocaleDateString('pt-BR');
+    }
 
     return (
         <div onClick={onView} style={{
@@ -86,7 +100,15 @@ const OrderCard: React.FC<{
                     }}>{order.priority}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>{fmtDate(order.entryDate)}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Ent: {fmtDate(order.entryDate)}</span>
+                        {expectedFmt && !order.exitDate && (
+                            <span style={{ fontSize: '11px', color: isOverdue ? '#ef4444' : '#f59e0b', fontWeight: isOverdue ? 700 : 500 }} title="Previsão">
+                                P: {expectedFmt} {isOverdue && <span style={{fontSize:'10px'}}>⚠️</span>}
+                            </span>
+                        )}
+                        {order.exitDate && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Entr: {fmtDate(order.exitDate)}</span>}
+                    </div>
                     <ChevronRight size={14} color="rgba(255,255,255,0.2)" />
                 </div>
             </div>
@@ -114,9 +136,11 @@ const OrderCard: React.FC<{
                 <StatusBadge status={order.status} onClick={onStatus} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
                     {total && <span style={{ fontSize: '13px', fontWeight: 600, color: '#22c55e', marginRight: '8px' }}>{total}</span>}
-                    <button onClick={onFinance} title="Financeiro" style={{ padding: '8px', color: '#10b981', minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <DollarSign size={16} />
-                    </button>
+                    {onFinance && (
+                        <button onClick={onFinance} title="Financeiro" style={{ padding: '8px', color: '#10b981', minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <DollarSign size={16} />
+                        </button>
+                    )}
                     <button onClick={onPrint} title="Imprimir" style={{ padding: '8px', color: '#a855f7', minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Printer size={16} />
                     </button>
@@ -143,7 +167,21 @@ const OrderRow: React.FC<{
 }> = ({ order, onView, onStatus, onFinance, onPrint, onDelete, showDeleted }) => {
     const eq = order.equipments?.find(e => e.isMain) || order.equipments?.[0];
     const pColor = PRIORITY_COLOR[order.priority] || '#3b82f6';
-    const total = fmtCurrency(order.totalValue);
+    const partsTotal = (order.parts || []).reduce((acc: number, p: any) => acc + (Number(p.unitPrice) * p.quantity), 0);
+    const servicesTotal = (order.services || []).reduce((acc: number, s: any) => acc + Number(s.price), 0);
+    const computedTotal = partsTotal + servicesTotal;
+    
+    const finalV = Number(order.finalValue) || 0;
+    const estV = Number(order.estimatedValue) || 0;
+    const totalValueRaw = finalV > 0 ? finalV : (computedTotal > 0 ? computedTotal : estV);
+    const total = totalValueRaw > 0 ? fmtCurrency(totalValueRaw) : null;
+
+    let isOverdue = false;
+    let expectedFmt = null;
+    if (order.expectedDeliveryDate && !['finalizada', 'entregue', 'cancelada'].includes(order.status)) {
+        isOverdue = new Date(order.expectedDeliveryDate + 'T23:59:59') < new Date();
+        expectedFmt = new Date(order.expectedDeliveryDate + 'T12:00:00').toLocaleDateString('pt-BR');
+    }
 
     return (
         <tr onClick={onView} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'background 0.15s' }}
@@ -177,15 +215,23 @@ const OrderRow: React.FC<{
                 {total || <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>}
             </td>
             <td style={{ padding: '13px 16px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
-                {fmtDate(order.entryDate)}
+                <div style={{ marginBottom: '2px' }}>Ent: {fmtDate(order.entryDate)}</div>
+                {expectedFmt && !order.exitDate && (
+                    <div style={{ marginBottom: '2px', color: isOverdue ? '#ef4444' : '#f59e0b', fontWeight: isOverdue ? 700 : 500 }} title="Previsão">
+                        P: {expectedFmt} {isOverdue && <span style={{fontSize:'10px'}}>⚠️</span>}
+                    </div>
+                )}
+                {order.exitDate && <div style={{ color: 'rgba(255,255,255,0.6)' }}>Entr: {fmtDate(order.exitDate)}</div>}
             </td>
             <td style={{ padding: '13px 12px', textAlign: 'right' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
-                    <button onClick={onFinance} title="Financeiro" style={{ padding: '7px', color: '#10b981', minWidth: '34px', minHeight: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', transition: 'background 0.15s' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(16,185,129,0.1)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                        <DollarSign size={15} />
-                    </button>
+                    {onFinance && (
+                        <button onClick={onFinance} title="Financeiro" style={{ padding: '7px', color: '#10b981', minWidth: '34px', minHeight: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', transition: 'background 0.15s' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(16,185,129,0.1)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            <DollarSign size={15} />
+                        </button>
+                    )}
                     <button onClick={onPrint} title="Imprimir" style={{ padding: '7px', color: '#a855f7', minWidth: '34px', minHeight: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', transition: 'background 0.15s' }}
                         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.1)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -212,6 +258,13 @@ const OrderRow: React.FC<{
 // ── Componente principal ───────────────────────────────────────
 export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrder, onDelete, showDeleted }) => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const { user } = useAuth();
+    
+    // Função unificada para resolver onClick de financeiro
+    const getFinanceHandler = (order: Order) => {
+        if (user?.canViewFinancials === false) return undefined;
+        return (e: React.MouseEvent) => { e.stopPropagation(); onViewOrder(order, 'Financeiro 💰'); };
+    };
 
     useEffect(() => {
         const handle = () => setIsMobile(window.innerWidth < 768);
@@ -243,7 +296,7 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrd
                     order={order}
                     onView={() => onViewOrder(order)}
                     onStatus={e => { e.stopPropagation(); onViewOrder(order, undefined, true); }}
-                    onFinance={e => { e.stopPropagation(); onViewOrder(order, 'Financeiro 💰'); }}
+                    onFinance={getFinanceHandler(order)}
                     onPrint={e => { e.stopPropagation(); onViewOrder(order, 'Impressão'); }}
                     onDelete={onDelete ? e => { e.stopPropagation(); onDelete(order.id); } : undefined}
                     showDeleted={showDeleted}
@@ -258,7 +311,7 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrd
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '680px' }}>
                 <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                        {['Protocolo', 'Cliente', 'Equipamento', 'Status', 'Valor', 'Data', ''].map(h => (
+                        {['Protocolo', 'Cliente', 'Equipamento', 'Status', 'Valor', 'Datas', ''].map(h => (
                             <th key={h} style={{
                                 padding: '12px 16px', textAlign: h === '' ? 'right' : 'left',
                                 fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.35)',
@@ -274,7 +327,7 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, loading, onViewOrd
                             order={order}
                             onView={() => onViewOrder(order)}
                             onStatus={e => { e.stopPropagation(); onViewOrder(order, undefined, true); }}
-                            onFinance={e => { e.stopPropagation(); onViewOrder(order, 'Financeiro 💰'); }}
+                            onFinance={getFinanceHandler(order)}
                             onPrint={e => { e.stopPropagation(); onViewOrder(order, 'Impressão'); }}
                             onDelete={onDelete ? e => { e.stopPropagation(); onDelete(order.id); } : undefined}
                             showDeleted={showDeleted}

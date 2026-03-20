@@ -27,6 +27,7 @@ interface SettingsMap { [key: string]: string; }
 interface User {
     id: string; name: string; email: string;
     role: 'admin' | 'technician' | 'attendant'; isActive: boolean; lastLogin?: string;
+    canViewFinancials?: boolean;
 }
 
 type TabKey = 'company' | 'os' | 'printing' | 'thermal' | 'services' | 'appearance' |
@@ -314,7 +315,7 @@ export const Settings: React.FC = () => {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showNewUserModal, setShowNewUserModal] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'technician' as User['role'] });
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'technician' as User['role'], canViewFinancials: false });
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     // WhatsApp
     const [waStep, setWaStep] = useState<'loading'|'disconnected'|'qrcode'|'connected'>('loading');
@@ -474,7 +475,7 @@ export const Settings: React.FC = () => {
     const handleSaveUser = async () => {
         if (!editingUser) return;
         try {
-            await api.patch(`/users/${editingUser.id}`, { name: editingUser.name, role: editingUser.role });
+            await api.patch(`/users/${editingUser.id}`, { name: editingUser.name, role: editingUser.role, canViewFinancials: editingUser.canViewFinancials });
             setShowEditModal(false); fetchUsers();
         } catch { alert('Erro ao salvar.'); }
     };
@@ -483,7 +484,7 @@ export const Settings: React.FC = () => {
         if (!newUser.name || !newUser.email || !newUser.password) { alert('Preencha todos os campos.'); return; }
         try {
             await api.post('/auth/register', newUser);
-            setShowNewUserModal(false); setNewUser({ name: '', email: '', password: '', role: 'technician' });
+            setShowNewUserModal(false); setNewUser({ name: '', email: '', password: '', role: 'technician', canViewFinancials: false });
             fetchUsers();
         } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao criar usuário.'); }
     };
@@ -801,6 +802,7 @@ export const Settings: React.FC = () => {
                                 <option value="attendant">Atendente</option>
                             </select>
                         </div>
+                        <Toggle label="Acesso aos Valores e Faturamento" sub="Permite visualizar dinheiro na Dashboard e Financeiro" value={editingUser.canViewFinancials ?? false} onChange={v => setEditingUser(p => p ? { ...p, canViewFinancials: v } : p)} color="#22c55e" />
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
                             <button onClick={handleSaveUser} style={{ flex: 2, padding: '11px', borderRadius: '10px', background: 'linear-gradient(135deg, #3b82f6, #7c3aed)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Save size={15} /> Salvar</button>
@@ -831,6 +833,7 @@ export const Settings: React.FC = () => {
                                 <option value="attendant">Atendente</option>
                             </select>
                         </div>
+                        <Toggle label="Acesso aos Valores e Faturamento" sub="Permite visualizar dinheiro na Dashboard e Financeiro" value={newUser.canViewFinancials ?? false} onChange={v => setNewUser(p => ({ ...p, canViewFinancials: v }))} color="#22c55e" />
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button onClick={() => setShowNewUserModal(false)} style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
                             <button onClick={handleCreateUser} style={{ flex: 2, padding: '11px', borderRadius: '10px', background: 'linear-gradient(135deg, #3b82f6, #7c3aed)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Plus size={15} /> Criar Usuário</button>

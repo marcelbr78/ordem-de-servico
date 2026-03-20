@@ -42,24 +42,26 @@ export class ClientsService {
     }
 
     async create(createClientDto: CreateClientDto, tenantId?: string): Promise<Client> {
-        const cleaned = this.cleanCpfCnpj(createClientDto.cpfCnpj);
+        const cleaned = createClientDto.cpfCnpj ? this.cleanCpfCnpj(createClientDto.cpfCnpj) : null;
 
-        // Validar cruzamento tipo x documento
-        if (createClientDto.tipo === 'PF' && cleaned.length !== 11) {
-            throw new BadRequestException('Pessoa Física deve ter CPF com 11 dígitos');
-        }
-        if (createClientDto.tipo === 'PJ' && cleaned.length !== 14) {
-            throw new BadRequestException('Pessoa Jurídica deve ter CNPJ com 14 dígitos');
-        }
+        // Validar cruzamento tipo x documento apenas se fornecido
+        if (cleaned) {
+            if (createClientDto.tipo === 'PF' && cleaned.length !== 11) {
+                throw new BadRequestException('Pessoa Física deve ter CPF com 11 dígitos');
+            }
+            if (createClientDto.tipo === 'PJ' && cleaned.length !== 14) {
+                throw new BadRequestException('Pessoa Jurídica deve ter CNPJ com 14 dígitos');
+            }
 
-        // Verificar duplicidade dentro do mesmo tenant
-        const existing = await this.clientsRepository.findOne({
-            where: tenantId ? { cpfCnpj: cleaned, tenantId } : { cpfCnpj: cleaned },
-            withDeleted: true,
-        });
+            // Verificar duplicidade dentro do mesmo tenant
+            const existing = await this.clientsRepository.findOne({
+                where: tenantId ? { cpfCnpj: cleaned, tenantId } : { cpfCnpj: cleaned },
+                withDeleted: true,
+            });
 
-        if (existing) {
-            throw new ConflictException('Já existe um cliente cadastrado com este CPF/CNPJ');
+            if (existing) {
+                throw new ConflictException('Já existe um cliente cadastrado com este CPF/CNPJ');
+            }
         }
 
         // Extrair contatos (serão criados via cascade)
@@ -87,7 +89,7 @@ export class ClientsService {
 
         if (search) {
             queryBuilder.andWhere(
-                '(client.nome LIKE :search OR client.cpfCnpj LIKE :search OR client.nomeFantasia LIKE :search)',
+                '(client.nome ILIKE :search OR client.cpfCnpj LIKE :search OR client.nomeFantasia ILIKE :search)',
                 { search: `%${search}%` },
             );
         }

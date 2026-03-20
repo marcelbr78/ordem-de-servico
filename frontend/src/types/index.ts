@@ -73,11 +73,18 @@ export interface Order {
     photos: OrderPhoto[];
     entryDate: string;
     exitDate?: string;
+    expectedDeliveryDate?: string;
     estimatedValue?: number;
     finalValue?: number;
-    initialObservations?: string;
+    reportedDefect?: string;
+    diagnosis?: string;
     technicalReport?: string;
+    observations?: string;
+    initialObservations?: string;
     parts?: OrderPart[];
+    services?: any[];
+    total?: number;
+    totalValue?: number;
 }
 
 export interface User {
@@ -85,4 +92,6 @@ export interface User {
     name: string;
     email: string;
     role: string;
+    isActive?: boolean;
+    canViewFinancials?: boolean;
 }

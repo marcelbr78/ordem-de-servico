@@ -20,4 +20,8 @@ export class CreateUserDto {
     @IsBoolean()
     @IsOptional()
     isActive?: boolean;
+
+    @IsBoolean()
+    @IsOptional()
+    canViewFinancials?: boolean;
 }

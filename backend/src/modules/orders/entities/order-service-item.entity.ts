@@ -14,7 +14,7 @@ export class OrderServiceItem {
     @Index()
     orderId: string;
 
-    @ManyToOne(() => OrderService, { onDelete: 'CASCADE' })
+    @ManyToOne(() => OrderService, order => order.services, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'orderId' })
     order: OrderService;
 

@@ -54,8 +54,9 @@ export class StockService {
     async consumeStock(orderId: string, items: { productId: string, quantity: number }[], manager?: EntityManager) {
         const run = async (em: EntityManager) => {
             for (const item of items) {
+                const product = await em.findOne(Product, { where: { id: item.productId } });
                 const balance = await this.getBalance(em, item.productId);
-                if (balance.quantity < item.quantity) {
+                if (!product?.allowNegativeStock && balance.quantity < item.quantity) {
                     throw new BadRequestException(`Estoque insuficiente para o produto ${item.productId}`);
                 }
 
@@ -144,9 +145,14 @@ export class StockService {
     // ── Saída manual ──────────────────────────────────────────
     async manualExit(productId: string, quantity: number, reason?: string, tenantId?: string) {
         return this.dataSource.transaction(async em => {
+            const product = await em.findOne(require('./entities/product.entity').Product, { where: { id: productId } });
             const balance = await this.getBalance(em, productId);
             const before = balance.quantity;
-            balance.quantity = Math.max(0, balance.quantity - quantity);
+            if (product && (product as any).allowNegativeStock) {
+                balance.quantity = balance.quantity - quantity;
+            } else {
+                balance.quantity = Math.max(0, balance.quantity - quantity);
+            }
             await em.save(balance);
             const mv = em.create(StockMovement, {
                 productId, tenantId, orderId: null,

@@ -99,7 +99,8 @@ export class OrdersController {
             origin: body.origin,
             customNumber: body.customNumber,
             userId: req.user?.id,
-            message: body.message
+            message: body.message,
+            tenantId: req.user?.tenantId
         });
     }
 

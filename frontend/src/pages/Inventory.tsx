@@ -14,6 +14,7 @@ interface Product {
     barcode?: string; brand?: string; category?: string; unit?: string;
     minQuantity: number; priceCost: number; priceSell: number;
     balance?: { quantity: number }; description?: string;
+    allowNegativeStock?: boolean;
 }
 interface Movement {
     id: string; productId: string; type: string; quantity: number;
@@ -52,6 +53,27 @@ const CATEGORIAS_COMUNS = [
 ];
 const UNIDADES = ['UN','PÇ','CX','KG','MT','LT','PR','KIT'];
 
+const COMMON_NCMS = [
+    { code: '8517.79.00', label: 'Telas, Baterias, Flex, Carcaça, Câmera' },
+    { code: '8507.60.00', label: 'Baterias (Íon-lítio planas avulsas)' },
+    { code: '8544.42.00', label: 'Cabos de dados / USB' },
+    { code: '8504.40.10', label: 'Carregadores de tomada (Fontes)' },
+    { code: '3926.90.90', label: 'Capinhas plásticas / Acessórios' },
+    { code: '7007.19.00', label: 'Películas de vidro' },
+    { code: '8518.29.90', label: 'Alto-falantes / Campainha' },
+    { code: '8518.30.00', label: 'Fones de ouvido' },
+    { code: '8518.10.90', label: 'Microfones avulsos' },
+    { code: '8517.13.00', label: 'Smartphones (Aparelhos)' },
+    { code: '8517.12.31', label: 'Aparelhos Celulares Antigos' },
+];
+
+const COMMON_CFOPS = [
+    { code: '5102', label: 'Venda comércio (dentro do estado)' },
+    { code: '5405', label: 'Venda c/ Substituição Tributária (ST)' },
+    { code: '5933', label: 'Prestação de Serviço (NF-e ISS)' },
+    { code: '6102', label: 'Venda comércio (fora do estado)' },
+];
+
 // Gerar SKU interno curto e padronizado
 const gerarSKU = (nome: string, marca: string, categoria: string): string => {
     const sigla = (s: string) => s.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
@@ -62,7 +84,8 @@ const gerarSKU = (nome: string, marca: string, categoria: string): string => {
 
 // Input de moeda brasileiro
 const CurrencyInput: React.FC<{ value: number; onChange: (v: number) => void; label: React.ReactNode; style?: React.CSSProperties }> = ({ value, onChange, label, style }) => {
-    const [display, setDisplay] = React.useState(value > 0 ? value.toFixed(2).replace('.', ',') : '');
+    const numValue = Number(value) || 0;
+    const [display, setDisplay] = React.useState(numValue > 0 ? numValue.toFixed(2).replace('.', ',') : '');
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let raw = e.target.value.replace(/[^0-9]/g, '');
         if (!raw) { setDisplay(''); onChange(0); return; }
@@ -98,18 +121,88 @@ const AutocompleteInput: React.FC<{ value: string; onChange: (v: string) => void
                 value={value}
                 onChange={e => { onChange(e.target.value); setOpen(true); }}
                 onFocus={() => setOpen(true)}
-                onBlur={() => setTimeout(() => setOpen(false), 150)}
+                onBlur={() => setTimeout(() => setOpen(false), 200)}
                 placeholder={placeholder}
                 style={inp}
             />
             {open && filtered.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', zIndex: 100, maxHeight: '160px', overflowY: 'auto', marginTop: '2px' }}>
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', zIndex: 100, maxHeight: '160px', overflowY: 'auto', marginTop: '2px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                     {filtered.slice(0, 8).map(s => (
                         <div key={s} onMouseDown={() => { onChange(s); setOpen(false); }}
                             style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                             {s}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const FiscalSuggester: React.FC<{ value: string; onChange: (v: string) => void; label: string; suggestions: {code: string, label: string}[]; placeholder?: string; context?: string }> = ({ value, onChange, label, suggestions, placeholder, context }) => {
+    const [open, setOpen] = React.useState(false);
+    const text = (context || '').toLowerCase();
+
+    // Ordena as opções pelo contexto de busca
+    const sorted = React.useMemo(() => {
+        return [...suggestions].sort((a, b) => {
+            let scoreA = 0, scoreB = 0;
+            const kwA = a.label.toLowerCase();
+            const kwB = b.label.toLowerCase();
+            if (text) {
+                if ((text.includes('tela') || text.includes('display') || text.includes('touch')) && kwA.includes('tela')) scoreA += 10;
+                if ((text.includes('bateria') || text.includes('pilha')) && kwA.includes('bateria')) scoreA += 10;
+                if ((text.includes('cabo') || text.includes('usb')) && kwA.includes('cabo')) scoreA += 10;
+                if ((text.includes('carregador') || text.includes('fonte')) && kwA.includes('carregador')) scoreA += 10;
+                if ((text.includes('capa') || text.includes('case')) && kwA.includes('capa')) scoreA += 10;
+                if ((text.includes('película') || text.includes('pelicula')) && kwA.includes('película')) scoreA += 10;
+                if ((text.includes('fone')) && kwA.includes('fone')) scoreA += 10;
+                if ((text.includes('alto-falante') || text.includes('microfone')) && (kwA.includes('alto-falante') || kwA.includes('microfone'))) scoreA += 10;
+                if ((text.includes('placa') || text.includes('ci')) && kwA.includes('tela')) scoreA += 5; // fallback
+            }
+            // Same for B
+            if (text) {
+                if ((text.includes('tela') || text.includes('display') || text.includes('touch')) && kwB.includes('tela')) scoreB += 10;
+                if ((text.includes('bateria') || text.includes('pilha')) && kwB.includes('bateria')) scoreB += 10;
+                if ((text.includes('cabo') || text.includes('usb')) && kwB.includes('cabo')) scoreB += 10;
+                if ((text.includes('carregador') || text.includes('fonte')) && kwB.includes('carregador')) scoreB += 10;
+                if ((text.includes('capa') || text.includes('case')) && kwB.includes('capa')) scoreB += 10;
+                if ((text.includes('película') || text.includes('pelicula')) && kwB.includes('película')) scoreB += 10;
+                if ((text.includes('fone')) && kwB.includes('fone')) scoreB += 10;
+                if ((text.includes('alto-falante') || text.includes('microfone')) && (kwB.includes('alto-falante') || kwB.includes('microfone'))) scoreB += 10;
+                if ((text.includes('placa') || text.includes('ci')) && kwB.includes('tela')) scoreB += 5;
+            }
+            return scoreB - scoreA;
+        });
+    }, [context, suggestions]);
+
+    const filtered = sorted.filter(s => s.code.includes(value) || s.label.toLowerCase().includes(value.toLowerCase()));
+
+    return (
+        <div style={{ position: 'relative' }}>
+            <label style={lbl}>{label}</label>
+            <input
+                value={value}
+                onChange={e => { onChange(e.target.value); setOpen(true); }}
+                onFocus={() => setOpen(true)}
+                onBlur={() => setTimeout(() => setOpen(false), 200)}
+                placeholder={placeholder}
+                style={inp}
+            />
+            {open && filtered.length > 0 && (
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', zIndex: 100, maxHeight: '220px', overflowY: 'auto', marginBottom: '4px', boxShadow: '0 -4px 12px rgba(0,0,0,0.5)' }}>
+                    <div style={{ padding: '6px 10px', fontSize: '10px', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'sticky', top: 0, zIndex: 2 }}>
+                        Aproximação recomendada para auxílio
+                    </div>
+                    {filtered.slice(0, 10).map(s => (
+                        <div key={s.code} onMouseDown={() => { onChange(s.code); setOpen(false); }}
+                            style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{s.code}</div>
+                            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px', lineHeight: 1.2 }}>{s.label}</div>
                         </div>
                     ))}
                 </div>
@@ -128,10 +221,11 @@ const ProductModal: React.FC<{ product?: Product | null; onClose: () => void; on
         brand: product?.brand || '',
         category: product?.category || '',
         unit: product?.unit || 'UN',
-        minQuantity: product?.minQuantity || 0,
-        priceCost: product?.priceCost || 0,
-        priceSell: product?.priceSell || 0,
+        minQuantity: Number(product?.minQuantity) || 0,
+        priceCost: Number(product?.priceCost) || 0,
+        priceSell: Number(product?.priceSell) || 0,
         description: product?.description || '',
+        allowNegativeStock: product?.allowNegativeStock ?? false,
         // campos NF
         ncm: (product as any)?.ncm || '',
         cfop: (product as any)?.cfop || '',
@@ -227,9 +321,25 @@ const ProductModal: React.FC<{ product?: Product | null; onClose: () => void; on
 
                     {/* Estoque mínimo */}
                     {data.type === 'product' && (
-                        <div style={{ maxWidth: '50%' }}>
-                            <label style={lbl}>Estoque mínimo</label>
-                            <input type="number" min="0" inputMode="numeric" value={data.minQuantity} onChange={e => set('minQuantity', Number(e.target.value))} style={inp} />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '10px' }}>
+                            <div>
+                                <label style={lbl}>Estoque mínimo</label>
+                                <input type="number" min="0" inputMode="numeric" value={data.minQuantity} onChange={e => set('minQuantity', Number(e.target.value))} style={inp} />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', marginTop: '16px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={data.allowNegativeStock} 
+                                        onChange={e => set('allowNegativeStock', e.target.checked)} 
+                                        style={{ width: '16px', height: '16px', accentColor: '#ef4444' }} 
+                                    />
+                                    <div>
+                                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>Permitir estoque negativo</div>
+                                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>Se ativado, o saldo pode ficar menor que 0</div>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     )}
 
@@ -239,12 +349,23 @@ const ProductModal: React.FC<{ product?: Product | null; onClose: () => void; on
                             <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.5px' }}>📄 Dados para Nota Fiscal</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 <div>
-                                    <label style={lbl}>NCM</label>
-                                    <input value={data.ncm} onChange={e => set('ncm', e.target.value)} style={inp} placeholder="Ex: 8517.12.31" inputMode="numeric" />
+                                    <FiscalSuggester
+                                        value={data.ncm}
+                                        onChange={v => set('ncm', v)}
+                                        label="NCM"
+                                        placeholder="Ex: 8517.12.31"
+                                        suggestions={COMMON_NCMS}
+                                        context={`${data.category} ${data.name}`}
+                                    />
                                 </div>
                                 <div>
-                                    <label style={lbl}>CFOP</label>
-                                    <input value={data.cfop} onChange={e => set('cfop', e.target.value)} style={inp} placeholder="Ex: 5102" inputMode="numeric" />
+                                    <FiscalSuggester
+                                        value={data.cfop}
+                                        onChange={v => set('cfop', v)}
+                                        label="CFOP"
+                                        placeholder="Ex: 5102"
+                                        suggestions={COMMON_CFOPS}
+                                    />
                                 </div>
                                 <div style={{ gridColumn: '1/-1' }}>
                                     <label style={lbl}>Origem</label>
@@ -286,7 +407,7 @@ const MovementModal: React.FC<{ product: Product; onClose: () => void; onSuccess
     const [saving, setSaving] = useState(false);
 
     const current = product.balance?.quantity || 0;
-    const newQty = type === 'adjust' ? Number(qty) : type === 'entry' ? current + Number(qty) : Math.max(0, current - Number(qty));
+    const newQty = type === 'adjust' ? Number(qty) : type === 'entry' ? current + Number(qty) : (product.allowNegativeStock ? current - Number(qty) : Math.max(0, current - Number(qty)));
 
     const save = async () => {
         if (!qty || isNaN(Number(qty))) return;
@@ -505,7 +626,11 @@ export const Inventory: React.FC = () => {
                                             const isLow = p.type === 'product' && p.minQuantity > 0 && qty <= p.minQuantity;
                                             const margin = p.priceCost > 0 ? ((p.priceSell - p.priceCost) / p.priceCost * 100) : 0;
                                             return (
-                                                <tr key={p.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                                                <tr key={p.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer' }}
+                                                    onClick={(e) => {
+                                                        if ((e.target as HTMLElement).closest('button')) return;
+                                                        setEditProduct(p);
+                                                    }}
                                                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
                                                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                                                     <td style={{ padding: '11px 14px' }}>
@@ -533,7 +658,7 @@ export const Inventory: React.FC = () => {
                                                             </span>
                                                         ) : '—'}
                                                     </td>
-                                                    <td style={{ padding: '11px 14px', fontSize: '14px', fontWeight: 700, color: p.type === 'service' ? 'rgba(255,255,255,0.3)' : isLow ? '#f59e0b' : qty === 0 ? '#ef4444' : '#fff' }}>
+                                                    <td style={{ padding: '11px 14px', fontSize: '14px', fontWeight: 700, color: p.type === 'service' ? 'rgba(255,255,255,0.3)' : isLow ? '#f59e0b' : qty <= 0 ? '#ef4444' : '#fff' }}>
                                                         {p.type === 'service' ? '—' : (
                                                             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                 {qty}
@@ -677,7 +802,7 @@ export const Inventory: React.FC = () => {
                     ) : lowStockProducts.map(p => {
                         const qty = p.balance?.quantity || 0;
                         const pct = p.minQuantity > 0 ? Math.min((qty / p.minQuantity) * 100, 100) : 100;
-                        const color = qty === 0 ? '#ef4444' : pct < 50 ? '#f59e0b' : '#22c55e';
+                        const color = qty <= 0 ? '#ef4444' : pct < 50 ? '#f59e0b' : '#22c55e';
                         return (
                             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', background: 'var(--bg-secondary)', border: `1px solid ${color}25`, borderRadius: '12px' }}>
                                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

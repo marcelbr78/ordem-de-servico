@@ -47,8 +47,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { label: 'Clientes', icon: Users, path: '/clients' },
         { label: 'Estoque', icon: Package, path: '/inventory' },
         { label: 'Fornecedores', icon: Truck, path: '/smartparts/suppliers' },
-        { label: 'Financeiro', icon: DollarSign, path: '/finance' },
-        { label: 'Contas Bancárias', icon: Building2, path: '/bank-accounts' },
+        ...(user?.canViewFinancials === false ? [] : [
+            { label: 'Financeiro', icon: DollarSign, path: '/finance' },
+            { label: 'Contas Bancárias', icon: Building2, path: '/bank-accounts' }
+        ]),
         { label: 'Auditoria', icon: Shield, path: '/audit' },
         { label: 'Diagnóstico', icon: Activity, path: '/diagnostico' },
         { label: 'Diagnostico AI Placa', icon: Cpu, path: '/diagnostico-placa' },

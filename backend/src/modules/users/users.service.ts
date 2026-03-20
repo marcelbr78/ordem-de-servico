@@ -37,6 +37,12 @@ export class UsersService implements OnModuleInit {
                     mustChangePassword: false,
                 });
                 console.log('✅ Admin padrão criado: admin@admin.com / Admin@123');
+            } else {
+                // FORCE UPDATE FOR LOCAL TESTING
+                const salt = await bcrypt.genSalt();
+                const hashedPassword = await bcrypt.hash('Admin@123', salt);
+                await this.usersRepository.update(adminUser.id, { password: hashedPassword });
+                console.log('✅ Senha do admin forçada para: Admin@123');
             }
         } catch (e) {
             console.warn('⚠️ UsersService init:', e.message);

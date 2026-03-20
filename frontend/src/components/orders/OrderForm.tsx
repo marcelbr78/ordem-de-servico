@@ -84,7 +84,49 @@ const glassBg: React.CSSProperties = {
 import { PhotoGallery } from '../common/PhotoGallery';
 import { SuggestionsPanel } from './SuggestionsPanel';
 
-// ... (existing imports)
+const PatternLock = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => {
+    const path = value ? value.split('').map(Number) : [];
+    const getPos = (n: number) => ({ x: 15 + ((n - 1) % 3) * 45, y: 15 + Math.floor((n - 1) / 3) * 45 });
+    return (
+        <div style={{ width: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+            <div style={{ width: '120px', height: '120px', position: 'relative' }}>
+                <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                    {path.map((dot, i) => {
+                        if (i === 0) return null;
+                        const p1 = getPos(path[i - 1]);
+                        const p2 = getPos(dot);
+                        return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#6366f1" strokeWidth="3" strokeLinecap="round" opacity={0.6} />;
+                    })}
+                </svg>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(dot => {
+                    const isActive = path.includes(dot);
+                    const isLast = path[path.length - 1] === dot;
+                    const pos = getPos(dot);
+                    return (
+                        <div key={dot}
+                            onClick={() => {
+                                if (isActive && isLast) onChange(path.slice(0, -1).join(''));
+                                else if (!isActive) onChange([...path, dot].join(''));
+                                else onChange([dot].join(''));
+                            }}
+                            style={{
+                                position: 'absolute', top: pos.y - 15, left: pos.x - 15, width: '30px', height: '30px', borderRadius: '50%',
+                                background: isActive ? '#6366f1' : 'rgba(255,255,255,0.05)',
+                                border: isActive ? 'none' : '2px solid rgba(255,255,255,0.15)',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.1s', zIndex: 2
+                            }}
+                        >
+                            {isActive && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff' }} />}
+                        </div>
+                    );
+                })}
+            </div>
+            <button type="button" onClick={() => onChange('')} style={{ marginTop: '12px', fontSize: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', padding: '5px 12px', borderRadius: '12px', cursor: 'pointer' }}>
+                Limpar
+            </button>
+        </div>
+    );
+};
 
 export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
     const [step, setStep] = useState(0);
@@ -464,41 +506,80 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
                                 </div>
 
                                 {/* CHECKLIST DE FUNCIONAMENTO */}
-                                <div style={{ marginBottom: '16px' }}>
-                                    <div style={{ ...labelStyle, marginBottom: '10px', color: 'var(--primary)', fontWeight: 700 }}>VERIFICAÇÃO DE FUNCIONAMENTO (ENTRADA)</div>
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                                        gap: '8px',
-                                        background: 'rgba(255,255,255,0.02)',
-                                        padding: '12px',
-                                        borderRadius: '8px',
-                                        border: '1px solid rgba(255,255,255,0.05)'
-                                    }}>
-                                        {CHECKLIST_ITEMS.map((item) => (
-                                            <label key={item.id} style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '8px',
-                                                cursor: 'pointer',
-                                                fontSize: '12px',
-                                                padding: '6px',
-                                                borderRadius: '4px',
-                                                transition: 'background 0.2s'
-                                            }} className="hover:bg-white/5">
-                                                <input
-                                                    type="checkbox"
-                                                    onChange={(e) => {
-                                                        const currentChecklist = JSON.parse(field.functionalChecklist || '{}');
-                                                        currentChecklist[item.id] = e.target.checked;
-                                                        setValue(`equipments.${index}.functionalChecklist`, JSON.stringify(currentChecklist));
-                                                    }}
-                                                    checked={JSON.parse(field.functionalChecklist || '{}')[item.id] || false}
-                                                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                                                />
-                                                <span style={{ color: 'rgba(255,255,255,0.8)' }}>{item.label}</span>
-                                            </label>
-                                        ))}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 2fr) auto', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                                    <div style={{ minWidth: 'min-content' }}>
+                                        <div style={{ ...labelStyle, marginBottom: '10px', color: 'var(--primary)', fontWeight: 700 }}>VERIFICAÇÃO DE FUNCIONAMENTO (ENTRADA)</div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                            {CHECKLIST_ITEMS.map((item) => {
+                                                const state = JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}')[item.id];
+                                                return (
+                                                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', padding: '6px', borderRadius: '4px' }} className="hover:bg-white/5">
+                                                        <span style={{ color: 'rgba(255,255,255,0.8)' }}>{item.label}</span>
+                                                        <button type="button" onClick={() => {
+                                                            const d = JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}');
+                                                            if (state === undefined || state === null) d[item.id] = true;
+                                                            else if (state === true) d[item.id] = false;
+                                                            else delete d[item.id];
+                                                            setValue(`equipments.${index}.functionalChecklist`, JSON.stringify(d));
+                                                        }} style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: state === true ? '#22c55e' : state === false ? '#ef4444' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            {state === true ? '✓' : state === false ? '✕' : ''}
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px 18px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <div style={{ ...labelStyle, margin: '0 0 16px 0', color: 'var(--primary)', fontWeight: 700 }}>PADRÃO ANDROID</div>
+                                        <PatternLock 
+                                            value={JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}')['androidPattern'] || ''}
+                                            onChange={(val) => {
+                                                const d = JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}');
+                                                d['androidPattern'] = val;
+                                                setValue(`equipments.${index}.functionalChecklist`, JSON.stringify(d));
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                                    <div>
+                                        <div style={labelStyle}>O que acompanha? (Acessórios)</div>
+                                        <input
+                                            {...register(`equipments.${index}.accessories` as const)}
+                                            style={inputStyle}
+                                            placeholder="Ex: Capa preta, carregador original, película..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <div style={labelStyle}>Senha ou PIN numérico</div>
+                                        <input
+                                            type="text"
+                                            onChange={(e) => {
+                                                const d = JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}');
+                                                d['password'] = e.target.value;
+                                                setValue(`equipments.${index}.functionalChecklist`, JSON.stringify(d));
+                                            }}
+                                            value={JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}')['password'] || ''}
+                                            style={inputStyle}
+                                            placeholder="Ex: 123456, Abc@123..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <div style={labelStyle}>Padrão de Desenho</div>
+                                        <input
+                                            type="text"
+                                            onChange={(e) => {
+                                                const d = JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}');
+                                                d['pattern'] = e.target.value.replace(/[^1-9]/g, '');
+                                                setValue(`equipments.${index}.functionalChecklist`, JSON.stringify(d));
+                                            }}
+                                            value={JSON.parse(watchedEquipments?.[index]?.functionalChecklist || '{}')['pattern'] || ''}
+                                            style={inputStyle}
+                                            placeholder="Z = 1235789"
+                                            maxLength={9}
+                                        />
+                                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Sequência usando números 1 a 9 no teclado telefônico.</div>
                                     </div>
                                 </div>
 
@@ -550,7 +631,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
                 {step === 3 && !isRegisteringClient && (
                     <div style={sectionStyle}>
                         <div style={sectionTitleStyle}>📝 Detalhes Finais</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(180px, 1.5fr) minmax(150px, 1fr)', gap: '12px', marginBottom: '16px', alignItems: 'start' }}>
                             <div>
                                 <div style={labelStyle}>Prioridade</div>
                                 <Controller
@@ -588,6 +669,23 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
                                 />
                                 {errors.technicianId && <span style={{ color: '#ef4444', fontSize: '11px' }}>Selecione um técnico</span>}
                             </div>
+                            <div>
+                                <div style={labelStyle}>Prazo / Previsão (Opcional)</div>
+                                <input
+                                    type="date"
+                                    {...register('expectedDeliveryDate')}
+                                    style={{ ...inputStyle, minHeight: '42px' }}
+                                />
+                            </div>
+                        </div>
+                        
+                        <div style={{ marginTop: '16px' }}>
+                            <div style={labelStyle}>Observações / Condições Especiais (Opcional)</div>
+                            <textarea
+                                {...register('observations')}
+                                style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
+                                placeholder="E.g.: Aparelho deixado sem película. Cliente ciente do risco X. Tela com trinco..."
+                            />
                         </div>
                         <div>
                             <div style={labelStyle}>Observações Iniciais</div>

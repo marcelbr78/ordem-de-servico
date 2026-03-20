@@ -8,6 +8,7 @@ interface User {
     role: string;
     tenantId?: string;
     mustChangePassword?: boolean;
+    canViewFinancials?: boolean;
 }
 
 interface AuthContextData {

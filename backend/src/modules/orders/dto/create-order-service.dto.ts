@@ -44,4 +44,12 @@ export class CreateOrderServiceDto {
   @IsString()
   @IsOptional()
   technicalReport?: string;
+
+  @IsString()
+  @IsOptional()
+  observations?: string;
+
+  @IsString()
+  @IsOptional()
+  expectedDeliveryDate?: string;
 }

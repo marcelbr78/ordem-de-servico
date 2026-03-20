@@ -24,6 +24,7 @@ interface OrderDetailsProps {
     onUpdate: () => void;
     initialTab?: string;
     startWithStatusOpen?: boolean;
+    forceNewStatus?: string;
 }
 
 // ─── Styles for Internal Modals ──────────────────────
@@ -87,7 +88,7 @@ function formatDuration(ms: number): string {
     return `${seconds}s`;
 }
 
-export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUpdate, initialTab, startWithStatusOpen }) => {
+export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUpdate, initialTab, startWithStatusOpen, forceNewStatus }) => {
     const [showDeliveryReceipt, setShowDeliveryReceipt] = useState(false);
     const [activeTab, setActiveTab] = useState(initialTab === 'Impressão' ? 'Histórico' : (initialTab || 'Histórico'));
     const { toasts, show: showToast, dismiss: dismissToast } = useToast();
@@ -157,8 +158,25 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const [printMenuOpen, setPrintMenuOpen] = useState(false);
     const [shareMenuOpen, setShareMenuOpen] = useState(false);
     const [technicalReport, setTechnicalReport] = useState(order.technicalReport || '');
+    const [observations, setObservations] = useState(order.observations || '');
     const [savingReport, setSavingReport] = useState(false);
+    const [exitChecklist, setExitChecklist] = useState<Record<string, boolean>>({});
     const { settings } = useSystemSettings();
+
+    const CHECKLIST_ITEMS = [
+        { id: 'cam_front', label: 'Câmera Frontal' },
+        { id: 'cam_rear', label: 'Câmera Traseira' },
+        { id: 'charging', label: 'Carregamento' },
+        { id: 'screen', label: 'Tela' },
+        { id: 'touch', label: 'Touch' },
+        { id: 'audio', label: 'Som/Áudio' },
+        { id: 'calling', label: 'Ligação' },
+        { id: 'wifi', label: 'WiFi' },
+        { id: 'signal', label: 'Sinal/Rede' },
+        { id: 'face_id', label: 'FaceID/Biometria' },
+        { id: 'buttons', label: 'Botões' },
+        { id: 'battery', label: 'Bateria' },
+    ];
 
     const getBaseUrl = () => {
         if (settings.company_url) {
@@ -198,24 +216,53 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
 
     const handleAddServiceItem = async (fromCatalog?: any) => {
         const name = fromCatalog?.name || newSvcName.trim();
-        const price = fromCatalog ? fromCatalog.priceSell : parseFloat(newSvcPrice.replace(',', '.'));
-        if (!name || !price) return;
+        const rawPrice = newSvcPrice.replace(/[^\d.,]/g, '').replace(',', '.');
+        const price = fromCatalog ? fromCatalog.priceSell : parseFloat(rawPrice);
+        
+        if (!name || isNaN(price)) return;
         try {
-            await api.post(`/orders/${order.id}/service-items`, {
-                name,
-                description: fromCatalog?.description || newSvcDesc.trim() || undefined,
-                price,
-                catalogId: fromCatalog?.id || undefined,
-            });
+            // Procurar no catálogo se já existe
+            let existingCatalogItem = fromCatalog || svcCatalog.find((c: any) => c.name.toLowerCase() === name.toLowerCase());
+            
+            // Se não existe no catálogo, cria silenciosamente
+            if (!existingCatalogItem) {
+                const res = await api.post('/inventory', {
+                    name,
+                    description: newSvcDesc.trim() || undefined,
+                    type: 'service',
+                    priceSell: price,
+                    priceCost: 0,
+                    trackStock: false,
+                });
+                existingCatalogItem = res.data;
+                loadSvcCatalog(); // atualiza a lista suspensa
+            }
+
+            // Adicionar como "Parte" da OS (tipo service caindo na tabela principal junta)
+            const payload = {
+                productId: existingCatalogItem.id,
+                quantity: 1,
+                unitPrice: price, 
+                unitCost: existingCatalogItem.priceCost || 0,
+            };
+            await api.post(`/orders/${order.id}/parts`, payload);
+
             setNewSvcName(''); setNewSvcDesc(''); setNewSvcPrice(''); setSvcSearch('');
-            await loadServiceItems();
             onUpdate();
-        } catch {}
+        } catch (error: any) {
+            console.error('Erro ao adicionar Serviço na base unificada:', error);
+            alert('Falha ao adicionar serviço: ' + (error?.response?.data?.message || 'Verifique a conexão.'));
+        }
     };
 
     const handleUpdateServiceItem = async (itemId: string) => {
         try {
-            await api.patch(`/orders/${order.id}/service-items/${itemId}`, editSvcData);
+            const payload = { ...editSvcData };
+            if (payload.price !== undefined) {
+                const rawPrice = payload.price.toString().replace(/[^\d.,]/g, '').replace(',', '.');
+                payload.price = parseFloat(rawPrice);
+            }
+            await api.patch(`/orders/${order.id}/service-items/${itemId}`, payload);
             setEditingSvcId(null);
             await loadServiceItems();
             onUpdate();
@@ -403,6 +450,15 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             setBalanceToPay(0);
         }
     }, [statusModalOpen, targetStatus, order.id, order.parts]);
+
+    React.useEffect(() => {
+        if (startWithStatusOpen && forceNewStatus) {
+            setTargetStatus(forceNewStatus);
+            setStatusModalOpen(true);
+            setShowStatusDropdown(false);
+        }
+    }, [startWithStatusOpen, forceNewStatus]);
+
     const toggleWaMsg = (id: string) => {
         setExpandedWaMsgs(prev => {
             const next = new Set(prev);
@@ -443,6 +499,14 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const confirmStatusChange = async () => {
         if (!targetStatus || !statusComment.trim()) return;
 
+        if (targetStatus === 'finalizada') {
+            const allChecked = CHECKLIST_ITEMS.every(item => exitChecklist[item.id]);
+            if (!allChecked) {
+                alert('Você precisa assinalar todo o Checklist de Saída para garantir que todos os testes foram executados!');
+                return;
+            }
+        }
+
         if (notifyWhatsApp) {
             setWhatsappMessage(generateStatusMessage(targetStatus, statusComment));
             setWhatsappPreviewOpen(true);
@@ -455,10 +519,15 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const proceedWithStatusChange = async (customWaMessage?: string) => {
         setChangingStatus(true);
         try {
+            let finalComment = statusComment?.trim() || 'Status atualizado';
+            if (targetStatus === 'finalizada') {
+                finalComment += '\n\n[Checklist de Saída Executado: Todos os testes OK]';
+            }
+
             // 1. Update status
             await api.patch(`/orders/${order.id}/status`, {
                 status: targetStatus,
-                comments: statusComment?.trim() || 'Status atualizado',
+                comments: finalComment,
                 paymentMethod: (targetStatus === 'entregue' && balanceToPay > 0) ? paymentMethod : undefined,
                 bankAccountId: (targetStatus === 'entregue' && balanceToPay > 0) ? bankAccountId : undefined,
                 paymentDate: (targetStatus === 'entregue' && balanceToPay > 0) ? new Date().toISOString() : undefined,
@@ -642,12 +711,12 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
     const handleSaveReport = async () => {
         setSavingReport(true);
         try {
-            await api.patch(`/orders/${order.id}`, { technicalReport });
+            await api.patch(`/orders/${order.id}`, { technicalReport, observations });
             onUpdate();
-            alert('Laudo técnico salvo com sucesso!');
+            alert('Laudo e observações salvos com sucesso!');
         } catch (error) {
             console.error(error);
-            alert('Erro ao salvar laudo técnico');
+            alert('Erro ao salvar laudo e observações');
         } finally {
             setSavingReport(false);
         }
@@ -722,6 +791,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                             border: 'none', color: '#fff', textAlign: 'left',
                                                             cursor: changingStatus ? 'wait' : 'pointer', fontSize: '13px',
                                                             fontWeight: 500, transition: 'background 0.15s',
+                                                            whiteSpace: 'nowrap'
                                                         }}
                                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
                                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
@@ -743,6 +813,16 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                         <span>{timeInCurrentStatus}</span>
                                     </div>
                                 )}
+                                {/* Expected Delivery Alert */}
+                                {order.expectedDeliveryDate && !['finalizada', 'entregue', 'cancelada'].includes(order.status) && (() => {
+                                    const isOverdue = new Date(order.expectedDeliveryDate + 'T23:59:59') < new Date();
+                                    const expectedFmt = new Date(order.expectedDeliveryDate + 'T12:00:00').toLocaleDateString('pt-BR');
+                                    return (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: isOverdue ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+                                            <span>Previsão: {expectedFmt} {isOverdue && '⚠️ Atrasado!'}</span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             <p style={{ margin: 0, fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>{order.client?.nome} • {order.client?.cpfCnpj}</p>
                         </div>
@@ -818,14 +898,13 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                         minWidth: '180px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 51, overflow: 'hidden'
                                     }}>
                                         <button onClick={() => triggerPrint('client')} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '13px', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <FileText size={14} /> Via Cliente
+                                            <FileText size={14} /> Ordem de Serviço
                                         </button>
-                                        <button onClick={() => triggerPrint('store')} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '13px', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <FileText size={14} /> Via Loja
-                                        </button>
-                                        <button onClick={() => triggerPrint('term')} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '13px', borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <FileCheck size={14} /> Termo Entrega
-                                        </button>
+                                        {['finalizada', 'entregue'].includes(order.status) && (
+                                            <button onClick={() => triggerPrint('term')} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '13px', borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                                <FileCheck size={14} /> Termo Entrega
+                                            </button>
+                                        )}
                                         <button onClick={async () => {
                                             setPrintMenuOpen(false);
                                             try {
@@ -867,7 +946,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                         {[
                             'Histórico', 'Laudo Técnico', 'Peças/Serviços',
                             'Equipamentos', 'Cotações', 'Fotos',
-                            'Orçamento 📝', 'Financeiro 💰', 'Nota Fiscal 🧾', 'Detalhes',
+                            'Orçamento 📝', ...(user?.canViewFinancials !== false ? ['Financeiro 💰'] : []), 'Nota Fiscal 🧾', 'Detalhes',
                             ...(isAdmin ? ['Conversa 🔒'] : []),
                         ].map(tab => (
                             <button
@@ -951,12 +1030,14 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     {/* Cabeçalho lançamentos */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#fff' }}>Lançamentos desta OS</h3>
-                                        <button
-                                            onClick={() => setShowAddPayment(!showAddPayment)}
-                                            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', background: 'var(--primary)', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
-                                        >
-                                            <Plus size={15} /> Registrar Pagamento
-                                        </button>
+                                        {saldo > 0 && order.status !== 'entregue' && (
+                                            <button
+                                                onClick={() => setShowAddPayment(!showAddPayment)}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', background: 'var(--primary)', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
+                                            >
+                                                <Plus size={15} /> Registrar Pagamento
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* Formulário inline de novo pagamento */}
@@ -1086,7 +1167,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                     <input value={editSvcData.description ?? svc.description ?? ''} onChange={e => setEditSvcData((p: any) => ({ ...p, description: e.target.value }))}
                                                         placeholder="Descrição (opcional)" style={{ padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: '13px', outline: 'none' }} />
                                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                                        <input type="number" value={editSvcData.price ?? svc.price} onChange={e => setEditSvcData((p: any) => ({ ...p, price: e.target.value }))}
+                                                        <input type="text" inputMode="decimal" value={editSvcData.price ?? svc.price} onChange={e => setEditSvcData((p: any) => ({ ...p, price: e.target.value }))}
                                                             placeholder="Valor R$" style={{ flex: 1, padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: '13px', outline: 'none' }} />
                                                         <button onClick={() => handleUpdateServiceItem(svc.id)} style={{ padding: '8px 16px', borderRadius: '7px', background: '#a855f7', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Salvar</button>
                                                         <button onClick={() => setEditingSvcId(null)} style={{ padding: '8px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer' }}>✕</button>
@@ -1101,23 +1182,36 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#a855f7', whiteSpace: 'nowrap' }}>
                                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(svc.price)}
                                                     </div>
-                                                    <button onClick={() => { setEditingSvcId(svc.id); setEditSvcData({}); }}
-                                                        style={{ background: 'rgba(168,85,247,0.1)', border: 'none', color: '#a855f7', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px', fontSize: '12px' }}>✏️</button>
-                                                    <button onClick={() => handleRemoveServiceItem(svc.id)}
-                                                        style={{ background: 'rgba(244,63,94,0.08)', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px' }}><Trash2 size={13} /></button>
+                                                    {order.status !== 'finalizada' && order.status !== 'entregue' && (
+                                                        <>
+                                                            <button onClick={() => { setEditingSvcId(svc.id); setEditSvcData({}); }}
+                                                                style={{ background: 'rgba(168,85,247,0.1)', border: 'none', color: '#a855f7', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px', fontSize: '12px' }}>✏️</button>
+                                                            <button onClick={() => handleRemoveServiceItem(svc.id)}
+                                                                style={{ background: 'rgba(244,63,94,0.08)', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px' }}><Trash2 size={13} /></button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
                                     ))}
 
                                     {/* Formulário para adicionar serviço */}
+                                    {order.status !== 'finalizada' && order.status !== 'entregue' && (
                                     <div style={{ background: 'rgba(168,85,247,0.04)', border: '1px dashed rgba(168,85,247,0.25)', borderRadius: '10px', padding: '12px 14px' }}>
                                         {/* Busca rápida no catálogo */}
                                         {svcCatalog.length > 0 && (
                                             <div style={{ marginBottom: '10px', position: 'relative' }}>
-                                                <select onChange={e => { const s = svcCatalog.find((c: any) => c.id === e.target.value); if (s) handleAddServiceItem(s); e.target.value = ''; }}
+                                                <select onChange={e => { 
+                                                    const s = svcCatalog.find((c: any) => c.id === e.target.value); 
+                                                    if (s) {
+                                                        setNewSvcName(s.name);
+                                                        setNewSvcDesc(s.description || '');
+                                                        setNewSvcPrice(s.priceSell.toString().replace('.', ','));
+                                                    }
+                                                    e.target.value = ''; 
+                                                }}
                                                     style={{ width: '100%', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
-                                                    <option value="">⚡ Adicionar do catálogo...</option>
+                                                    <option value="">⚡ Preencher a partir do catálogo...</option>
                                                     {svcCatalog.map((s: any) => (
                                                         <option key={s.id} value={s.id}>{s.name} — {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.priceSell)}</option>
                                                     ))}
@@ -1129,14 +1223,15 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                 style={{ flex: 2, minWidth: '140px', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '13px', outline: 'none' }} />
                                             <input value={newSvcDesc} onChange={e => setNewSvcDesc(e.target.value)} placeholder="Descrição (opcional)"
                                                 style={{ flex: 3, minWidth: '140px', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '13px', outline: 'none' }} />
-                                            <input type="number" value={newSvcPrice} onChange={e => setNewSvcPrice(e.target.value)} placeholder="R$ Valor *"
+                                            <input type="text" inputMode="decimal" value={newSvcPrice} onChange={e => setNewSvcPrice(e.target.value)} placeholder="Valor (R$) *"
                                                 style={{ width: '100px', padding: '8px 10px', borderRadius: '7px', border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '13px', outline: 'none' }} />
-                                            <button onClick={() => handleAddServiceItem()} disabled={!newSvcName.trim() || !newSvcPrice}
-                                                style={{ padding: '8px 14px', borderRadius: '7px', background: newSvcName.trim() && newSvcPrice ? '#a855f7' : 'rgba(168,85,247,0.2)', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <button onClick={() => handleAddServiceItem()} disabled={!newSvcName.trim() || !newSvcPrice.trim() || isNaN(parseFloat(newSvcPrice.replace(',', '.')))}
+                                                style={{ padding: '8px 14px', borderRadius: '7px', background: newSvcName.trim() && newSvcPrice.trim() && !isNaN(parseFloat(newSvcPrice.replace(',', '.'))) ? '#a855f7' : 'rgba(168,85,247,0.2)', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                 <Plus size={14} /> Adicionar
                                             </button>
                                         </div>
                                     </div>
+                                    )}
                                 </div>
 
                                 {/* Divisor */}
@@ -1147,6 +1242,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 </div>
 
                                 {/* Product Search */}
+                                {order.status !== 'finalizada' && order.status !== 'entregue' && (
                                 <div style={{ position: 'relative', marginBottom: '24px' }}>
                                     <div style={{ position: 'relative' }}>
                                         <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
@@ -1201,6 +1297,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                         </div>
                                     )}
                                 </div>
+                                )}
 
                                 {/* Items List */}
                                 <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
@@ -1226,8 +1323,11 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                 (order.parts || []).map(part => (
                                                     <tr key={part.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                         <td style={{ padding: '12px 16px' }}>
-                                                            <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{part.product?.name}</div>
-                                                            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>{part.product?.sku}</div>
+                                                            <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                {part.product?.name}
+                                                                {part.product?.type === 'service' && <span style={{ padding: '2px 6px', fontSize: '10px', background: 'rgba(168,85,247,0.15)', color: '#a855f7', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.5px' }}>SERVIÇO</span>}
+                                                            </div>
+                                                            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', marginTop: '2px' }}>{part.product?.sku || 'S/N'}</div>
                                                         </td>
                                                         <td style={{ padding: '12px 16px', textAlign: 'center', color: '#fff' }}>{part.quantity}</td>
                                                         <td style={{ padding: '12px 16px', textAlign: 'right', color: '#fff' }}>
@@ -1237,6 +1337,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.unitPrice * part.quantity)}
                                                         </td>
                                                         <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                                            {order.status !== 'finalizada' && order.status !== 'entregue' && (
                                                             <button
                                                                 onClick={() => handleRemovePart(part.id)}
                                                                 style={{ background: 'transparent', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
@@ -1245,6 +1346,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))
@@ -1268,18 +1370,46 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     </div>
                                     <button
                                         onClick={handleSaveReport}
-                                        disabled={savingReport || technicalReport === order.technicalReport}
+                                        disabled={order.status === 'finalizada' || order.status === 'entregue' || savingReport || (technicalReport === order.technicalReport && observations === order.observations)}
                                         style={{
                                             padding: '8px 16px', borderRadius: '8px', border: 'none',
                                             background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '13px',
-                                            cursor: (savingReport || technicalReport === order.technicalReport) ? 'not-allowed' : 'pointer',
-                                            opacity: (savingReport || technicalReport === order.technicalReport) ? 0.6 : 1,
+                                            cursor: (savingReport || (technicalReport === order.technicalReport && observations === order.observations)) ? 'not-allowed' : 'pointer',
+                                            opacity: (savingReport || (technicalReport === order.technicalReport && observations === order.observations)) ? 0.6 : 1,
                                             display: 'flex', alignItems: 'center', gap: '8px'
                                         }}
                                     >
                                         {savingReport ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                                        Salvar Laudo
+                                        Salvar Laudo e Observações
                                     </button>
+                                </div>
+
+                                <textarea
+                                    readOnly={order.status === 'finalizada' || order.status === 'entregue'}
+                                    value={technicalReport}
+                                    onChange={(e) => setTechnicalReport(e.target.value)}
+                                    placeholder="Descreva aqui o diagnóstico técnico, peças trocadas e a solução do problema..."
+                                    style={{
+                                        width: '100%', height: '180px', padding: '16px', borderRadius: '12px',
+                                        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                                        color: '#fff', fontSize: '14px', lineHeight: '1.6', outline: 'none',
+                                        resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: '16px',
+                                    }}
+                                />
+
+                                <div style={{ marginBottom: '16px' }}>
+                                    <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>Observações Livres (Impressas)</h4>
+                                    <textarea
+                                        readOnly={order.status === 'finalizada' || order.status === 'entregue'}
+                                        value={observations}
+                                        onChange={(e) => setObservations(e.target.value)}
+                                        placeholder="Ex: Cliente ciente de risco, tela paralela aceita pelo cliente... (Fica visível no termo de entrega e Via Cliente)"
+                                        style={{
+                                            width: '100%', minHeight: '80px', padding: '12px', borderRadius: '12px',
+                                            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
+                                            color: '#fff', fontSize: '13px', resize: 'vertical', display: 'block'
+                                        }}
+                                    />
                                 </div>
 
                                 {/* Painel de diagnóstico inteligente */}
@@ -1290,18 +1420,6 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                     onApplySuggestion={(text) => setTechnicalReport(prev => prev ? `${prev}\n\n${text}` : text)}
                                     onApplyPrice={(price) => {
                                         api.patch(`/orders/${order.id}`, { estimatedValue: price }).catch(() => {});
-                                    }}
-                                />
-
-                                <textarea
-                                    value={technicalReport}
-                                    onChange={(e) => setTechnicalReport(e.target.value)}
-                                    placeholder="Descreva aqui o diagnóstico técnico, peças trocadas e a solução do problema..."
-                                    style={{
-                                        width: '100%', height: '320px', padding: '16px', borderRadius: '12px',
-                                        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-                                        color: '#fff', fontSize: '14px', lineHeight: '1.6', outline: 'none',
-                                        resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
                                     }}
                                 />
                             </div>
@@ -1556,11 +1674,11 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                                                     Cancelar
                                                                 </button>
                                                             </>
-                                                        ) : (
+                                                        ) : ( order.status !== 'finalizada' && order.status !== 'entregue' && (
                                                             <button onClick={() => handleEditEq(eq)} style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                                                                 Editar
                                                             </button>
-                                                        )}
+                                                        ))}
                                                     </div>
                                                 </div>
 
@@ -1858,10 +1976,31 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                 style={{
                                     width: '100%', minHeight: '100px', background: 'rgba(0,0,0,0.2)',
                                     border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
-                                    padding: '12px', color: '#fff', fontSize: '14px', resize: 'vertical'
+                                    padding: '12px', color: '#fff', fontSize: '14px', resize: 'vertical',
+                                    marginBottom: targetStatus === 'finalizada' ? '16px' : '0'
                                 }}
                                 autoFocus
                             />
+
+                            {targetStatus === 'finalizada' && (
+                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '16px' }}>
+                                    <h4 style={{ margin: '0 0 12px', fontSize: '13px', color: '#fff' }}>Checklist Funcional de Saída (Obrigatório)</h4>
+                                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '-8px', marginBottom: '16px' }}>Verifique se está tudo funcionando após o reparo.</p>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px' }}>
+                                        {CHECKLIST_ITEMS.map((item) => (
+                                            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!exitChecklist[item.id]}
+                                                    onChange={(e) => setExitChecklist(prev => ({ ...prev, [item.id]: e.target.checked }))}
+                                                    style={{ width: '16px', height: '16px', accentColor: '#10b981' }}
+                                                />
+                                                {item.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>

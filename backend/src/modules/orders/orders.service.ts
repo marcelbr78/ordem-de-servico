@@ -116,6 +116,8 @@ export class OrdersService {
                 estimatedValue: dto.estimatedValue || 0,
                 protocol,
                 status: OSStatus.ABERTA,
+                expectedDeliveryDate: dto.expectedDeliveryDate ? new Date(dto.expectedDeliveryDate) : null,
+                observations: dto.observations || null,
                 tenantId,
             });
             const savedOrder = await queryRunner.manager.save(order);
@@ -209,17 +211,21 @@ export class OrdersService {
 
             // --- STOCK & FINANCE INTEGRATION ---
             if (dto.status === OSStatus.FINALIZADA) {
-                const parts = await queryRunner.manager.find(OrderPart, { where: { orderId: order.id } });
+                const parts = await queryRunner.manager.find(OrderPart, { 
+                    where: { orderId: order.id },
+                    relations: ['product']
+                });
 
                 // 1. Calculate Total Value
                 const totalValue = parts.reduce((acc, p) => acc + (Number(p.unitPrice) * p.quantity), 0);
                 await queryRunner.manager.update(OrderService, id, { finalValue: totalValue });
 
                 // 2. Consume Stock
-                if (parts.length > 0) {
+                const partsToConsume = parts.filter(p => p.product?.type !== 'service');
+                if (partsToConsume.length > 0) {
                     await this.stockService.consumeStock(
                         order.id,
-                        parts.map(p => ({ productId: p.productId, quantity: p.quantity })),
+                        partsToConsume.map(p => ({ productId: p.productId, quantity: p.quantity })),
                         queryRunner.manager
                     );
                 }
@@ -290,7 +296,7 @@ export class OrdersService {
     async findAll(withDeleted = false, tenantId?: string): Promise<OrderService[]> {
         return this.ordersRepository.find({
             where: tenantId ? { tenantId } : undefined,
-            relations: ['client', 'equipments'],
+            relations: ['client', 'equipments', 'parts', 'services'],
             order: { entryDate: 'DESC' },
             withDeleted,
         });
@@ -301,6 +307,8 @@ export class OrdersService {
         const qb = this.ordersRepository.createQueryBuilder('order')
             .leftJoinAndSelect('order.client', 'client')
             .leftJoinAndSelect('order.equipments', 'equipments')
+            .leftJoinAndSelect('order.parts', 'parts')
+            .leftJoinAndSelect('order.services', 'services')
             .where('order.status NOT IN (:...statuses)', {
                 statuses: [OSStatus.ENTREGUE, OSStatus.CANCELADA]
             });
@@ -442,8 +450,9 @@ export class OrdersService {
         customNumber?: string;
         userId?: string;
         message?: string;
+        tenantId?: string;
     }): Promise<{ success: boolean; message?: string }> {
-        const { type, origin, customNumber, userId, message: customMessage } = options;
+        const { type, origin, customNumber, userId, message: customMessage, tenantId } = options;
         console.log(`[WhatsApp Share] Order: ${id}, Type: ${type}, HasCustomMessage: ${!!customMessage}`);
 
         const order = await this.findOne(id);
@@ -469,7 +478,7 @@ export class OrdersService {
             targetNumber = '55' + targetNumber;
         }
 
-        const configStatus = await this.whatsappService.getConfigStatus();
+        const configStatus = await this.whatsappService.getConfigStatus(tenantId);
         if (!configStatus.configured || !configStatus.hasInstance) {
             throw new BadRequestException('WhatsApp n\u00e3o configurado no sistema.');
         }
@@ -530,9 +539,9 @@ export class OrdersService {
                 description = `Olá, sua Ordem de Serviço #${order.protocol} foi atualizada.`;
             }
 
-            await this.whatsappService.sendButtons(targetNumber, title, description, buttons, storeName);
+            await this.whatsappService.sendButtons(targetNumber, title, description, buttons, storeName, tenantId);
         } else {
-            await this.whatsappService.sendMessage(targetNumber, message);
+            await this.whatsappService.sendMessage(targetNumber, message, tenantId);
         }
 
         // Audit Log

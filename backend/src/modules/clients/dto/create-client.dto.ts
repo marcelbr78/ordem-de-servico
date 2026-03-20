@@ -30,12 +30,13 @@ export class CreateClientDto {
     nomeFantasia?: string;
 
     @IsString()
-    @IsNotEmpty({ message: 'CPF/CNPJ é obrigatório' })
+    @IsOptional()
+    @ValidateIf((o) => !!o.cpfCnpj)
     @Matches(/^\d{11}$|^\d{14}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$|^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, {
-        message: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos',
+        message: 'CPF/CNPJ com formato inválido',
     })
     @IsValidCpfCnpj({ message: 'CPF/CNPJ inválido (dígito verificador incorreto)' })
-    cpfCnpj: string;
+    cpfCnpj?: string;
 
     @IsEmail({}, { message: 'E-mail inválido' })
     @IsOptional()

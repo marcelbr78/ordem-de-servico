@@ -45,6 +45,9 @@ export class User {
     @Index()
     isActive: boolean;
 
+    @Column({ default: true })
+    canViewFinancials: boolean;
+
     @Column({ nullable: true })
     @Index()
     refreshTokenHash: string;

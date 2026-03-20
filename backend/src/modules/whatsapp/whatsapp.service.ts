@@ -98,8 +98,8 @@ export class WhatsappService {
         return false;
     }
 
-    async sendMessage(to: string, message: string): Promise<void> {
-        const { apiUrl, apiKey, instance } = await this.getConfig();
+    async sendMessage(to: string, message: string, tenantId?: string): Promise<void> {
+        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey || !instance) {
             this.logger.warn('WhatsApp integration not configured. Skipping message.');
@@ -107,7 +107,12 @@ export class WhatsappService {
         }
 
         try {
-            const cleanNumber = to.replace(/\D/g, '');
+            let cleanNumber = to.replace(/\D/g, '');
+            
+            // Auto-adição do DDI 55 (Brasil) caso o número tenha 10 ou 11 dígitos (ex: 47999999999)
+            if (cleanNumber.length === 10 || cleanNumber.length === 11) {
+                cleanNumber = `55${cleanNumber}`;
+            }
 
             // Resolve the correct WhatsApp JID (handles Brazilian 9th digit removal)
             let resolvedJid = `${cleanNumber}@s.whatsapp.net`;
@@ -161,8 +166,8 @@ export class WhatsappService {
         }
     }
 
-    async sendButtons(to: string, title: string, description: string, buttons: any[], footer?: string): Promise<void> {
-        const { apiUrl, apiKey, instance } = await this.getConfig();
+    async sendButtons(to: string, title: string, description: string, buttons: any[], footer?: string, tenantId?: string): Promise<void> {
+        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
 
         if (!apiUrl || !apiKey || !instance) {
             this.logger.warn('WhatsApp integration not configured. Skipping buttons.');
@@ -170,7 +175,12 @@ export class WhatsappService {
         }
 
         try {
-            const cleanNumber = to.replace(/\D/g, '');
+            let cleanNumber = to.replace(/\D/g, '');
+            
+            // Auto-adição do DDI 55 (Brasil) caso o número tenha 10 ou 11 dígitos
+            if (cleanNumber.length === 10 || cleanNumber.length === 11) {
+                cleanNumber = `55${cleanNumber}`;
+            }
             let resolvedJid = `${cleanNumber}@s.whatsapp.net`;
 
             // Try to resolve JID
@@ -221,26 +231,26 @@ export class WhatsappService {
                     textMsg += `\n\n✅ *${b.displayText}*`;
                 }
             }
-            await this.sendMessage(to, textMsg);
+            await this.sendMessage(to, textMsg, tenantId);
         }
     }
 
-    async sendOSCreated(to: string, protocol: string, equipment: string, statusUrl?: string): Promise<void> {
+    async sendOSCreated(to: string, protocol: string, equipment: string, statusUrl?: string, tenantId?: string): Promise<void> {
         const title = '📋 *OS ABERTA*';
         const description = `Olá! Recebemos seu *${equipment}* para análise.\n📝 *Protocolo:* ${protocol}\n\nVocê será avisado por aqui assim que o diagnóstico for concluído.`;
 
         if (statusUrl) {
             await this.sendButtons(to, title, description, [
                 { type: 'url', displayText: '🔍 Ver Status', url: statusUrl }
-            ]);
+            ], undefined, tenantId);
         } else {
-            await this.sendMessage(to, `${title}\n\n${description}`);
+            await this.sendMessage(to, `${title}\n\n${description}`, tenantId);
         }
     }
 
-    async sendBudgetAvailable(to: string, protocol: string): Promise<void> {
+    async sendBudgetAvailable(to: string, protocol: string, tenantId?: string): Promise<void> {
         const msg = `📋 *Orçamento Disponível!* \n\nO diagnóstico do seu equipamento (OS: ${protocol}) foi finalizado.\n\nPor favor, entre em contato para aprovação do serviço.`;
-        await this.sendMessage(to, msg);
+        await this.sendMessage(to, msg, tenantId);
     }
 
     /** Extracts QR base64 from any Evolution API response shape */
@@ -485,7 +495,7 @@ export class WhatsappService {
     /** Send a test message */
     async sendTestMessage(to: string, tenantId?: string): Promise<{ success: boolean; error?: string }> {
         try {
-            await this.sendMessage(to, '🧪 *Mensagem de Teste*\n\nSua integração WhatsApp está funcionando corretamente! ✅');
+            await this.sendMessage(to, '🧪 *Mensagem de Teste*\n\nSua integração WhatsApp está funcionando corretamente! ✅', tenantId);
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };

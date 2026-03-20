@@ -30,8 +30,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // Apenas requisições GET devem ser consideradas para cache
+    if (event.request.method !== 'GET') {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     // API — sempre rede (nunca cache)
     if (url.pathname.startsWith('/api') || 
+        url.pathname.startsWith('/whatsapp') || 
+        url.pathname.startsWith('/auth') || 
         url.hostname.includes('onrender.com') ||
         url.hostname.includes('os4u-backend')) {
         event.respondWith(fetch(event.request));

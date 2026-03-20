@@ -17,6 +17,7 @@ import { OrderHistory } from './order-history.entity';
 import { OrderPhoto } from './order-photo.entity';
 import { Quote } from '../../smartparts/entities/quote.entity';
 import { OrderPart } from './order-part.entity';
+import { OrderServiceItem } from './order-service-item.entity';
 
 export enum OSStatus {
     ABERTA = 'aberta',
@@ -77,6 +78,9 @@ export class OrderService {
     @Column({ type: 'text', nullable: true })
     technicalReport: string;
 
+    @Column({ type: 'text', nullable: true })
+    observations: string;
+
 
     @ManyToOne(() => Client, { eager: true })
     @JoinColumn({ name: 'clientId' })
@@ -103,11 +107,17 @@ export class OrderService {
     @OneToMany(() => OrderPart, part => part.order, { cascade: true })
     parts: OrderPart[];
 
+    @OneToMany(() => OrderServiceItem, service => service.order, { cascade: true })
+    services: OrderServiceItem[];
+
     @CreateDateColumn()
     entryDate: Date;
 
     @Column({ nullable: true })
     exitDate: Date; // Preenchido apenas se ENTREGUE/CANCELADA
+
+    @Column({ type: 'date', nullable: true })
+    expectedDeliveryDate: Date; // Prazo de entrega previsto
 
     @Column({ type: 'int', default: 90, nullable: true })
     warrantyDays: number;

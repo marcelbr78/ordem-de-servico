@@ -54,9 +54,6 @@ const LINK_GROUPS = [
     },
 ];
 
-// Flat list para compatibilidade
-const MAIN_LINKS = LINK_GROUPS.flatMap(g => g.links);
-
 const BOTTOM_LINKS = [
     { name: 'Notas Fiscais', path: '/fiscal', icon: Receipt },
     { name: 'Configurações', path: '/settings', icon: Settings },
@@ -193,17 +190,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, isDesktop, collapsed, 
                 overflowX: 'hidden',
                 WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
             }}>
-                {LINK_GROUPS.map((group, gi) => (
-                    <React.Fragment key={group.label}>
-                        {gi > 0 && <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
-                        {!collapsed && (
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.22)', textTransform: 'uppercase', letterSpacing: '1px', padding: '4px 12px 4px', marginTop: gi === 0 ? '4px' : '0' }}>
-                                {group.label}
-                            </div>
-                        )}
-                        {group.links.map(item => renderLink(item))}
-                    </React.Fragment>
-                ))}
+                {LINK_GROUPS.map((group, gi) => {
+                    const groupLinks = group.links.filter(l => 
+                        user?.canViewFinancials !== false || 
+                        !['/finance', '/commissions', '/bank-accounts'].includes(l.path)
+                    );
+                    if (groupLinks.length === 0) return null;
+                    return (
+                        <React.Fragment key={group.label}>
+                            {gi > 0 && <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
+                            {!collapsed && (
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.22)', textTransform: 'uppercase', letterSpacing: '1px', padding: '4px 12px 4px', marginTop: gi === 0 ? '4px' : '0' }}>
+                                    {group.label}
+                                </div>
+                            )}
+                            {groupLinks.map(item => renderLink(item))}
+                        </React.Fragment>
+                    );
+                })}
                 <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
                 {BOTTOM_LINKS.map(item => renderLink(item))}
                 {isSuperAdmin && (

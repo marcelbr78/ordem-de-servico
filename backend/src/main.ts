@@ -62,22 +62,37 @@ async function bootstrap() {
 
     app.use(express.static(path.join(process.cwd(), 'public')));
 
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: false, transform: true }));
     const reflector = app.get(Reflector);
     app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
 
-    const frontendUrl = process.env.FRONTEND_URL;
-    const allowedOrigins = frontendUrl
-        ? frontendUrl.split(',').map(u => u.trim())
-        : true;
-
     app.enableCors({
-        origin: allowedOrigins,
+        origin: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
     });
 
     const httpAdapter = app.getHttpAdapter();
+
+    const originalHttpAdapter = app.getHttpAdapter();
+    app.useGlobalFilters(new class {
+        catch(exception: any, host: import('@nestjs/common').ArgumentsHost) {
+            const ctx = host.switchToHttp();
+            const response = ctx.getResponse();
+            const request = ctx.getRequest();
+            const status = exception.getStatus ? exception.getStatus() : 500;
+            
+            require('fs').appendFileSync('global_error.log', '[' + new Date().toISOString() + '] ' + request.method + ' ' + request.url + ' - Status ' + status + ' - ' + (exception.stack || exception) + '\\n');
+
+            response.status(status).json({
+                statusCode: status,
+                timestamp: new Date().toISOString(),
+                path: request.url,
+                message: exception.message || 'Internal server error',
+            });
+        }
+    }());
+
     httpAdapter.get('/health', (_req: any, res: any) =>
         res.json({ status: 'ok', ts: new Date() })
     );

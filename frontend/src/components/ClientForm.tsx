@@ -227,7 +227,7 @@ export default function ClientForm({ initialData, isEdit, onSubmit, onCancel, lo
         const payload: any = {
             tipo: form.tipo,
             nome: form.nome,
-            cpfCnpj: cpfCnpjClean,
+            cpfCnpj: cpfCnpjClean || undefined,
             email: form.email || undefined,
             observacoes: form.observacoes || undefined,
             cep: form.endereco.cep || undefined,
@@ -283,7 +283,7 @@ export default function ClientForm({ initialData, isEdit, onSubmit, onCancel, lo
                         </div>
                     </div>
                     <div>
-                        <div style={labelStyle}>{form.tipo === 'PF' ? 'CPF' : 'CNPJ'} *</div>
+                        <div style={labelStyle}>{form.tipo === 'PF' ? 'CPF' : 'CNPJ'}</div>
                         <div style={{ position: 'relative' }}>
                             <input style={inputStyle} value={form.cpfCnpj} disabled={isEdit}
                                 placeholder={form.tipo === 'PF' ? '000.000.000-00' : '00.000.000/0000-00'}

@@ -10,6 +10,9 @@ interface PrintFields {
     showTechnicalReport: boolean;
     showEstimatedValue: boolean;
     compactHeader: boolean;
+    showPassword?: boolean;
+    showCondition?: boolean;
+    showPaymentMethod?: boolean;
 }
 
 interface PrintingSettingsProps {
@@ -39,7 +42,10 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
         showChecklist: true,
         showTechnicalReport: true,
         showEstimatedValue: true,
-        compactHeader: false
+        compactHeader: false,
+        showPassword: true,
+        showCondition: true,
+        showPaymentMethod: false,
     };
 
     const [fields, setFields] = useState<Record<'client' | 'store' | 'term', PrintFields>>({
@@ -253,12 +259,12 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
                     {/* Select Via & Toggles */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            {(['client', 'store', 'term'] as const).map(v => (
+                            {(['client', 'term'] as const).map(v => (
                                 <button key={v} onClick={() => setTargetVia(v)} style={{
                                     flex: 1, padding: '8px', borderRadius: '8px', border: 'none', background: targetVia === v ? 'var(--primary)' : 'transparent',
                                     color: targetVia === v ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
                                 }}>
-                                    {v === 'client' ? 'Via Cliente' : v === 'store' ? 'Via Loja' : 'Termo Entrega'}
+                                    {v === 'client' ? 'Ordem de Serviço' : 'Termo de Entrega'}
                                 </button>
                             ))}
                         </div>
@@ -267,11 +273,14 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
                             <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Campos Visíveis</h4>
                             {[
                                 { id: 'showDefect', label: 'Defeito Relatado' },
+                                { id: 'showPassword', label: 'Senha do Dispositivo e Padrão Android' },
                                 { id: 'showChecklist', label: 'Checklist de Entrada' },
+                                { id: 'showCondition', label: 'Condição do Equipamento (Como chegou)' },
                                 { id: 'showTechnicalReport', label: 'Laudo/Relatório Técnico' },
                                 { id: 'showItemDescription', label: 'Descrição dos Itens (Peças/Ser.)' },
                                 { id: 'showEstimatedValue', label: 'Valor Estimado' },
                                 { id: 'showFinancials', label: 'Valores Finais e Total' },
+                                { id: 'showPaymentMethod', label: 'Informações de Pagamento' },
                                 { id: 'showSignatures', label: 'Linhas de Assinatura' },
                                 { id: 'compactHeader', label: 'Cabeçalho Compacto' },
                             ].map((f) => (

@@ -28,6 +28,7 @@ import { OrderHistory } from './modules/orders/entities/order-history.entity';
 import { OrderPhoto } from './modules/orders/entities/order-photo.entity';
 import { OrderPart } from './modules/orders/entities/order-part.entity';
 import { OrderConversation } from './modules/orders/entities/order-conversation.entity';
+import { OrderServiceItem } from './modules/orders/entities/order-service-item.entity';
 import { SupportTicket, TicketMessage } from './admin/support/support-ticket.entity';
 import { Broadcast } from './admin/broadcasts/broadcast.entity';
 import { FeatureFlag } from './admin/feature-flags/feature-flag.entity';
@@ -99,19 +100,19 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderServiceItem, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag],
                         synchronize: true, // Habilitado para garantir que as tabelas iniciais sejam criadas
                         migrations: ['dist/migrations/*.js'],
                         migrationsRun: true,
                         dropSchema: false,
-                        ssl: { rejectUnauthorized: false },
+                        ssl: configService.get<string>('DB_HOST') === 'localhost' ? false : { rejectUnauthorized: false },
                     };
                 }
 
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderServiceItem, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag],
                     synchronize: false,
                 };
             },

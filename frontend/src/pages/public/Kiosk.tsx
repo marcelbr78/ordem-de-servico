@@ -104,7 +104,7 @@ const subtitle: React.CSSProperties = {
 };
 
 const bigBtn = (active = true, secondary = false): React.CSSProperties => ({
-    padding: '18px 32px', borderRadius: '16px', border: 'none',
+    padding: '18px 32px', borderRadius: '16px',
     fontSize: '18px', fontWeight: 700, cursor: active ? 'pointer' : 'not-allowed',
     background: secondary ? CARD : `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
     border: secondary ? `1px solid ${BORDER}` : 'none',
@@ -313,8 +313,8 @@ export const Kiosk: React.FC = () => {
                 <div style={{ ...title, textAlign: 'center' }}>Loja não encontrada</div>
                 <div style={{ ...subtitle, textAlign: 'center', marginTop: '8px' }}>
                     Verifique se o endereço está correto.
-                </div>
                 <MuteBtn />
+            </div>
             </div>
         );
     }
@@ -366,8 +366,8 @@ export const Kiosk: React.FC = () => {
                     <span style={{ fontSize: '48px' }}>👆</span>
                     INICIAR ATENDIMENTO
                 </button>
+                <MuteBtn />
             </div>
-            <MuteBtn />
         );
     }
 
@@ -404,8 +404,8 @@ export const Kiosk: React.FC = () => {
                         {loading ? 'Buscando...' : 'CONTINUAR →'}
                     </button>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -443,8 +443,8 @@ export const Kiosk: React.FC = () => {
                         </button>
                     </div>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -474,8 +474,8 @@ export const Kiosk: React.FC = () => {
                         CONTINUAR →
                     </button>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -500,8 +500,8 @@ export const Kiosk: React.FC = () => {
                         ))}
                     </div>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -527,8 +527,8 @@ export const Kiosk: React.FC = () => {
                         ))}
                     </div>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -560,8 +560,8 @@ export const Kiosk: React.FC = () => {
                         CONTINUAR →
                     </button>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -613,8 +613,8 @@ export const Kiosk: React.FC = () => {
                         CONTINUAR →
                     </button>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -656,8 +656,8 @@ export const Kiosk: React.FC = () => {
                         {loading ? 'Abrindo OS...' : '🚀 ABRIR ORDEM DE SERVIÇO'}
                     </button>
                 </div>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 
@@ -714,8 +714,8 @@ export const Kiosk: React.FC = () => {
                 <button onClick={resetKiosk} style={{ ...bigBtn(true, true), maxWidth: '320px' }}>
                     Novo Atendimento
                 </button>
-            </div>
             <MuteBtn />
+            </div>
         );
     }
 

@@ -69,4 +69,7 @@ export class CreateProductDto {
     @Min(0)
     @IsOptional()
     priceSell?: number;
+
+    @IsOptional()
+    allowNegativeStock?: boolean;
 }

@@ -35,10 +35,10 @@ export function useAutocomplete(endpoint: string, extraParams: Record<string, st
         }, 200);
     }, [endpoint, JSON.stringify(extraParams)]);
 
-    // Carregar opções iniciais sem query
     const loadInitial = useCallback(async () => {
         const results = await fetchOptions(endpoint, { q: '', ...extraParams });
         setOptions(results);
+        if (results.length > 0) setOpen(true);
     }, [endpoint, JSON.stringify(extraParams)]);
 
     const close = useCallback(() => setOpen(false), []);

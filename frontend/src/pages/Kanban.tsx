@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
-import { Plus, RefreshCw, Smartphone, User, AlertCircle } from 'lucide-react';
+import { Smartphone, User, AlertCircle, RefreshCw, Plus } from 'lucide-react';
 import type { Order } from '../types';
+import { OrderDetails } from '../components/orders/OrderDetails';
 
 // ── Configuração das colunas ───────────────────────────────────
 const COLUMNS = [
@@ -71,7 +72,7 @@ const KanbanCard: React.FC<{
             {/* Data */}
             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>
                 {new Date(order.entryDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                {order.priority === 'urgente' && (
+                {order.priority?.toString().toLowerCase() === 'urgente' && (
                     <span style={{ marginLeft: '6px', color: '#ef4444' }}>⚡ URGENTE</span>
                 )}
             </div>
@@ -131,7 +132,8 @@ const KanbanColumn: React.FC<{
 export const Kanban: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
-    const [movingId, setMovingId] = useState<string | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [dragTargetStatus, setDragTargetStatus] = useState<string | null>(null);
     const dragOrder = useRef<Order | null>(null);
 
     const load = async () => {
@@ -140,7 +142,7 @@ export const Kanban: React.FC = () => {
             const res = await api.get('/orders');
             // Excluir entregues e canceladas do kanban
             setOrders(res.data.filter((o: Order) => !['entregue', 'cancelada'].includes(o.status)));
-        } catch { } finally { setLoading(false); }
+        } catch (e) { console.error('Kanban load error', e); } finally { setLoading(false); }
     };
 
     useEffect(() => { load(); }, []);
@@ -155,20 +157,12 @@ export const Kanban: React.FC = () => {
         const order = dragOrder.current;
         if (!order || order.status === newStatus) return;
 
-        // Atualização otimista
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: newStatus as any } : o));
-        setMovingId(order.id);
-
-        try {
-            await api.patch(`/orders/${order.id}/status`, { status: newStatus });
-        } catch {
-            // Reverter em caso de erro
-            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: order.status } : o));
-            alert('Erro ao mover OS. Tente novamente.');
-        } finally {
-            setMovingId(null);
-            dragOrder.current = null;
-        }
+        // Em vez de salvar silenciosamente no fundo falhando o WhatsApp, abrimos a OS
+        // com a modal de mudança de status já aberta apontando pro status soltado.
+        setDragTargetStatus(newStatus);
+        setSelectedOrder(order);
+        
+        dragOrder.current = null;
     };
 
     const ordersByStatus = (status: string) =>
@@ -180,7 +174,7 @@ export const Kanban: React.FC = () => {
             });
 
     const totalActive = orders.length;
-    const urgent = orders.filter(o => o.priority === 'urgente').length;
+    const urgent = orders.filter(o => o.priority?.toString().toLowerCase() === 'urgente').length;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
@@ -227,6 +221,23 @@ export const Kanban: React.FC = () => {
                     ))}
                 </div>
             </div>
+
+            {/* Modal de detalhes ao soltar arrastado */}
+            {selectedOrder && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '12px' }} onClick={() => setSelectedOrder(null)}>
+                    <div className="modal-box-responsive" style={{ maxWidth: '1000px', maxHeight: '94dvh', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', width: '100%' }} onClick={e => e.stopPropagation()}>
+                        <OrderDetails
+                            key={selectedOrder.id}
+                            order={selectedOrder}
+                            initialTab="Histórico"
+                            startWithStatusOpen={true}
+                            forceNewStatus={dragTargetStatus || undefined}
+                            onClose={() => { setSelectedOrder(null); setDragTargetStatus(null); }}
+                            onUpdate={load}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
