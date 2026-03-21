@@ -157,12 +157,15 @@ export class WhatsappService {
                 },
             );
             this.logger.log(`WhatsApp sent successfully to ${resolvedJid}`);
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error(`Failed to send WhatsApp to ${to}: ${error.message}`);
+            let errorMsg = 'Falha ao conectar com o provedor de WhatsApp.';
             if (error.response?.data) {
                 this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
+                errorMsg = error.response.data?.message || error.response.data?.error || errorMsg;
             }
-            throw error;
+            const { BadRequestException } = require('@nestjs/common');
+            throw new BadRequestException(`A API do WhatsApp recusou a mensagem: ${Array.isArray(errorMsg) ? errorMsg.join(' ') : errorMsg}`);
         }
     }
 
