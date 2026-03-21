@@ -365,7 +365,7 @@ export const Settings: React.FC = () => {
     const checkWhatsapp = async () => {
         setWaStep('loading');
         try {
-            const r = await api.get('/whatsapp/status');
+            const r = await api.get('/wa/handshake');
             if (r.data.connected) {
                 setWaStep('connected');
                 setWaNumber(r.data.number || null);
@@ -384,7 +384,7 @@ export const Settings: React.FC = () => {
         if (qrPollRef.current) clearInterval(qrPollRef.current);
 
         try {
-            const r = await api.post('/whatsapp/instance', {}, { timeout: 35000 });
+            const r = await api.post('/wa/initialize', {}, { timeout: 35000 });
 
             if (r.data.success === false) {
                 setWaError(r.data.error || 'Falha ao criar instância WhatsApp.');
@@ -414,7 +414,7 @@ export const Settings: React.FC = () => {
             qrPollRef.current = setInterval(async () => {
                 attempts++;
                 try {
-                    const qrRes = await api.get('/whatsapp/qrcode', { timeout: 12000 });
+                    const qrRes = await api.get('/wa/qrcode', { timeout: 12000 });
                     if (qrRes.data?.qrcode) {
                         clearInterval(qrPollRef.current!);
                         setWaQrCode(qrRes.data.qrcode);
@@ -447,7 +447,7 @@ export const Settings: React.FC = () => {
         if (qrPollRef.current) clearInterval(qrPollRef.current);
         qrPollRef.current = setInterval(async () => {
             try {
-                const s = await api.get('/whatsapp/status');
+                const s = await api.get('/wa/handshake');
                 if (s.data.connected) {
                     setWaStep('connected');
                     setWaQrCode(null);
@@ -460,13 +460,13 @@ export const Settings: React.FC = () => {
     };
 
     const handleDisconnect = async () => {
-        try { await api.delete('/whatsapp/disconnect'); setWaStep('disconnected'); setWaQrCode(null); } catch {}
+        try { await api.delete('/wa/disconnect'); setWaStep('disconnected'); setWaQrCode(null); } catch {}
     };
 
     const handleSendTest = async () => {
         if (!testNumber) return;
         setSendingTest(true);
-        try { await api.post('/whatsapp/test', { number: testNumber }); setMessage({ type: 'success', text: 'Mensagem enviada!' }); }
+        try { await api.post('/wa/test', { number: testNumber }); setMessage({ type: 'success', text: 'Mensagem enviada!' }); }
         catch { setMessage({ type: 'error', text: 'Erro ao enviar.' }); }
         finally { setSendingTest(false); setTimeout(() => setMessage(null), 3000); }
     };
@@ -581,7 +581,7 @@ export const Settings: React.FC = () => {
                 <button
                     onClick={async () => {
                         if (!window.confirm('Redefinir instância? O WhatsApp precisará ser conectado novamente.')) return;
-                        await api.post('/whatsapp/reset');
+                        await api.post('/wa/reset');
                         setSettings(p => ({ ...p, whatsapp_instance_name: '' }));
                         setWaStep('disconnected');
                         setWaQrCode(null);

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Delete, Body, UseGuards, Request } from '@nestjs
 import { WhatsappService } from './whatsapp.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
-@Controller('whatsapp')
+@Controller('wa')
 @UseGuards(JwtAuthGuard)
 export class WhatsappController {
     constructor(private readonly whatsappService: WhatsappService) { }
@@ -13,7 +13,7 @@ export class WhatsappController {
         return this.whatsappService.getConfigStatus(req.user?.tenantId);
     }
 
-    @Get('status')
+    @Get('handshake')
     async getStatus(@Request() req) {
         return this.whatsappService.checkConnectionStatus(req.user?.tenantId);
     }
@@ -23,7 +23,7 @@ export class WhatsappController {
         return this.whatsappService.getQRCode(req.user?.tenantId);
     }
 
-    @Post('instance')
+    @Post('initialize')
     async createInstance(@Request() req) {
         return this.whatsappService.createInstance(req.user?.tenantId);
     }
