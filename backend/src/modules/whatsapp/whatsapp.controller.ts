@@ -19,11 +19,15 @@ export class PublicWaController {
     async testCreateInstance() {
         const axios = require('axios');
         try {
-            const res = await axios.post('https://evolution.os4u.com.br/instance/create', 
+            await axios.post('https://evolution.os4u.com.br/instance/create', 
                 { instanceName: 'os4u-ping-test', integration: 'WHATSAPP-BAILEYS', qrcode: true },
                 { headers: { apikey: 'bluetv_evolution_key_2026', 'Content-Type': 'application/json' }, timeout: 20000 }
             );
-            return { success: true, status: res.status, type: typeof res.data, sample: String(res.data).substring(0, 100) };
+            const connectRes = await axios.get(
+                `https://evolution.os4u.com.br/instance/connect/os4u-ping-test`,
+                { headers: { apikey: 'bluetv_evolution_key_2026' }, timeout: 10000, validateStatus: () => true }
+            );
+            return { success: true, status: connectRes.status, type: typeof connectRes.data, sample: String(connectRes.data).substring(0, 100) };
         } catch (e) {
             return { success: false, error: e.message, status: e.response?.status };
         }
