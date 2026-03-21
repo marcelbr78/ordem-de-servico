@@ -5,6 +5,14 @@ import * as express from 'express';
 import * as path from 'path';
 import { DataSource } from 'typeorm';
 
+// Prevent Node.js from crashing due to PG Unhandled Connection pooling errors
+process.on('uncaughtException', (err) => {
+    console.error('CRITICAL UNCAUGHT EXCEPTION PREVENTED:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('CRITICAL UNHANDLED REJECTION PREVENTED:', reason);
+});
+
 async function bootstrap() {
     // ── Pré-inicializar banco (cria tabelas faltantes antes do NestJS subir) ──
     if (process.env.DB_HOST) {
