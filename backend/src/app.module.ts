@@ -106,6 +106,7 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
                         migrationsRun: true,
                         dropSchema: false,
                         ssl: configService.get<string>('DB_HOST') === 'localhost' ? false : { rejectUnauthorized: false },
+                        extra: { max: 3, connectionTimeoutMillis: 10000 },
                     };
                 }
 
