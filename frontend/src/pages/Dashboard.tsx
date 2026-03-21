@@ -187,6 +187,14 @@ export const Dashboard: React.FC = () => {
         </div>
     );
 
+    if (!stats) return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '12px', color: 'rgba(255,255,255,0.4)' }}>
+            <AlertCircle size={32} color="#ef4444" />
+            <div style={{ fontSize: '15px' }}>Falha temporária de rede ao carregar os dados.</div>
+            <button onClick={load} style={{ marginTop: '10px', padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Tentar novamente</button>
+        </div>
+    );
+
     const s = stats!;
 
     const activeOS = (s.byStatus?.aberta || 0) + (s.byStatus?.em_diagnostico || 0) + (s.byStatus?.aguardando_peca || 0) + (s.byStatus?.em_reparo || 0) + (s.byStatus?.testes || 0);
