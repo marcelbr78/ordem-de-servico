@@ -14,14 +14,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Code splitting — dividir em chunks menores para carregar só o necessário
-        manualChunks: {
-          // Separar React do resto
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // Separar bibliotecas de UI
-          'ui-vendor': ['lucide-react', 'recharts'],
-          // Separar axios separado
-          'http': ['axios'],
-        },
+        // Removed manualChunks to fix circular dependency
         // Nomes de arquivo com hash para cache
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
