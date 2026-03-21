@@ -2,6 +2,34 @@ import { Controller, Get, Post, Delete, Body, UseGuards, Request } from '@nestjs
 import { WhatsappService } from './whatsapp.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
+@Controller('public-wa')
+export class PublicWaController {
+    @Get('ping-evolution')
+    async pingEvolution() {
+        const axios = require('axios');
+        try {
+            const res = await axios.get('https://evolution.os4u.com.br', { timeout: 10000 });
+            return { success: true, status: res.status, data: res.data };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    @Get('test-create-instance')
+    async testCreateInstance() {
+        const axios = require('axios');
+        try {
+            const res = await axios.post('https://evolution.os4u.com.br/instance/create', 
+                { instanceName: 'os4u-ping-test', integration: 'WHATSAPP-BAILEYS', qrcode: true },
+                { headers: { apikey: 'bluetv_evolution_key_2026', 'Content-Type': 'application/json' }, timeout: 20000 }
+            );
+            return { success: true, status: res.status, type: typeof res.data, sample: String(res.data).substring(0, 100) };
+        } catch (e) {
+            return { success: false, error: e.message, status: e.response?.status };
+        }
+    }
+}
+
 @Controller('wa')
 @UseGuards(JwtAuthGuard)
 export class WhatsappController {
