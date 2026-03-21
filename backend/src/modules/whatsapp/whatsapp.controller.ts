@@ -57,7 +57,13 @@ export class WhatsappController {
 
     @Post('initialize')
     async createInstance(@Request() req) {
-        return this.whatsappService.createInstance(req.user?.tenantId);
+        try {
+            const result = await this.whatsappService.createInstance(req.user?.tenantId);
+            return result || { success: false, error: 'Empty result' };
+        } catch (e) {
+            console.error('FATAL CRASH PREVENTED:', e);
+            return { success: false, error: 'CRASH_PREVENTED: ' + (e?.message || 'unknown') };
+        }
     }
 
     @Post('reset')
