@@ -352,32 +352,45 @@ export class WhatsappService {
 
         // Instância já existia: verifica se está conectada
         if (alreadyInUse) {
-            const open = await this.isInstanceOpen(apiUrl, apiKey, instanceName);
-            if (open) {
+            let currentState = 'close';
+            try {
+                 const res = await axios.get(`${apiUrl}/instance/connectionState/${instanceName}`, { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true });
+                 currentState = res.data?.instance?.state || res.data?.state || 'close';
+                 this.logger.log(`Instance ${instanceName} state: ${currentState}`);
+            } catch {}
+
+            if (currentState === 'open') {
                 this.logger.log(`Instance ${instanceName} is already connected (open)`);
                 return { success: true, alreadyConnected: true };
+            } else if (currentState === 'connecting') {
+                this.logger.log(`Instance ${instanceName} is busy connecting / waiting for QR scan. Preventing delete.`);
+                return { success: true };
             } else {
-                // Se não está aberta mas já existe, ela provavelmente travou no estado "connecting".
-                // Deleta a instância na força bruta e cria uma limpa pra forçar o novo QR Code.
-                this.logger.warn(`Instance ${instanceName} stuck or closed. Hard resetting it to get a fresh QR!`);
+                this.logger.warn(`Instance ${instanceName} stuck or closed (${currentState}). Hard resetting it to get a fresh QR!`);
                 await this.hardDeleteInstance(apiUrl, apiKey, instanceName);
                 
-                // Aguarda 2 segundos para a Evolution API limpar do banco interno dela
                 await new Promise(r => setTimeout(r, 2000));
                 
-                // Tenta recriar do zero!
                 try {
+                    // Crie um nome novo randomizado para evitar totalmente o erro 403 de cache corrompido no Redis da v2
+                    const newInstanceName = `${instanceName.split('_')[0]}_${Math.random().toString(36).substring(2,8)}`;
+                    
                     const retryRes = await axios.post(
                         `${apiUrl}/instance/create`,
-                        { instanceName, integration: 'WHATSAPP-BAILEYS', qrcode: true },
+                        { instanceName: newInstanceName, integration: 'WHATSAPP-BAILEYS', qrcode: true },
                         { headers: { apikey: apiKey, 'Content-Type': 'application/json' }, timeout: 20000 }
                     );
+                    
+                    // Salvar o novo nome no banco sem falhar
+                    if (this.settingsService && (this.settingsService as any).save) {
+                         await (this.settingsService as any).save({ key: 'whatsapp_instance_name', value: newInstanceName, tenantId });
+                    }
+
                     const freshQr = this.extractQR(retryRes.data);
                     if (freshQr) return { success: true, qrcode: freshQr };
                     
-                    // Se a API V2 não devolver na mesma hora, pedimos no Connect
                     const connectRes = await axios.get(
-                        `${apiUrl}/instance/connect/${instanceName}`,
+                        `${apiUrl}/instance/connect/${newInstanceName}`,
                         { headers: { apikey: apiKey }, timeout: 12000, validateStatus: () => true },
                     );
                     const finalQr = this.extractQR(connectRes.data);
