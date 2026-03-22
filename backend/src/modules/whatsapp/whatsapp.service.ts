@@ -449,42 +449,39 @@ export class WhatsappService {
             return { status: 'not_configured' };
         }
 
-        // A. Try /instance/connect (fast, single attempt)
+        // Evolution API V2: Chamar /instance/connect enquanto a instância está no estado "connecting" 
+        // CANCELA a geração atual do QR Code e reinicia o baileys (loop infinito).
         try {
-            const response = await axios.get(
-                `${apiUrl}/instance/connect/${instance}`,
+            // A. Tenta ler o state atual sem interromper
+            const stateRes = await axios.get(
+                `${apiUrl}/instance/connectionState/${instance}`,
                 { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
             );
-            this.logger.debug(`getQRCode /connect response: ${JSON.stringify(response.data).slice(0, 300)}`);
-            const qr = this.extractQR(response.data);
-            if (qr) {
-                this.logger.debug('QR obtained from /instance/connect');
-                return { qrcode: qr, status: 'ok' };
-            }
-            // {"count":0} or state=open means already connected
-            const state = response.data?.instance?.state || response.data?.state;
-            if (state === 'open') return { status: 'connected' };
-        } catch (e) {
-            this.logger.debug(`/connect failed: ${e.message}`);
-        }
+            
+            this.logger.debug(`getQRCode /connectionState response: ${JSON.stringify(stateRes.data).slice(0, 300)}`);
+            
+            const stateStr = stateRes.data?.instance?.state;
+            
+            // Se jǜ estiver aberto, nem pede QR
+            if (stateStr === 'open') return { status: 'connected' };
 
-        // B. If /connect gave no QR, check actual connection state
-        const open = await this.isInstanceOpen(apiUrl, apiKey, instance);
-        if (open) return { status: 'connected' };
-
-        // B. Fallback: /fetchInstances
-        try {
-            const fetchRes = await axios.get(
-                `${apiUrl}/instance/fetchInstances`,
-                { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true, params: { instanceName: instance } },
-            );
-            const instances = Array.isArray(fetchRes.data) ? fetchRes.data : [fetchRes.data];
-            const inst = instances.find((item: any) => item.instance?.instanceName === instance);
-            if (inst?.qrcode?.base64) {
-                return { qrcode: inst.qrcode.base64, status: 'ok' };
+            // Se a Evolution devolveu o QR Code no State (ocorre no V2)
+            if (stateRes.data?.instance?.qrcode?.base64) {
+                 return { qrcode: stateRes.data.instance.qrcode.base64, status: 'ok' };
             }
+
+            // Apenas aciona o gatilho "connect" se realmente estiver fechado, pra nǜo reiniciar atoa
+            if (stateStr === 'close' || stateRes.status === 404) {
+                 const connectRes = await axios.get(
+                     `${apiUrl}/instance/connect/${instance}`,
+                     { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
+                 );
+                 const qr = this.extractQR(connectRes.data);
+                 if (qr) return { qrcode: qr, status: 'ok' };
+            }
+
         } catch (e) {
-            this.logger.debug(`/fetchInstances failed: ${e.message}`);
+            this.logger.debug(`Failed to safely fetch QR code: ${e?.message}`);
         }
 
         return { status: 'waiting' };
