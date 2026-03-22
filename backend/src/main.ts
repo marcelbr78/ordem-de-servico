@@ -24,7 +24,7 @@ async function bootstrap() {
                 username: process.env.DB_USERNAME,
                 password: process.env.DB_PASSWORD,
                 database: process.env.DB_DATABASE,
-                ssl: { rejectUnauthorized: false },
+                ssl: process.env.DB_SSL === 'false' || process.env.DB_HOST === 'postgres' ? false : { rejectUnauthorized: false },
                 synchronize: false,
                 entities: [],
             });

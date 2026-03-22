@@ -105,7 +105,7 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
                         migrations: ['dist/migrations/*.js'],
                         migrationsRun: true,
                         dropSchema: false,
-                        ssl: configService.get<string>('DB_HOST') === 'localhost' ? false : { rejectUnauthorized: false },
+                        ssl: configService.get<string>('DB_SSL') === 'false' ? false : (configService.get<string>('DB_HOST') === 'localhost' || configService.get<string>('DB_HOST') === 'postgres' ? false : { rejectUnauthorized: false }),
                         extra: { max: 3, connectionTimeoutMillis: 10000 },
                     };
                 }
