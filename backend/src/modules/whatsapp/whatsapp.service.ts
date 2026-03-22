@@ -64,8 +64,8 @@ export class WhatsappService {
             const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
             const storeSlug = tenant?.storeName
                 ? tenant.storeName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 30)
-                : '';
-            instance = tenant?.subdomain || storeSlug || `os4u-${tenantId.slice(0, 8)}`;
+                : 'store';
+            instance = tenant?.subdomain ? `os4u_${tenant.subdomain}` : `${storeSlug}_${tenantId.slice(0, 8)}`;
         }
         return { apiUrl, apiKey, instance };
     }
@@ -281,6 +281,21 @@ export class WhatsappService {
         }
     }
 
+    /** Hard deletes an instance from Evolution to prevent ghost instances */
+    private async hardDeleteInstance(apiUrl: string, apiKey: string, instanceName: string): Promise<void> {
+        try {
+            await axios.delete(`${apiUrl}/instance/logout/${instanceName}`, { 
+                headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true 
+            });
+            await axios.delete(`${apiUrl}/instance/delete/${instanceName}`, { 
+                headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true 
+            });
+            this.logger.log(`Force deleted instance ${instanceName}`);
+        } catch (e) {
+            this.logger.debug(`Failed to hard delete instance ${instanceName}: ${e.message}`);
+        }
+    }
+
     async createInstance(tenantId?: string): Promise<{ success: boolean; qrcode?: string; alreadyConnected?: boolean; error?: string }> {
         const { apiUrl, apiKey, instance: instanceName } = await this.getConfig(tenantId);
 
@@ -330,36 +345,47 @@ export class WhatsappService {
             return { success: false, error: error.message };
         }
 
-        // Nome vem do subdomain do tenant — não precisa salvar nas settings
-
         // QR veio direto do create — retorna imediatamente
         if (qrFromCreate) {
             return { success: true, qrcode: qrFromCreate };
         }
 
-        // Instância já existia: verifica se está conectada ou precisa de novo QR
+        // Instância já existia: verifica se está conectada
         if (alreadyInUse) {
             const open = await this.isInstanceOpen(apiUrl, apiKey, instanceName);
             if (open) {
                 this.logger.log(`Instance ${instanceName} is already connected (open)`);
                 return { success: true, alreadyConnected: true };
+            } else {
+                // Se não está aberta mas já existe, ela provavelmente travou no estado "connecting".
+                // Deleta a instância na força bruta e cria uma limpa pra forçar o novo QR Code.
+                this.logger.warn(`Instance ${instanceName} stuck or closed. Hard resetting it to get a fresh QR!`);
+                await this.hardDeleteInstance(apiUrl, apiKey, instanceName);
+                
+                // Tenta recriar do zero!
+                try {
+                    const retryRes = await axios.post(
+                        `${apiUrl}/instance/create`,
+                        { instanceName, integration: 'WHATSAPP-BAILEYS', qrcode: true },
+                        { headers: { apikey: apiKey, 'Content-Type': 'application/json' }, timeout: 20000 }
+                    );
+                    const freshQr = this.extractQR(retryRes.data);
+                    if (freshQr) return { success: true, qrcode: freshQr };
+                    
+                    // Se a API V2 não devolver na mesma hora, pedimos no Connect
+                    const connectRes = await axios.get(
+                        `${apiUrl}/instance/connect/${instanceName}`,
+                        { headers: { apikey: apiKey }, timeout: 12000, validateStatus: () => true },
+                    );
+                    const finalQr = this.extractQR(connectRes.data);
+                    if (finalQr) return { success: true, qrcode: finalQr };
+                } catch (retryErr) {
+                    this.logger.error(`Retry force create failed: ${retryErr.message}`);
+                }
             }
         }
 
-        // Não conectada e sem QR no create — tenta /instance/connect
-        try {
-            const connectRes = await axios.get(
-                `${apiUrl}/instance/connect/${instanceName}`,
-                { headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true },
-            );
-            this.logger.log(`/instance/connect response: ${JSON.stringify(connectRes.data).slice(0, 300)}`);
-            const qr = this.extractQR(connectRes.data);
-            if (qr) return { success: true, qrcode: qr };
-        } catch (e) {
-            this.logger.debug(`/instance/connect failed: ${e.message}`);
-        }
-
-        // Frontend vai fazer polling de GET /whatsapp/qrcode
+        // Frontend vai fazer polling de GET /whatsapp/qrcode se demorar
         return { success: true };
     }
 
@@ -470,16 +496,23 @@ export class WhatsappService {
         }
 
         try {
+            // First logout
             await axios.delete(
                 `${apiUrl}/instance/logout/${instance}`,
-                { headers: { apikey: apiKey }, timeout: API_TIMEOUT },
+                { headers: { apikey: apiKey }, timeout: API_TIMEOUT, validateStatus: () => true },
             );
-            this.logger.log(`Instance ${instance} logged out`);
+            // Then fully delete the instance to prevent ghost instances accumulating
+            await axios.delete(
+                `${apiUrl}/instance/delete/${instance}`,
+                { headers: { apikey: apiKey }, timeout: API_TIMEOUT, validateStatus: () => true },
+            );
+            
+            this.logger.log(`Instance ${instance} logged out and hard DELETED`);
             // Limpa timestamp de conexão para mostrar corretamente na próxima conexão
             await this.settingsService.delete('whatsapp_connected_at', tenantId).catch(() => {});
             return { success: true };
         } catch (error) {
-            this.logger.error(`Failed to logout instance: ${error.message}`);
+            this.logger.error(`Failed to logout/delete instance: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
