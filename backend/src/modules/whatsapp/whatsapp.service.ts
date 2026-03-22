@@ -362,6 +362,9 @@ export class WhatsappService {
                 this.logger.warn(`Instance ${instanceName} stuck or closed. Hard resetting it to get a fresh QR!`);
                 await this.hardDeleteInstance(apiUrl, apiKey, instanceName);
                 
+                // Aguarda 2 segundos para a Evolution API limpar do banco interno dela
+                await new Promise(r => setTimeout(r, 2000));
+                
                 // Tenta recriar do zero!
                 try {
                     const retryRes = await axios.post(
