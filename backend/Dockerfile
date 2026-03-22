@@ -28,10 +28,10 @@ COPY --from=builder /app/dist ./dist
 # Certificado fiscal (será montado via volume em produção)
 RUN mkdir -p /app/certs
 
-# Criar usuário não-root
+# Criar usuário não-root e dar permissão de escrita para logs
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
 USER appuser
-
 EXPOSE 3005
 
 CMD ["node", "dist/src/main"]
