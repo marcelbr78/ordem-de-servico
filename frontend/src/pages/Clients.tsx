@@ -153,26 +153,8 @@ export function Clients() {
     const [showFilters, setShowFilters]   = useState(false);
 
     const loadSuggestions = useCallback(async (query: string) => {
-        // This function seems misplaced or incomplete based on the original context.
-        // Assuming it was intended for a search/autocomplete feature for orders,
-        // but the current implementation is trying to load a single order by ID.
-        // For now, I'll keep the original logic as it was provided in the diff,
-        // but it might need further adjustment depending on its intended use.
-        try {
-            // The original code had `id` here, which is not defined in this scope.
-            // This part of the diff seems to be a copy-paste error from another context.
-            // To make it syntactically correct and avoid a TS error, I'll comment it out
-            // or replace with a placeholder if the intent was different.
-            // For now, I'll make it a no-op or a placeholder for suggestions.
-            // const res = await api.get(`/orders/${id}`); // `id` is undefined here
-            // setViewingOs(res.data);
-            console.log("Loading suggestions for:", query);
-            setSuggestions([]); // Placeholder
-        } catch (e) {
-            // alert('Erro ao carregar OS'); // This alert is also likely from a different context
-            console.error("Error loading suggestions:", e);
-        }
-    }, []); // Dependencies might be missing if this function is meant to be fully functional.
+        setSuggestions([]); 
+    }, []);
 
     const handleViewOs = async (id: string) => {
         try {

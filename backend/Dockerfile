@@ -31,7 +31,7 @@ RUN mkdir -p /app/certs
 # Criar usuário não-root e dar permissão de escrita para logs
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /app
-USER appuser
+# USER appuser
 EXPOSE 3005
 
 CMD ["node", "dist/src/main"]
