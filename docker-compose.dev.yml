@@ -1,18 +1,27 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  OS4U — Docker Compose DEV (ambiente de testes)             ║
+# ║  Uso: docker compose -f docker-compose.dev.yml up -d        ║
+# ║  Frontend DEV: http://SEU_IP:8081                           ║
+# ║  Backend DEV:  http://SEU_IP:3006                           ║
+# ║                                                              ║
+# ║  ATENÇÃO: usa banco separado (assistencia_dev)              ║
+# ║  Produção (porta 80/3005) NÃO é afetada.                   ║
+# ╚══════════════════════════════════════════════════════════════╝
+
 version: '3.9'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: os4u_dev_postgres
+
+  postgres_dev:
+    image: postgres:16-alpine
+    container_name: os4u_postgres_dev
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USERNAME:-os4u}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD}
-      POSTGRES_DB: ${DB_DATABASE:-assistencia_db}
+      POSTGRES_USER: os4u
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-os4u_loja_123}
+      POSTGRES_DB: assistencia_dev
     volumes:
-      - os4u_dev_postgres_data:/var/lib/postgresql/data
-    ports:
-      - '127.0.0.1:5433:5432'
+      - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U os4u']
       interval: 10s
@@ -21,66 +30,61 @@ services:
     networks:
       - os4u_dev_net
 
-  backend:
+  backend_dev:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: os4u_dev_backend
+    container_name: os4u_backend_dev
     restart: unless-stopped
     depends_on:
-      postgres:
+      postgres_dev:
         condition: service_healthy
     ports:
-      - '127.0.0.1:3006:3005'
+      - '3006:3005'
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3005
-      DB_HOST: postgres
+      DB_HOST: postgres_dev
       DB_PORT: 5432
-      DB_USERNAME: ${DB_USERNAME:-os4u}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_DATABASE: ${DB_DATABASE:-assistencia_db}
-      JWT_SECRET: ${JWT_SECRET}
+      DB_USERNAME: os4u
+      DB_PASSWORD: ${DB_PASSWORD:-os4u_loja_123}
+      DB_DATABASE: assistencia_dev
+      JWT_SECRET: ${JWT_SECRET:-TROQUE_ISSO_ANTES_DE_USAR}
       JWT_EXPIRES_IN: 7d
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      EVOLUTION_API_URL: ${EVOLUTION_API_URL}
-      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_INSTANCE_ID: ${EVOLUTION_INSTANCE_ID:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     volumes:
-      - os4u_dev_backend_logs:/app/logs
+      - ./certs:/app/certs:ro
     networks:
       - os4u_dev_net
 
-  frontend:
+  frontend_dev:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # VITE_API_URL vazio = rota local pelo nginx na raiz
-        VITE_API_URL: /api
-    container_name: os4u_dev_frontend
+        VITE_API_URL: ${VITE_API_URL_DEV:-http://localhost:3006}
+    container_name: os4u_frontend_dev
     restart: unless-stopped
     depends_on:
-      - backend
-    networks:
-      - os4u_dev_net
-
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: os4u_dev_nginx
-    restart: unless-stopped
-    depends_on:
-      - frontend
-      - backend
+      - backend_dev
     ports:
-      - '81:80'
-    volumes:
-      - ./nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - '8081:80'
     networks:
       - os4u_dev_net
 
 volumes:
-  os4u_dev_postgres_data:
-  os4u_dev_backend_logs:
+  postgres_dev_data:
 
 networks:
   os4u_dev_net:
