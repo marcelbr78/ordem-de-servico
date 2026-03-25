@@ -35,24 +35,27 @@ export class WhatsAppEventListener implements OnModuleInit {
     }
 
     // ── Helpers ───────────────────────────────────────────────
-    private async getClientPhone(orderId: string): Promise<string | null> {
+    private async getClientPhone(orderId: string): Promise<{ phone: string | null; tenantId: string | undefined }> {
         try {
             const order = await this.ordersRepo.findOne({
                 where: { id: orderId },
                 relations: ['client'],
             });
-            if (!order) return null;
+            if (!order) return { phone: null, tenantId: undefined };
+            const tenantId: string | undefined = (order as any).tenantId || undefined;
             const client = (order as any).client;
             // Prioridade: contato principal WhatsApp > qualquer contato
             const contacts = client?.contatos || [];
-            const wa = contacts.find((c: any) => c.tipo === 'whatsapp' && c.principal)
-                || contacts.find((c: any) => c.tipo === 'whatsapp')
-                || contacts.find((c: any) => c.principal)
-                || contacts[0];
-            return wa?.numero || client?.email || null;
+            const wa = contacts.find((c: any) => c.tipo === 'whatsapp' && c.principal && c.numero)
+                || contacts.find((c: any) => c.tipo === 'whatsapp' && c.numero)
+                || contacts.find((c: any) => c.principal && c.numero)
+                || contacts.find((c: any) => c.numero);
+            // Usar somente número de telefone — nunca email
+            const phone = wa?.numero || null;
+            return { phone, tenantId };
         } catch (err) {
             this.logger.warn(`Erro ao buscar telefone do cliente (OS ${orderId}): ${err.message}`);
-            return null;
+            return { phone: null, tenantId: undefined };
         }
     }
 
@@ -76,7 +79,7 @@ export class WhatsAppEventListener implements OnModuleInit {
         this.logger.log(`[WA] OS criada: ${payload.protocol}`);
         try {
             if (!await this.isWhatsappEnabled()) return;
-            const phone = await this.getClientPhone(payload.orderId);
+            const { phone, tenantId } = await this.getClientPhone(payload.orderId);
             if (!phone) { this.logger.warn(`[WA] Sem telefone para OS ${payload.protocol}`); return; }
 
             const order = await this.ordersRepo.findOne({
@@ -87,7 +90,7 @@ export class WhatsAppEventListener implements OnModuleInit {
             const equipment = eq ? `${eq.brand} ${eq.model}` : 'equipamento';
             const statusUrl = await this.getStatusUrl(payload.protocol);
 
-            await this.whatsappService.sendOSCreated(phone, payload.protocol, equipment, statusUrl);
+            await this.whatsappService.sendOSCreated(phone, payload.protocol, equipment, statusUrl, tenantId);
             this.logger.log(`[WA] Notificação de abertura enviada para OS ${payload.protocol}`);
         } catch (err) {
             this.logger.error(`[WA] Erro ao notificar criação OS ${payload.protocol}: ${err.message}`);
@@ -102,29 +105,34 @@ export class WhatsAppEventListener implements OnModuleInit {
 
         try {
             if (!await this.isWhatsappEnabled()) return;
-            const phone = await this.getClientPhone(payload.orderId);
+            const { phone, tenantId } = await this.getClientPhone(payload.orderId);
             if (!phone) return;
 
             const statusUrl = await this.getStatusUrl(payload.protocol);
             const companyName = await this.settingsService.findByKey('company_name') || 'Assistência Técnica';
 
+            const commentPart = payload.comments?.trim() ? `\n\n💬 *Obs:* ${payload.comments.trim()}` : '';
+
             let msg = `${cfg.emoji} *${cfg.label}*\n\n`;
             msg += `Olá! Sua OS *#${payload.protocol}* foi atualizada.\n\n`;
             msg += `${cfg.detail}`;
+            msg += commentPart;
             if (statusUrl) msg += `\n\n🔗 *Acompanhe:* ${statusUrl}`;
             msg += `\n\n_${companyName}_`;
 
             // Para orçamento: usar botão interativo se disponível
             if (payload.newStatus === 'aguardando_aprovacao' && statusUrl) {
+                const budgetDesc = `OS *#${payload.protocol}* — ${cfg.detail}${commentPart}`;
                 await this.whatsappService.sendButtons(
                     phone,
                     `${cfg.emoji} Orçamento Disponível`,
-                    `OS *#${payload.protocol}* — ${cfg.detail}`,
+                    budgetDesc,
                     [{ type: 'url', displayText: '📋 Ver Orçamento', url: statusUrl }],
                     companyName,
+                    tenantId,
                 );
             } else {
-                await this.whatsappService.sendMessage(phone, msg);
+                await this.whatsappService.sendMessage(phone, msg, tenantId);
             }
 
             this.logger.log(`[WA] Notificação de status enviada: ${payload.protocol} → ${payload.newStatus}`);

@@ -242,7 +242,7 @@ export class OrdersService {
                     orderId: order.id,
                     paymentMethod: dto.paymentMethod || 'A definir',
                     bankAccountId: dto.bankAccountId,
-                }, queryRunner.manager);
+                }, order.tenantId, queryRunner.manager);
             }
 
             if (dto.status === OSStatus.CANCELADA) {
@@ -284,6 +284,28 @@ export class OrdersService {
         } finally {
             await queryRunner.release();
         }
+    }
+
+    async recordPublicAccess(orderId: string): Promise<void> {
+        try {
+            const order = await this.ordersRepository.findOne({ where: { id: orderId } });
+            if (!order) return;
+            // Skip if last access record was within the last 30 minutes (avoid spam)
+            const recent = await this.historyRepository.findOne({
+                where: { orderId, actionType: HistoryActionType.SYSTEM, comments: '👁️ Cliente visualizou o link público' },
+                order: { createdAt: 'DESC' },
+            });
+            if (recent) {
+                const minutesAgo = (Date.now() - new Date(recent.createdAt).getTime()) / 60000;
+                if (minutesAgo < 30) return;
+            }
+            await this.historyRepository.insert({
+                orderId,
+                tenantId: (order as any).tenantId,
+                actionType: HistoryActionType.SYSTEM,
+                comments: '👁️ Cliente visualizou o link público',
+            });
+        } catch { /* silent — não bloquear a resposta */ }
     }
 
     async update(id: string, dto: UpdateOrderServiceDto): Promise<OrderService> {

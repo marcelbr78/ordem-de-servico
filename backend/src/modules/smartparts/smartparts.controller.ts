@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, Param, BadRequestException, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, BadRequestException, Logger, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { SmartPartsService } from './smartparts.service';
 import { SuppliersService } from './suppliers.service';
 
@@ -40,14 +41,15 @@ export class SmartPartsController {
     }
 
     @Post('quotes/start')
-    async startQuote(@Body() body: { orderId: string; productName: string }) {
+    async startQuote(@Body() body: { orderId: string; productName: string; supplierIds?: string[]; message?: string }, @Req() req: Request) {
         if (!body.orderId || !body.productName) throw new BadRequestException('Dados incompletos');
-        return this.smartPartsService.startQuote(body.orderId, body.productName);
+        const tenantId: string | undefined = (req as any).tenantId || (req as any).user?.tenantId;
+        return this.smartPartsService.startQuote(body.orderId, body.productName, body.supplierIds, body.message, tenantId);
     }
 
     @Get('quotes/order/:orderId')
-    async getQuoteByOrder(@Param('orderId') orderId: string) {
-        return this.smartPartsService.getQuoteByOrder(orderId);
+    async getQuotesByOrder(@Param('orderId') orderId: string) {
+        return this.smartPartsService.getQuotesByOrder(orderId);
     }
 
     @Get('quotes/:quoteId/responses')
@@ -59,11 +61,13 @@ export class SmartPartsController {
     async approveQuote(
         @Param('quoteId') quoteId: string,
         @Param('supplierId') supplierId: string,
-        @Body() details: { price: number, description: string }
+        @Body() details: { price: number, description: string, approvalMessage?: string },
+        @Req() req: Request,
     ) {
         this.logger.log(`approveQuote called for ${quoteId} supplier ${supplierId} body: ${JSON.stringify(details)}`);
+        const tenantId: string | undefined = (req as any).tenantId || (req as any).user?.tenantId;
         try {
-            return await this.smartPartsService.approveQuote(quoteId, supplierId, details);
+            return await this.smartPartsService.approveQuote(quoteId, supplierId, details, tenantId);
         } catch (error) {
             this.logger.error(`Error approving quote: ${error.message}`, error.stack);
             throw error;

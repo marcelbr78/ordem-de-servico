@@ -50,6 +50,7 @@ const LINK_GROUPS = [
             { name: 'Relatórios',          path: '/reports',     icon: BarChart2 },
             { name: 'Diagnóstico de Placa', path: '/diagnostico', icon: Cpu },
             { name: 'App Store',           path: '/marketplace', icon: Blocks },
+            { name: 'Auditoria',           path: '/audit',       icon: ScrollText },
         ],
     },
 ];
@@ -57,7 +58,6 @@ const LINK_GROUPS = [
 const BOTTOM_LINKS = [
     { name: 'Notas Fiscais', path: '/fiscal', icon: Receipt },
     { name: 'Configurações', path: '/settings', icon: Settings },
-    { name: 'Auditoria', path: '/audit', icon: ScrollText },
 ];
 
 const SAAS_LINKS = [
@@ -168,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, isDesktop, collapsed, 
                                 OS4U
                             </span>
                             <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px', marginTop: '2px' }}>
-                                v1.1.2
+                                v1.1.3
                             </span>
                         </div>
                     )}

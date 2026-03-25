@@ -79,12 +79,13 @@ export class CommissionsService {
     // ── Listar comissões com filtros ──────────────────────────
     async findAll(filters?: {
         technicianId?: string; period?: string; status?: string;
-        from?: string; to?: string;
+        from?: string; to?: string; tenantId?: string;
     }): Promise<Commission[]> {
         const qb = this.commRepo.createQueryBuilder('c')
             .leftJoinAndSelect('c.technician', 'tech')
             .orderBy('c.createdAt', 'DESC');
 
+        if (filters?.tenantId)     qb.andWhere('c.tenantId = :tenantId', { tenantId: filters.tenantId });
         if (filters?.technicianId) qb.andWhere('c.technicianId = :tid', { tid: filters.technicianId });
         if (filters?.period)       qb.andWhere('c.paymentPeriod = :period', { period: filters.period });
         if (filters?.status)       qb.andWhere('c.status = :status', { status: filters.status });
@@ -95,18 +96,19 @@ export class CommissionsService {
     }
 
     // ── Summary por técnico ───────────────────────────────────
-    async getSummaryByTechnician(period?: string): Promise<Array<{
+    async getSummaryByTechnician(period?: string, tenantId?: string): Promise<Array<{
         technicianId: string; technicianName: string;
         totalOS: number; totalBase: number; totalCommission: number;
         pendingCount: number; paidCount: number;
     }>> {
-        const technicians = await this.userRepo.find({
-            where: { role: UserRole.TECHNICIAN, isActive: true },
-        });
+        const techWhere: any = { role: UserRole.TECHNICIAN, isActive: true };
+        if (tenantId) techWhere.tenantId = tenantId;
+        const technicians = await this.userRepo.find({ where: techWhere });
 
         const result = await Promise.all(technicians.map(async tech => {
             const qb = this.commRepo.createQueryBuilder('c')
                 .where('c.technicianId = :tid', { tid: tech.id });
+            if (tenantId) qb.andWhere('c.tenantId = :tenantId', { tenantId });
             if (period) qb.andWhere('c.paymentPeriod = :period', { period });
 
             const comms = await qb.getMany();
@@ -150,8 +152,8 @@ export class CommissionsService {
     }
 
     // ── Ranking de técnicos ───────────────────────────────────
-    async getRanking(period?: string) {
-        const summary = await this.getSummaryByTechnician(period);
+    async getRanking(period?: string, tenantId?: string) {
+        const summary = await this.getSummaryByTechnician(period, tenantId);
         return summary.sort((a, b) => b.totalOS - a.totalOS);
     }
 

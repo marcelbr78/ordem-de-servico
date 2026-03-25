@@ -744,28 +744,28 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             {(order.history && (order.client?.contatos || !order.client)) && (
                 <>
                     {/* Header */}
-                    <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'rgba(255,255,255,0.02)' }}>
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>{order.protocol}</h2>
+                    <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', gap: '8px' }}>
+                        <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'nowrap', overflow: 'hidden' }}>
+                                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#fff', fontFamily: 'monospace', whiteSpace: 'nowrap', flexShrink: 0 }}>{order.protocol}</h2>
 
                                 {/* ─── QUICK STATUS DROPDOWN ─── */}
-                                <div style={{ position: 'relative' }}>
+                                <div style={{ position: 'relative', flexShrink: 0 }}>
                                     <button
                                         onClick={() => nextStatuses.length > 0 && setShowStatusDropdown(!showStatusDropdown)}
                                         disabled={nextStatuses.length === 0}
                                         style={{
                                             display: 'flex', alignItems: 'center', gap: '6px',
-                                            padding: '5px 12px', borderRadius: '8px', fontSize: '12px',
+                                            padding: '4px 10px', borderRadius: '8px', fontSize: '11px',
                                             fontWeight: 700, border: `1px solid ${currentColor}40`,
                                             background: `${currentColor}15`, color: currentColor,
                                             cursor: nextStatuses.length > 0 ? 'pointer' : 'default',
-                                            textTransform: 'uppercase', letterSpacing: '0.5px',
-                                            transition: 'all 0.2s',
+                                            textTransform: 'uppercase', letterSpacing: '0.4px',
+                                            transition: 'all 0.2s', whiteSpace: 'nowrap',
                                         }}
                                     >
                                         <span>{STATUS_ICONS[order.status]} {getDynamicStatusLabel(order.status)}</span>
-                                        {nextStatuses.length > 0 && <ChevronDown size={14} />}
+                                        {nextStatuses.length > 0 && <ChevronDown size={12} />}
                                     </button>
 
                                     {showStatusDropdown && (
@@ -974,7 +974,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                     </div>
 
                     {/* Content */}
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '24px', paddingBottom: '80px', overscrollBehavior: 'contain' }}>
                         {activeTab === 'Orçamento 📝' && (
                         <QuoteTab order={order} />
                     )}
@@ -1363,7 +1363,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                             const symptom = order.reportedDefect || eq?.reportedDefect || '';
                             return (
                             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                                     <div>
                                         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#fff' }}>Laudo Técnico</h3>
                                         <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>Relatório detalhado do diagnóstico e solução aplicada.</p>
@@ -1376,11 +1376,11 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
                                             background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '13px',
                                             cursor: (savingReport || (technicalReport === order.technicalReport && observations === order.observations)) ? 'not-allowed' : 'pointer',
                                             opacity: (savingReport || (technicalReport === order.technicalReport && observations === order.observations)) ? 0.6 : 1,
-                                            display: 'flex', alignItems: 'center', gap: '8px'
+                                            display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap'
                                         }}
                                     >
                                         {savingReport ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                                        Salvar Laudo e Observações
+                                        Salvar
                                     </button>
                                 </div>
 

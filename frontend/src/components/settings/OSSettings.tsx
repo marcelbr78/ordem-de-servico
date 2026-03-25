@@ -214,7 +214,8 @@ export const OSSettings: React.FC<OSSettingsProps> = ({ initialJson, onSave }) =
                                     color: '#fff', fontSize: '14px', outline: 'none'
                                 }}
                             >
-                                <option value="imei.org">IMEI.org (Recomendado)</option>
+                                <option value="imeicheck">imeicheck.net (5 grátis/dia)</option>
+                                <option value="imei.org">IMEI.org</option>
                                 <option value="zylalabs">Zyla Labs</option>
                                 <option value="apiclub">APIclub.in</option>
                             </select>

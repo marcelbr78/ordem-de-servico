@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -21,7 +21,7 @@ import { OrdersModule } from '../orders/orders.module';
         WhatsappModule,
         InventoryModule,
         ScheduleModule.forRoot(),
-        OrdersModule,
+        forwardRef(() => OrdersModule),
     ],
     controllers: [SuppliersController, SmartPartsController],
     providers: [SuppliersService, SmartPartsService],

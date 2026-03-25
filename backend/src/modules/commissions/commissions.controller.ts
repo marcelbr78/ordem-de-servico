@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { CommissionsService } from './commissions.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -9,26 +9,27 @@ export class CommissionsController {
 
     // Lista com filtros
     @Get()
-    findAll(@Query() q: any) {
+    findAll(@Query() q: any, @Request() req) {
         return this.svc.findAll({
             technicianId: q.technicianId,
             period: q.period,
             status: q.status,
             from: q.from,
             to: q.to,
+            tenantId: req.user?.tenantId,
         });
     }
 
     // Summary por técnico
     @Get('summary')
-    getSummary(@Query('period') period?: string) {
-        return this.svc.getSummaryByTechnician(period);
+    getSummary(@Query('period') period: string, @Request() req) {
+        return this.svc.getSummaryByTechnician(period, req.user?.tenantId);
     }
 
     // Ranking de técnicos
     @Get('ranking')
-    getRanking(@Query('period') period?: string) {
-        return this.svc.getRanking(period);
+    getRanking(@Query('period') period: string, @Request() req) {
+        return this.svc.getRanking(period, req.user?.tenantId);
     }
 
     // Comissão de uma OS
@@ -39,8 +40,8 @@ export class CommissionsController {
 
     // Calcular manualmente para uma OS
     @Post('calculate/:orderId')
-    calculate(@Param('orderId') orderId: string) {
-        return this.svc.calculateForOrder(orderId);
+    calculate(@Param('orderId') orderId: string, @Request() req) {
+        return this.svc.calculateForOrder(orderId, req.user?.tenantId);
     }
 
     // Marcar IDs como pago

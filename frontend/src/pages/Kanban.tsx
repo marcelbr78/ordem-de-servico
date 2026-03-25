@@ -134,7 +134,15 @@ export const Kanban: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [dragTargetStatus, setDragTargetStatus] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState(COLUMNS[0].status);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const dragOrder = useRef<Order | null>(null);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     const load = async () => {
         setLoading(true);
@@ -199,33 +207,95 @@ export const Kanban: React.FC = () => {
             </div>
             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
-            {/* Dica mobile */}
-            <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: '10px', padding: '8px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                <AlertCircle size={13} color="rgba(59,130,246,0.6)" />
-                Arraste os cards entre as colunas para alterar o status da OS
-            </div>
+            {isMobile ? (
+                /* ── MOBILE: abas + coluna única ── */
+                <>
+                    {/* Abas de status — scroll horizontal */}
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', flexShrink: 0, paddingBottom: '4px' }}>
+                        <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content', paddingBottom: '2px' }}>
+                            {COLUMNS.map(col => {
+                                const count = ordersByStatus(col.status).length;
+                                const isActive = activeTab === col.status;
+                                return (
+                                    <button
+                                        key={col.status}
+                                        onClick={() => setActiveTab(col.status)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            padding: '8px 14px', borderRadius: '20px', border: 'none',
+                                            background: isActive ? `${col.color}22` : 'rgba(255,255,255,0.05)',
+                                            borderBottom: isActive ? `2px solid ${col.color}` : '2px solid transparent',
+                                            color: isActive ? col.color : 'rgba(255,255,255,0.45)',
+                                            fontSize: '13px', fontWeight: isActive ? 700 : 400,
+                                            cursor: 'pointer', whiteSpace: 'nowrap',
+                                            WebkitTapHighlightColor: 'transparent',
+                                            transition: 'all 0.15s',
+                                        }}
+                                    >
+                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: col.color, flexShrink: 0 }} />
+                                        {col.label}
+                                        <span style={{ fontSize: '11px', fontWeight: 800, background: isActive ? `${col.color}30` : 'rgba(255,255,255,0.08)', color: isActive ? col.color : 'rgba(255,255,255,0.35)', padding: '1px 6px', borderRadius: '10px' }}>
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
 
-            {/* Board — scroll horizontal */}
-            <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', paddingBottom: '16px' }}>
-                <div style={{ display: 'flex', gap: '12px', minWidth: 'max-content', height: '100%', alignItems: 'flex-start' }}>
-                    {COLUMNS.map(col => (
-                        <KanbanColumn
-                            key={col.status}
-                            column={col}
-                            orders={ordersByStatus(col.status)}
-                            onDragStart={handleDragStart}
-                            onDragOver={e => e.preventDefault()}
-                            onDrop={handleDrop}
-                            onCardClick={order => window.location.href = `/orders?open=${order.id}`}
-                        />
-                    ))}
-                </div>
-            </div>
+                    {/* Cards da coluna ativa */}
+                    <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                        {(() => {
+                            const col = COLUMNS.find(c => c.status === activeTab)!;
+                            const colOrders = ordersByStatus(activeTab);
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '8px' }}>
+                                    {colOrders.length === 0 ? (
+                                        <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '14px' }}>
+                                            Nenhuma OS em <strong style={{ color: col.color }}>{col.label}</strong>
+                                        </div>
+                                    ) : colOrders.map(order => (
+                                        <KanbanCard
+                                            key={order.id}
+                                            order={order}
+                                            onDragStart={handleDragStart}
+                                            onClick={order => window.location.href = `/orders?open=${order.id}`}
+                                        />
+                                    ))}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                </>
+            ) : (
+                /* ── DESKTOP: board horizontal com drag ── */
+                <>
+                    <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: '10px', padding: '8px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <AlertCircle size={13} color="rgba(59,130,246,0.6)" />
+                        Arraste os cards entre as colunas para alterar o status da OS
+                    </div>
+                    <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', paddingBottom: '16px' }}>
+                        <div style={{ display: 'flex', gap: '12px', minWidth: 'max-content', height: '100%', alignItems: 'flex-start' }}>
+                            {COLUMNS.map(col => (
+                                <KanbanColumn
+                                    key={col.status}
+                                    column={col}
+                                    orders={ordersByStatus(col.status)}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={e => e.preventDefault()}
+                                    onDrop={handleDrop}
+                                    onCardClick={order => window.location.href = `/orders?open=${order.id}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Modal de detalhes ao soltar arrastado */}
             {selectedOrder && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '12px' }} onClick={() => setSelectedOrder(null)}>
-                    <div className="modal-box-responsive" style={{ maxWidth: '1000px', maxHeight: '94dvh', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', width: '100%' }} onClick={e => e.stopPropagation()}>
+                    <div className="modal-box-responsive" style={{ maxWidth: '1000px', height: '92dvh', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', width: '100%' }} onClick={e => e.stopPropagation()}>
                         <OrderDetails
                             key={selectedOrder.id}
                             order={selectedOrder}

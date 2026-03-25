@@ -139,32 +139,33 @@ const PatternSVG = ({ pattern = '' }: { pattern?: string | number }) => {
 };
 
 const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: any, title?: string, compact?: boolean }) => (
-    <div style={{ ...s.headerBox, padding: compact ? '8px' : '15px', marginBottom: compact ? '4px' : '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <div style={{ ...s.headerBox, padding: '6px 10px', marginBottom: '4px', alignItems: 'flex-start' }}>
+        {/* Lado esquerdo — empresa */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
             {settings?.logoUrl && (
-                <img src={settings.logoUrl} alt="Logo" style={{ height: compact ? '40px' : '70px', maxWidth: '120px', objectFit: 'contain' }} />
+                <img src={settings.logoUrl} alt="Logo" style={{ height: '40px', maxWidth: '80px', objectFit: 'contain', flexShrink: 0 }} />
             )}
-            <div>
-                <h1 style={{ fontSize: compact ? '14px' : '18px', fontWeight: 'bold', margin: '0 0 2px 0', textTransform: 'uppercase' }}>
+            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                <h1 style={{ fontSize: '14px', fontWeight: 'bold', margin: '0 0 1px 0', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {settings?.print_use_fantasy_name === 'true'
                         ? (settings?.company_fantasy_name || settings?.company_name || settings?.storeName || settings?.companyName || 'NOME DA EMPRESA')
                         : (settings?.company_name || settings?.companyName || settings?.storeName || 'NOME DA EMPRESA')
                     }
                 </h1>
-                <div style={{ fontSize: compact ? '10px' : '12px', color: '#444', lineHeight: '1.2' }}>
-                    {settings?.print_show_address !== 'false' && (
-                        <div>
-                            {settings?.company_address_street}, {settings?.company_address_number}
+                <div style={{ fontSize: '9px', color: '#444', lineHeight: '1.3' }}>
+                    {settings?.print_show_address !== 'false' && (settings?.company_address_street) && (
+                        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {settings?.company_address_street}{settings?.company_address_number ? `, ${settings.company_address_number}` : ''}
                             {settings?.company_address_neighborhood ? ` - ${settings.company_address_neighborhood}` : ''}
                             {settings?.company_address_city ? ` - ${settings.company_address_city}/${settings.company_address_state}` : ''}
                         </div>
                     )}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                        {settings?.print_show_cnpj !== 'false' && (
-                            <>
-                                {settings?.company_cnpj && <span><strong>CNPJ:</strong> {settings.company_cnpj}</span>}
-                                {settings?.company_ie && <span><strong>IE:</strong> {settings.company_ie}</span>}
-                            </>
+                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', gap: '8px' }}>
+                        {settings?.print_show_cnpj !== 'false' && settings?.company_cnpj && (
+                            <span><strong>CNPJ:</strong> {settings.company_cnpj}</span>
+                        )}
+                        {settings?.print_show_cnpj !== 'false' && settings?.company_ie && (
+                            <span><strong>IE:</strong> {settings.company_ie}</span>
                         )}
                         {settings?.print_show_phone !== 'false' && settings?.company_phone && (
                             <span><strong>Tel:</strong> {settings.company_phone}</span>
@@ -177,17 +178,16 @@ const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: a
             </div>
         </div>
 
-        <div style={{ textAlign: 'right' }}>
-            <h2 style={{ fontSize: compact ? '16px' : '24px', fontWeight: '900', margin: '0 0 2px 0', color: '#111' }}>
+        {/* Lado direito — título OS */}
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '900', margin: '0 0 1px 0', color: '#111', whiteSpace: 'nowrap' }}>
                 {title || (settings?.print_header_text ? settings.print_header_text : "ORDEM DE SERVIÇO")}
             </h2>
-            <div style={{ fontSize: compact ? '12px' : '16px', fontWeight: 'bold', color: '#666', marginBottom: '2px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#444', marginBottom: '1px' }}>
                 Nº {order.protocol || order.id?.toString().padStart(6, '0')}
             </div>
-            <div style={{ fontSize: compact ? '9px' : '10px', fontWeight: 'bold' }}>
-                Entrada: {safeDate(order.entryDate)}
-            </div>
-            <div style={{ fontSize: compact ? '9px' : '10px', fontWeight: 'bold' }}>
+            <div style={{ fontSize: '9px', fontWeight: 'bold' }}>Entrada: {safeDate(order.entryDate)}</div>
+            <div style={{ fontSize: '9px', fontWeight: 'bold' }}>
                 Saída: {order.exitDate ? safeDateOnly(order.exitDate) : (['finalizada', 'entregue'].includes(order.status) ? safeDateOnly(order.updatedAt) : '-')}
             </div>
         </div>

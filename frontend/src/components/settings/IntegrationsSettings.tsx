@@ -96,16 +96,47 @@ export const IntegrationsSettings: React.FC<{ settings:Record<string,string>; on
             </Section>
 
             {/* IMEI API */}
-            <Section title="IMEI Check API" logo="📱" color="#3b82f6" keys={['integration_imei_provider','integration_imei_token']} link="https://imeicheck.net">
+            <Section title="IMEI Check API" logo="📱" color="#3b82f6" keys={['integration_imei_provider','integration_imei_token']} link="https://imeicheck.net/promo-api">
                 <div>
                     <label style={lbl}>Provedor</label>
                     <select value={get('integration_imei_provider')} onChange={e=>set('integration_imei_provider',e.target.value)} style={inp}>
-                        <option value="imeicheck">imeicheck.net</option>
-                        <option value="imeidb">imeidb.com</option>
-                        <option value="imei24">imei24.com</option>
+                        <option value="imeicheck">imeicheck.net (5 grátis/dia — Recomendado)</option>
+                        <option value="imei.org">IMEI.org</option>
+                        <option value="zylalabs">Zyla Labs</option>
                     </select>
                 </div>
-                <SecretInput label="Token da API" value={get('integration_imei_token')} onChange={v=>set('integration_imei_token',v)} placeholder="Seu token IMEI" />
+                <SecretInput label="Token da API" value={get('integration_imei_token')} onChange={v=>set('integration_imei_token',v)} placeholder="Cole seu token aqui" />
+                <div style={{ padding:'14px', background:'rgba(59,130,246,0.05)', border:'1px solid rgba(59,130,246,0.18)', borderRadius:'10px', fontSize:'12px', color:'rgba(255,255,255,0.55)', display:'flex', flexDirection:'column', gap:'10px' }}>
+                    <div style={{ fontWeight:700, color:'rgba(255,255,255,0.8)', fontSize:'12px', display:'flex', alignItems:'center', gap:'6px' }}>
+                        <AlertCircle size={13} color="#60a5fa" style={{ flexShrink:0 }} />
+                        Como o sistema identifica o aparelho (3 camadas)
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
+                        <div style={{ padding:'8px 10px', background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.2)', borderRadius:'7px' }}>
+                            <div style={{ color:'#22c55e', fontWeight:700, fontSize:'11px', marginBottom:'2px' }}>🆓 Camada 1 — Banco local (ilimitado)</div>
+                            <div style={{ color:'rgba(255,255,255,0.4)', fontSize:'11px' }}>Aparelhos que já passaram pela loja são identificados instantaneamente, sem nenhuma API.</div>
+                        </div>
+                        <div style={{ padding:'8px 10px', background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.2)', borderRadius:'7px' }}>
+                            <div style={{ color:'#22c55e', fontWeight:700, fontSize:'11px', marginBottom:'2px' }}>🆓 Camada 2 — Gratuito automático (sem token)</div>
+                            <div style={{ color:'rgba(255,255,255,0.4)', fontSize:'11px' }}>
+                                • <strong style={{ color:'rgba(255,255,255,0.6)' }}>IMEI (15 dígitos)</strong>: consulta TAC gratuito via Osmocom DB — identifica marca + modelo de qualquer Android e iPhone.<br/>
+                                • <strong style={{ color:'rgba(255,255,255,0.6)' }}>Serial Apple (10-12 chars)</strong>: decoder local offline — identifica iPhone 4 até 12, iPad, MacBook, Apple Watch sem internet.
+                            </div>
+                        </div>
+                        <div style={{ padding:'8px 10px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:'7px' }}>
+                            <div style={{ color:'#60a5fa', fontWeight:700, fontSize:'11px', marginBottom:'2px' }}>💳 Camada 3 — API paga (token abaixo)</div>
+                            <div style={{ color:'rgba(255,255,255,0.4)', fontSize:'11px' }}>Só usada quando as camadas gratuitas não identificam (ex: iPhone 13+). Limite de <strong style={{ color:'rgba(255,255,255,0.6)' }}>5/dia</strong> no plano promo.</div>
+                        </div>
+                    </div>
+                    <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'8px' }}>
+                        <div style={{ fontWeight:600, color:'rgba(255,255,255,0.6)', fontSize:'11px', marginBottom:'4px' }}>Como obter o token (imeicheck.net)</div>
+                        <ol style={{ margin:0, paddingLeft:'16px', display:'flex', flexDirection:'column', gap:'3px', lineHeight:'1.6', color:'rgba(255,255,255,0.4)', fontSize:'11px' }}>
+                            <li>Acesse <a href="https://imeicheck.net/promo-api" target="_blank" rel="noopener noreferrer" style={{ color:'#60a5fa', textDecoration:'none' }}>imeicheck.net/promo-api</a> → clique em <strong style={{ color:'rgba(255,255,255,0.6)' }}>Get Free API Key</strong></li>
+                            <li>Crie uma conta gratuita (só e-mail e senha)</li>
+                            <li>Copie o token e cole no campo acima</li>
+                        </ol>
+                    </div>
+                </div>
             </Section>
 
             {/* ViaCEP */}

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, MoreThan } from 'typeorm';
+import { Repository, LessThan, MoreThan, DataSource } from 'typeorm';
 import { Quote, QuoteStatus } from './entities/quote.entity';
 import { QuoteResponse } from './entities/quote-response.entity';
 import { Supplier } from './entities/supplier.entity';
@@ -25,25 +25,25 @@ export class SmartPartsService {
         private inventoryService: InventoryService,
         private stockService: StockService,
         private conversationService: ConversationService,
+        private dataSource: DataSource,
     ) { }
 
-    async startQuote(orderId: string, productName: string): Promise<Quote> {
-        // Cancel any existing PENDING or EXPIRED quotes for this order so user can retry
-        const existingQuotes = await this.quoteRepository.find({
-            where: [
-                { orderId, status: QuoteStatus.PENDING },
-                { orderId, status: QuoteStatus.EXPIRED },
-            ],
-        });
-        for (const eq of existingQuotes) {
-            eq.status = QuoteStatus.CANCELLED;
-            await this.quoteRepository.save(eq);
-            this.logger.log(`Cancelled old quote ${eq.id} (was ${eq.status}) for order ${orderId}`);
+    async startQuote(orderId: string, productName: string, supplierIds?: string[], customMessage?: string, tenantId?: string): Promise<Quote> {
+        // Busca tenantId da ordem se não veio no request
+        if (!tenantId) {
+            const rows = await this.dataSource.query(
+                `SELECT "tenantId" FROM order_services WHERE id = $1 LIMIT 1`, [orderId]
+            ).catch(() => []);
+            if (rows.length) tenantId = rows[0].tenantId;
+            this.logger.log(`startQuote tenantId resolved from order: ${tenantId}`);
         }
 
-        const suppliers = await this.suppliersService.findActive();
+        let suppliers = await this.suppliersService.findActive();
+        if (supplierIds && supplierIds.length > 0) {
+            suppliers = suppliers.filter(s => supplierIds.includes(s.id));
+        }
         if (suppliers.length === 0) {
-            throw new Error('Nenhum fornecedor ativo encontrado.');
+            throw new Error('Nenhum fornecedor selecionado.');
         }
 
         const expiresAt = new Date();
@@ -71,9 +71,13 @@ export class SmartPartsService {
                     const refCode = `#REF${savedQuote.id.substring(0, 4).toUpperCase()}`;
                     this.logger.log(`Sending quote to ${supplier.name} at ${phone} (Ref: ${refCode})`);
 
-                    const msg = `Olá ${supplier.name}, tudo bem? 😊\n\nEstamos precisando de uma peça aqui na loja:\n\n*${productName}*\n\nVocê tem disponível? Qual seria o valor?\n\nObrigado! 🙏\n\n${refCode}`;
+                    // Usa mensagem personalizada se fornecida, substituindo [Fornecedor] pelo nome real
+                    const baseMsg = customMessage
+                        ? customMessage.replace(/\[Fornecedor\]/gi, supplier.name)
+                        : `Olá ${supplier.name}, tudo bem? 😊\n\nEstamos precisando de uma peça aqui na loja:\n\n*${productName}*\n\nVocê tem disponível? Qual seria o valor?\n\nObrigado! 🙏`;
+                    const msg = `${baseMsg}\n\n${refCode}`;
 
-                    await this.whatsappService.sendMessage(phone, msg);
+                    await this.whatsappService.sendMessage(phone, msg, tenantId || supplier.tenantId || undefined);
                     this.logger.log(`Quote sent to ${supplier.name}`);
                 } catch (e) {
                     this.logger.error(`Failed to send quote to ${supplier.name}: ${e.message}`);
@@ -84,9 +88,9 @@ export class SmartPartsService {
         return savedQuote;
     }
 
-    async handleIncomingMessage(phone: string, message: string): Promise<void> {
-        // 1. Clean phone number
-        const cleanPhone = phone.replace(/\D/g, '');
+    async handleIncomingMessage(remoteJidOrPhone: string, message: string, pushName?: string): Promise<void> {
+        // 1. Clean phone number (strips @s.whatsapp.net, @lid, etc.)
+        const cleanPhone = remoteJidOrPhone.replace(/\D/g, '');
 
         // Find supplier by matching last 8 digits (handles country code variations)
         const allSuppliers = await this.suppliersService.findAll();
@@ -96,18 +100,17 @@ export class SmartPartsService {
         });
 
         if (!supplier) {
-            // Pode ser mensagem de um CLIENTE respondendo ao sistema
-            // Tentar gravar na conversa da OS correspondente
+            // Não é fornecedor — tenta gravar como mensagem do cliente na OS
             try {
                 await this.conversationService.recordInbound({
-                    clientPhone: cleanPhone,
+                    remoteJid: remoteJidOrPhone.includes('@') ? remoteJidOrPhone : `${cleanPhone}@s.whatsapp.net`,
+                    pushName,
                     content: message,
                 });
                 this.logger.debug(`[Conversation] Mensagem inbound do cliente ${cleanPhone} gravada`);
             } catch (e) {
                 this.logger.debug(`[Conversation] Não foi possível associar ${cleanPhone} a uma OS`);
             }
-            this.logger.warn(`Message from unknown number (not supplier): ${phone}`);
             return;
         }
 
@@ -497,6 +500,14 @@ export class SmartPartsService {
         });
     }
 
+    async getQuotesByOrder(orderId: string) {
+        return this.quoteRepository.find({
+            where: { orderId },
+            order: { createdAt: 'DESC' },
+            relations: ['winner'],
+        });
+    }
+
     async getResponses(quoteId: string): Promise<QuoteResponse[]> {
         return this.responseRepository.find({
             where: { quoteId },
@@ -504,9 +515,17 @@ export class SmartPartsService {
         });
     }
 
-    async approveQuote(quoteId: string, supplierId: string, details?: { price: number, description: string }): Promise<Quote> {
+    async approveQuote(quoteId: string, supplierId: string, details?: { price: number, description: string, approvalMessage?: string }, tenantId?: string): Promise<Quote> {
         const quote = await this.quoteRepository.findOne({ where: { id: quoteId } });
         if (!quote) throw new Error('Cotação não encontrada');
+
+        // Busca tenantId da ordem se não veio no request
+        if (!tenantId) {
+            const rows = await this.dataSource.query(
+                `SELECT "tenantId" FROM order_services WHERE id = $1 LIMIT 1`, [quote.orderId]
+            ).catch(() => []);
+            if (rows.length) tenantId = rows[0].tenantId;
+        }
 
         const supplier = await this.suppliersService.findOne(supplierId);
         if (!supplier) throw new Error('Fornecedor não encontrado');
@@ -552,10 +571,11 @@ export class SmartPartsService {
         if (phone.length <= 11 && !phone.startsWith('55')) phone = '55' + phone;
 
         const priceText = finalPrice > 0 ? ` (R$ ${finalPrice.toFixed(2).replace('.', ',')})` : '';
-        const msg = `✅ *PEDIDO APROVADO!*\n\nOlá ${supplier.name}, pode confirmar o pedido da peça:\n\n*${finalDesc}*${priceText}\n\nQual o prazo de entrega? 📦\n\nMuito obrigado! 🙏`;
+        const msg = details?.approvalMessage?.trim()
+            || `✅ *PEDIDO APROVADO!*\n\nOlá ${supplier.name}, pode confirmar o pedido da peça:\n\n*${finalDesc}*${priceText}\n\nQual o prazo de entrega? 📦\n\nMuito obrigado! 🙏`;
 
         try {
-            await this.whatsappService.sendMessage(phone, msg);
+            await this.whatsappService.sendMessage(phone, msg, tenantId || supplier.tenantId || undefined);
             this.logger.log(`Approval message sent to ${supplier.name}`);
         } catch (e) {
             this.logger.error(`Failed to send approval msg to ${supplier.name}: ${e.message}`);

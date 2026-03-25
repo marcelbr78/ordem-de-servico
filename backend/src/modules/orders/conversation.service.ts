@@ -40,20 +40,25 @@ export class ConversationService {
 
     // ── Registrar mensagem recebida do cliente ────────────────
     async recordInbound(params: {
-        clientPhone: string;
+        remoteJid: string;   // JID completo: pode ser @s.whatsapp.net ou @lid
+        pushName?: string;   // Nome exibido no WhatsApp
         content: string;
         channel?: MessageChannel;
         externalId?: string;
     }): Promise<OrderConversation | null> {
-        // Encontrar OS ativa pelo telefone do cliente
-        const cleanPhone = params.clientPhone.replace(/\D/g, '');
-        const order = await this.findActiveOrderByPhone(cleanPhone);
+        // Evitar duplicatas pelo externalId
+        if (params.externalId) {
+            const exists = await this.convRepo.findOne({ where: { externalId: params.externalId } });
+            if (exists) return null;
+        }
 
+        const order = await this.findActiveOrder(params.remoteJid, params.pushName);
         if (!order) {
-            this.logger.debug(`[Conversation] Sem OS ativa para telefone ${cleanPhone}`);
+            this.logger.debug(`[Conversation] Sem OS ativa para JID ${params.remoteJid} / pushName ${params.pushName || '-'}`);
             return null;
         }
 
+        const cleanPhone = params.remoteJid.replace(/@\S+/g, '').replace(/\D/g, '');
         const msg = this.convRepo.create({
             orderId: order.id,
             tenantId: (order as any).tenantId,
@@ -61,7 +66,7 @@ export class ConversationService {
             channel: params.channel || MessageChannel.WHATSAPP,
             content: params.content,
             senderPhone: cleanPhone,
-            senderName: (order as any).client?.nome || cleanPhone,
+            senderName: (order as any).client?.nome || params.pushName || cleanPhone,
             externalId: params.externalId,
         });
 
@@ -70,36 +75,128 @@ export class ConversationService {
         return saved;
     }
 
-    // ── Buscar OS ativa pelo telefone do cliente ──────────────
-    private async findActiveOrderByPhone(cleanPhone: string): Promise<OS | null> {
-        // Buscar OS abertas/em andamento cujo cliente tem esse número
+    // ── Registrar mensagem manual enviada direto pelo WhatsApp ─
+    async recordManualOutbound(params: {
+        remoteJid: string;   // JID completo
+        pushName?: string;
+        content: string;
+        externalId?: string;
+        channel?: MessageChannel;
+    }): Promise<OrderConversation | null> {
+        // Evitar duplicatas
+        if (params.externalId) {
+            const exists = await this.convRepo.findOne({ where: { externalId: params.externalId } });
+            if (exists) return null;
+        }
+
+        const order = await this.findActiveOrder(params.remoteJid, params.pushName);
+        if (!order) return null;
+
+        const msg = this.convRepo.create({
+            orderId: order.id,
+            tenantId: (order as any).tenantId,
+            direction: MessageDirection.OUTBOUND,
+            channel: params.channel || MessageChannel.WHATSAPP,
+            content: params.content,
+            senderName: 'Loja (WhatsApp)',
+            externalId: params.externalId,
+            delivered: true,
+        });
+
+        const saved = await this.convRepo.save(msg);
+        this.logger.log(`[Conversation] Mensagem manual da loja gravada: OS ${order.id}`);
+        return saved;
+    }
+
+    // ── Buscar OS ativa pelo JID (suporta @s.whatsapp.net E @lid) ─
+    private async findActiveOrder(remoteJid: string, pushName?: string): Promise<OS | null> {
         const activeStatuses = [
             OSStatus.ABERTA, OSStatus.EM_DIAGNOSTICO, OSStatus.AGUARDANDO_APROVACAO,
-            OSStatus.AGUARDANDO_PECA, OSStatus.EM_REPARO, OSStatus.TESTES, OSStatus.FINALIZADA,
+            OSStatus.AGUARDANDO_PECA, OSStatus.EM_REPARO, OSStatus.TESTES,
+            OSStatus.FINALIZADA, OSStatus.ENTREGUE,
         ];
+        const isLid = remoteJid.includes('@lid');
+        const cleanId = remoteJid.replace(/@\S+/g, '').replace(/\D/g, '');
 
-        // Query via DataSource pois precisa cruzar clients e contacts
-        const rows = await this.dataSource.query(`
-            SELECT os.id, os."tenantId"
+        // ── 1. Busca por JID salvo (funciona para @lid e @s.whatsapp.net) ──
+        const byJid = await this.dataSource.query(`
+            SELECT os.id, cc.id as "contactId"
             FROM order_services os
             INNER JOIN clients c ON c.id = os."clientId"
-            INNER JOIN client_contacts cc ON cc."clientId" = c.id
+            INNER JOIN clientes_contatos cc ON cc."clienteId" = c.id
             WHERE os."deletedAt" IS NULL
               AND os.status = ANY($1)
-              AND (
-                REGEXP_REPLACE(cc.numero, '[^0-9]', '', 'g') LIKE $2
-                OR $3 LIKE '%' || REGEXP_REPLACE(cc.numero, '[^0-9]', '', 'g') || '%'
-              )
-            ORDER BY os."entryDate" DESC
-            LIMIT 1
-        `, [activeStatuses, `%${cleanPhone.slice(-8)}%`, cleanPhone]).catch(() => []);
+              AND cc."whatsappJid" = $2
+            ORDER BY os."entryDate" DESC LIMIT 1
+        `, [activeStatuses, remoteJid]).catch(() => []);
 
-        if (!rows.length) return null;
+        if (byJid.length) {
+            return this.orderRepo.findOne({ where: { id: byJid[0].id }, relations: ['client'] });
+        }
 
-        return this.orderRepo.findOne({
-            where: { id: rows[0].id },
-            relations: ['client'],
-        });
+        // ── 2. Busca por telefone (apenas para @s.whatsapp.net) ──────────
+        if (!isLid && cleanId.length >= 8) {
+            const byPhone = await this.dataSource.query(`
+                SELECT os.id, cc.id as "contactId"
+                FROM order_services os
+                INNER JOIN clients c ON c.id = os."clientId"
+                INNER JOIN clientes_contatos cc ON cc."clienteId" = c.id
+                WHERE os."deletedAt" IS NULL
+                  AND os.status = ANY($1)
+                  AND (
+                    REGEXP_REPLACE(cc.numero, '[^0-9]', '', 'g') LIKE $2
+                    OR $3 LIKE '%' || REGEXP_REPLACE(cc.numero, '[^0-9]', '', 'g') || '%'
+                  )
+                ORDER BY os."entryDate" DESC LIMIT 1
+            `, [activeStatuses, `%${cleanId.slice(-8)}%`, cleanId]).catch((err) => {
+                this.logger.error(`[Conversation] Erro query telefone: ${err?.message}`);
+                return [];
+            });
+
+            if (byPhone.length) {
+                await this.saveJid(byPhone[0].contactId, remoteJid);
+                return this.orderRepo.findOne({ where: { id: byPhone[0].id }, relations: ['client'] });
+            }
+        }
+
+        // ── 3. Busca por nome (fallback para @lid sem mapeamento ainda) ──
+        // Estratégia: verifica se o pushName do WhatsApp contém o primeiro ou segundo nome do cliente
+        // Ex: pushName="Infosend Apple (marcel)" e nome="Marcel souza" → match por "marcel"
+        if (pushName && pushName.trim().length >= 3) {
+            const byName = await this.dataSource.query(`
+                SELECT os.id, cc.id as "contactId"
+                FROM order_services os
+                INNER JOIN clients c ON c.id = os."clientId"
+                INNER JOIN clientes_contatos cc ON cc."clienteId" = c.id
+                WHERE os."deletedAt" IS NULL
+                  AND os.status = ANY($1)
+                  AND (
+                    $2 ILIKE '%' || split_part(c.nome, ' ', 1) || '%'
+                    OR $2 ILIKE '%' || split_part(c.nome, ' ', 2) || '%'
+                    OR c.nome ILIKE '%' || split_part($2, ' ', 1) || '%'
+                  )
+                ORDER BY os."entryDate" DESC LIMIT 1
+            `, [activeStatuses, pushName]).catch((err) => {
+                this.logger.error(`[Conversation] Erro query nome: ${err?.message}`);
+                return [];
+            });
+
+            if (byName.length) {
+                this.logger.log(`[Conversation] JID ${remoteJid} vinculado por pushName "${pushName}"`);
+                await this.saveJid(byName[0].contactId, remoteJid);
+                return this.orderRepo.findOne({ where: { id: byName[0].id }, relations: ['client'] });
+            }
+        }
+
+        return null;
+    }
+
+    // ── Salvar JID no contato para lookup futuro ──────────────
+    private async saveJid(contactId: string, jid: string): Promise<void> {
+        await this.dataSource.query(
+            `UPDATE clientes_contatos SET "whatsappJid" = $1 WHERE id = $2 AND ("whatsappJid" IS NULL OR "whatsappJid" != $1)`,
+            [jid, contactId],
+        ).catch(() => {}); // não crítico
     }
 
     // ── Listar conversa de uma OS ─────────────────────────────
@@ -126,7 +223,7 @@ export class ConversationService {
     // ── Migrar mensagens existentes do order_history ──────────
     async migrateFromHistory(orderId: string): Promise<void> {
         const existing = await this.convRepo.count({ where: { orderId } });
-        if (existing > 0) return; // já migrado
+        if (existing > 0) return;
 
         const rows = await this.dataSource.query(`
             SELECT * FROM order_history

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -52,7 +52,8 @@ export class WhatsappController {
 
     @Get('qrcode')
     async getQRCode(@Request() req) {
-        return this.whatsappService.getQRCode(req.user?.tenantId);
+        const instance = req.query?.instance;
+        return this.whatsappService.getQRCode(req.user?.tenantId, instance);
     }
 
     @Post('initialize')
@@ -79,5 +80,29 @@ export class WhatsappController {
     @Post('test')
     async sendTest(@Body() body: { number: string }, @Request() req) {
         return this.whatsappService.sendTestMessage(body.number, req.user?.tenantId);
+    }
+
+    /** Master admin: list all instances */
+    @Get('instances')
+    async listInstances() {
+        return this.whatsappService.listAllInstances();
+    }
+
+    /** Master admin: create named instance */
+    @Post('instance')
+    async createNamedInstance(@Body() body: { instanceName: string }) {
+        return this.whatsappService.createNamedInstance(body.instanceName);
+    }
+
+    /** Master admin: delete instance */
+    @Delete('instance/:name')
+    async deleteInstance(@Param('name') name: string) {
+        return this.whatsappService.deleteNamedInstance(name);
+    }
+
+    /** Configure webhook on existing instance */
+    @Post('instance/:name/webhook')
+    async configureWebhook(@Param('name') name: string) {
+        return this.whatsappService.configureWebhookForInstance(name);
     }
 }

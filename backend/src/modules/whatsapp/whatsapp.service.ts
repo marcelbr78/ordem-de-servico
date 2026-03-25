@@ -296,6 +296,31 @@ export class WhatsappService {
         }
     }
 
+    /** Configura webhook em instância existente (chamado manualmente via API) */
+    async configureWebhookForInstance(instanceName: string): Promise<{ success: boolean; message: string }> {
+        const apiUrl = this.configService.get<string>('EVOLUTION_API_URL') || 'https://evolution.os4u.com.br';
+        const apiKey = this.configService.get<string>('EVOLUTION_API_KEY') || 'bluetv_evolution_key_2026';
+        await this.configureWebhook(apiUrl, apiKey, instanceName);
+        const backendUrl = this.configService.get<string>('API_URL') || 'https://api.os4u.com.br';
+        return { success: true, message: `Webhook configurado: ${backendUrl}/orders/public/wa-webhook → ${instanceName}` };
+    }
+
+    /** Configura webhook na Evolution para capturar mensagens recebidas */
+    private async configureWebhook(apiUrl: string, apiKey: string, instanceName: string): Promise<void> {
+        const backendUrl = this.configService.get<string>('API_URL') || 'https://api.os4u.com.br';
+        const webhookUrl = `${backendUrl}/orders/public/wa-webhook`;
+        try {
+            await axios.post(
+                `${apiUrl}/webhook/set/${instanceName}`,
+                { url: webhookUrl, webhook_by_events: false, events: ['MESSAGES_UPSERT'] },
+                { headers: { apikey: apiKey, 'Content-Type': 'application/json' }, timeout: 10000, validateStatus: () => true },
+            );
+            this.logger.log(`Webhook configurado para ${instanceName} → ${webhookUrl}`);
+        } catch (e) {
+            this.logger.warn(`Falha ao configurar webhook para ${instanceName}: ${e.message}`);
+        }
+    }
+
     async createInstance(tenantId?: string): Promise<{ success: boolean; qrcode?: string; alreadyConnected?: boolean; error?: string }> {
         const { apiUrl, apiKey, instance: instanceName } = await this.getConfig(tenantId);
 
@@ -345,8 +370,9 @@ export class WhatsappService {
             return { success: false, error: error.message };
         }
 
-        // QR veio direto do create — retorna imediatamente
+        // QR veio direto do create — configura webhook e retorna
         if (qrFromCreate) {
+            this.configureWebhook(apiUrl, apiKey, instanceName).catch(() => {});
             return { success: true, qrcode: qrFromCreate };
         }
 
@@ -455,14 +481,15 @@ export class WhatsappService {
     }
 
     /** Get QR code — called repeatedly by the frontend every 2-3s after createInstance */
-    async getQRCode(tenantId?: string): Promise<{ qrcode?: string; status: string; pairingCode?: string }> {
-        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
+    async getQRCode(tenantId?: string, instanceOverride?: string): Promise<{ qrcode?: string; status: string; pairingCode?: string; base64?: string }> {
+        const { apiUrl, apiKey, instance: defaultInstance } = await this.getConfig(tenantId);
+        const instance = instanceOverride || defaultInstance;
 
         if (!apiUrl || !apiKey || !instance) {
             return { status: 'not_configured' };
         }
 
-        // Evolution API V2: Chamar /instance/connect enquanto a instância está no estado "connecting" 
+        // Evolution API V2: Chamar /instance/connect enquanto a instância está no estado "connecting"
         // CANCELA a geração atual do QR Code e reinicia o baileys (loop infinito).
         try {
             // A. Tenta ler o state atual sem interromper
@@ -548,6 +575,67 @@ export class WhatsappService {
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };
+        }
+    }
+
+    /** Master admin: list all instances from Evolution API */
+    async listAllInstances(): Promise<any[]> {
+        const { apiUrl, apiKey } = await this.getConfig();
+        if (!apiUrl || !apiKey) return [];
+        try {
+            const res = await axios.get(`${apiUrl}/instance/fetchInstances`, {
+                headers: { apikey: apiKey },
+                timeout: 15000,
+                validateStatus: () => true,
+            });
+            const raw = Array.isArray(res.data) ? res.data : [];
+            return raw.map((item: any) => ({
+                instanceName: item.instance?.instanceName || item.instanceName || 'unknown',
+                status: item.instance?.state || item.state || 'unknown',
+                ownerJid: item.instance?.ownerJid || item.ownerJid || '',
+                profileName: item.instance?.profileName || item.profileName || '',
+            }));
+        } catch (e) {
+            this.logger.error(`listAllInstances failed: ${e.message}`);
+            return [];
+        }
+    }
+
+    /** Master admin: create a named instance */
+    async createNamedInstance(instanceName: string): Promise<{ success: boolean; error?: string }> {
+        const { apiUrl, apiKey } = await this.getConfig();
+        if (!apiUrl || !apiKey) return { success: false, error: 'API não configurada' };
+        try {
+            const res = await axios.post(
+                `${apiUrl}/instance/create`,
+                { instanceName, integration: 'WHATSAPP-BAILEYS', qrcode: true },
+                { headers: { apikey: apiKey, 'Content-Type': 'application/json' }, timeout: 20000, validateStatus: () => true },
+            );
+            if (res.status >= 400) {
+                const msg = res.data?.message || res.data?.response?.message || `HTTP ${res.status}`;
+                return { success: false, error: Array.isArray(msg) ? msg.join(', ') : String(msg) };
+            }
+            this.configureWebhook(apiUrl, apiKey, instanceName).catch(() => {});
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    /** Master admin: delete a named instance */
+    async deleteNamedInstance(instanceName: string): Promise<{ success: boolean; error?: string }> {
+        const { apiUrl, apiKey } = await this.getConfig();
+        if (!apiUrl || !apiKey) return { success: false, error: 'API não configurada' };
+        try {
+            await axios.delete(`${apiUrl}/instance/logout/${instanceName}`, {
+                headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true,
+            });
+            await axios.delete(`${apiUrl}/instance/delete/${instanceName}`, {
+                headers: { apikey: apiKey }, timeout: 10000, validateStatus: () => true,
+            });
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
         }
     }
 }

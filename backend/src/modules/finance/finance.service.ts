@@ -12,12 +12,13 @@ export class FinanceService {
         private txRepo: Repository<Transaction>,
     ) {}
 
-    async create(dto: CreateTransactionDto, manager?: EntityManager): Promise<any> {
+    async create(dto: CreateTransactionDto, tenantId?: string, manager?: EntityManager): Promise<any> {
         const repo = manager ? manager.getRepository(Transaction) : this.txRepo;
         const status = (dto as any).status || ((dto as any).dueDate ? TransactionStatus.PENDING : TransactionStatus.PAID);
         const txData: any = {
             ...dto,
             status,
+            tenantId: tenantId || (dto as any).tenantId,
             competenceDate: (dto as any).competenceDate || (dto as any).paidDate || new Date().toISOString().slice(0, 10),
         };
         const tx = repo.create(txData);
@@ -49,17 +50,17 @@ export class FinanceService {
 
     async findAll(filters?: {
         from?: string; to?: string; type?: string; status?: string;
-        category?: string; search?: string;
+        category?: string; search?: string; tenantId?: string;
     }): Promise<any[]> {
         const qb = this.txRepo.createQueryBuilder('tx').orderBy('tx.createdAt', 'DESC');
 
+        if (filters?.tenantId) qb.andWhere('tx.tenantId = :tenantId', { tenantId: filters.tenantId });
         if (filters?.from)     qb.andWhere('tx.createdAt >= :from', { from: filters.from + 'T00:00:00' });
         if (filters?.to)       qb.andWhere('tx.createdAt <= :to',   { to: filters.to + 'T23:59:59' });
         if (filters?.type)     qb.andWhere('tx.type = :type',       { type: filters.type.toUpperCase() });
         if (filters?.category) qb.andWhere('tx.category = :cat',    { cat: filters.category });
-        if (filters?.search)   qb.andWhere('(tx.description LIKE :q OR tx.description LIKE :q)', { q: `%${filters.search}%` });
+        if (filters?.search)   qb.andWhere('tx.description LIKE :q', { q: `%${filters.search}%` });
 
-        // status e campos novos — tratados como any para compatibilidade
         if (filters?.status) {
             try { qb.andWhere('tx.status = :status', { status: filters.status }); } catch {}
         }
@@ -71,8 +72,8 @@ export class FinanceService {
         return this.txRepo.find({ where: { orderId }, order: { createdAt: 'DESC' } });
     }
 
-    async getSummary(from?: string, to?: string): Promise<any> {
-        const all: any[] = await this.findAll({ from, to });
+    async getSummary(from?: string, to?: string, tenantId?: string): Promise<any> {
+        const all: any[] = await this.findAll({ from, to, tenantId });
         const paid = all.filter((t: any) => !t.status || t.status === 'paid' || t.status === TransactionStatus.PAID);
 
         const totalIncome  = paid.filter((t: any) => t.type === TransactionType.INCOME || t.type === 'INCOME')
@@ -96,8 +97,9 @@ export class FinanceService {
         return { totalIncome, totalExpense, balance: totalIncome - totalExpense, aReceber, aPagar, vencidos, totalTransactions: all.length };
     }
 
-    async getDre(year: number): Promise<any[]> {
-        const all: any[] = await this.txRepo.find();
+    async getDre(year: number, tenantId?: string): Promise<any[]> {
+        const where: any = tenantId ? { tenantId } : {};
+        const all: any[] = await this.txRepo.find({ where });
         const months = Array.from({ length: 12 }, (_, i) => {
             const m = String(i + 1).padStart(2, '0');
             const txMonth = all.filter((t: any) => {
@@ -111,19 +113,21 @@ export class FinanceService {
         return months;
     }
 
-    async getUpcoming(days = 30): Promise<any[]> {
+    async getUpcoming(days = 30, tenantId?: string): Promise<any[]> {
         const limit = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
-        const all: any[] = await this.txRepo.find();
+        const where: any = tenantId ? { tenantId } : {};
+        const all: any[] = await this.txRepo.find({ where });
         return all.filter((t: any) =>
             (t.status === 'pending' || t.status === 'overdue') &&
             (!t.dueDate || t.dueDate <= limit)
         ).sort((a: any, b: any) => (a.dueDate || '').localeCompare(b.dueDate || ''));
     }
 
-    async getCashFlow(days = 30): Promise<any[]> {
+    async getCashFlow(days = 30, tenantId?: string): Promise<any[]> {
         const today = new Date();
         const result: any[] = [];
-        const paid: any[] = await this.txRepo.find();
+        const baseWhere: any = tenantId ? { tenantId } : {};
+        const paid: any[] = await this.txRepo.find({ where: baseWhere });
         let runningBalance = paid
             .filter((t: any) => !t.status || t.status === 'paid')
             .reduce((s: number, t: any) => s + (t.type === 'INCOME' ? +Number(t.amount) : -Number(t.amount)), 0);
@@ -132,7 +136,8 @@ export class FinanceService {
             const d = new Date(today);
             d.setDate(d.getDate() + i);
             const dateStr = d.toISOString().slice(0, 10);
-            const dayTxs: any[] = await this.txRepo.find({ where: { dueDate: dateStr } as any });
+            const dayWhere: any = { dueDate: dateStr, ...(tenantId ? { tenantId } : {}) };
+            const dayTxs: any[] = await this.txRepo.find({ where: dayWhere });
             const income  = dayTxs.filter((t: any) => t.type === 'INCOME') .reduce((s: number, t: any) => s + Number(t.amount), 0);
             const expense = dayTxs.filter((t: any) => t.type === 'EXPENSE').reduce((s: number, t: any) => s + Number(t.amount), 0);
             runningBalance += income - expense;
@@ -141,8 +146,8 @@ export class FinanceService {
         return result;
     }
 
-    async getByCategory(from?: string, to?: string): Promise<any[]> {
-        const all: any[] = await this.findAll({ from, to });
+    async getByCategory(from?: string, to?: string, tenantId?: string): Promise<any[]> {
+        const all: any[] = await this.findAll({ from, to, tenantId });
         const map: Record<string, { income: number; expense: number }> = {};
         for (const tx of all.filter((t: any) => !t.status || t.status === 'paid')) {
             if (!map[tx.category]) map[tx.category] = { income: 0, expense: 0 };

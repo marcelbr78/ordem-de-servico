@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
 import { LookupService } from './lookup.service';
@@ -23,6 +23,7 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { PlansService } from '../tenants/plans.service';
 import { Plan } from '../tenants/entities/plan.entity';
 import { ConversationService } from './conversation.service';
+import { SmartPartsModule } from '../smartparts/smartparts.module';
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { ConversationService } from './conversation.service';
         ]),
         WhatsappModule, ClientsModule, InventoryModule,
         CloudinaryModule, SettingsModule, FinanceModule, TenantsModule,
+        forwardRef(() => SmartPartsModule),
     ],
     controllers: [OrdersController, PublicOrdersController, OrderServiceItemsController],
     providers: [OrdersService, LookupService, OrderPdfService, PlansService, ConversationService],

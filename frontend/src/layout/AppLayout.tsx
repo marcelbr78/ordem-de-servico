@@ -94,8 +94,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     overflowY: 'auto',
                     overflowX: 'hidden',
                     padding: mainPadding,
-                    position: 'relative',
-                    zIndex: 1,
                     // Scroll suave no iOS
                     WebkitOverflowScrolling: 'touch',
                 }}>

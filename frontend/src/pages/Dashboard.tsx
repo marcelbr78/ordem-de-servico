@@ -155,7 +155,14 @@ export const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState(new Date());
     const [autoRefresh, setAutoRefresh] = useState(true);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const intervalRef = useRef<any>(null);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     const load = useCallback(async () => {
         try {
@@ -258,7 +265,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* ── LINHA 2: Funil + Gráfico 7 dias ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                 {/* Funil de status */}
                 <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -365,44 +372,72 @@ export const Dashboard: React.FC = () => {
                         Ver todas <ChevronRight size={13}/>
                     </button>
                 </div>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
-                        <thead>
-                            <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                {['Protocolo', 'Cliente', 'Equipamento', 'Status', 'Prioridade', 'Data'].map(h => (
-                                    <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {(s.recentOrders || []).length === 0 ? (
-                                <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>Nenhuma OS encontrada</td></tr>
-                            ) : (s.recentOrders || []).map((o, i) => (
-                                <tr key={o.id} onClick={() => navigate('/orders')} style={{ borderBottom: i < (s.recentOrders || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', transition: 'background 0.12s' }}
-                                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
-                                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                                    <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: '#60a5fa', fontWeight: 700 }}>#{o.protocol}</td>
-                                    <td style={{ padding: '10px 14px', fontSize: '13px', color: '#fff', fontWeight: 500, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.clientName}</td>
-                                    <td style={{ padding: '10px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Smartphone size={12} color="rgba(255,255,255,0.3)"/>
-                                            {o.equipmentBrand} {o.equipmentModel}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: '10px 14px' }}><StatusBadge status={o.status}/></td>
-                                    <td style={{ padding: '10px 14px' }}>
-                                        <span style={{ fontSize: '11px', color: PRIORITY_COLOR[o.priority] || '#94a3b8' }}>
-                                            {PRIORITY_LABEL[o.priority] || o.priority}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: '10px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
-                                        {new Date(o.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                    </td>
+                {isMobile ? (
+                    /* Cards no mobile */
+                    <div style={{ padding: '4px 0' }}>
+                        {(s.recentOrders || []).length === 0 ? (
+                            <div style={{ padding: '32px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>Nenhuma OS encontrada</div>
+                        ) : (s.recentOrders || []).map((o, i) => (
+                            <div key={o.id} onClick={() => navigate('/orders')}
+                                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < (s.recentOrders || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                                        <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#60a5fa', fontWeight: 700 }}>#{o.protocol}</span>
+                                        <StatusBadge status={o.status} />
+                                    </div>
+                                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.clientName}</div>
+                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {o.equipmentBrand} {o.equipmentModel}
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                    <div style={{ fontSize: '11px', color: PRIORITY_COLOR[o.priority] || '#94a3b8', marginBottom: '2px' }}>{PRIORITY_LABEL[o.priority]}</div>
+                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>{new Date(o.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    /* Tabela no desktop */
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
+                            <thead>
+                                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                    {['Protocolo', 'Cliente', 'Equipamento', 'Status', 'Prioridade', 'Data'].map(h => (
+                                        <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{h}</th>
+                                    ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {(s.recentOrders || []).length === 0 ? (
+                                    <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>Nenhuma OS encontrada</td></tr>
+                                ) : (s.recentOrders || []).map((o, i) => (
+                                    <tr key={o.id} onClick={() => navigate('/orders')} style={{ borderBottom: i < (s.recentOrders || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', transition: 'background 0.12s' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
+                                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: '#60a5fa', fontWeight: 700 }}>#{o.protocol}</td>
+                                        <td style={{ padding: '10px 14px', fontSize: '13px', color: '#fff', fontWeight: 500, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.clientName}</td>
+                                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                <Smartphone size={12} color="rgba(255,255,255,0.3)"/>
+                                                {o.equipmentBrand} {o.equipmentModel}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '10px 14px' }}><StatusBadge status={o.status}/></td>
+                                        <td style={{ padding: '10px 14px' }}>
+                                            <span style={{ fontSize: '11px', color: PRIORITY_COLOR[o.priority] || '#94a3b8' }}>
+                                                {PRIORITY_LABEL[o.priority] || o.priority}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                                            {new Date(o.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {/* ── ATALHOS RÁPIDOS ── */}

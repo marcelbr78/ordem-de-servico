@@ -26,6 +26,12 @@ const btnFilter = (active: boolean, color: string): React.CSSProperties => ({
 });
 
 export const Orders: React.FC = () => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const fn = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'list' | 'create'>('list');
@@ -49,6 +55,24 @@ export const Orders: React.FC = () => {
     };
 
     useEffect(() => { loadOrders(); }, [showDeleted]);
+
+    // Trava scroll do fundo quando modal está aberto
+    useEffect(() => {
+        if (selectedOrder) {
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+        } else {
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        };
+    }, [selectedOrder]);
 
     const handleViewOrder = async (order: Order, tab?: string, openStatus?: boolean) => {
         setSelectedTab(tab || 'Histórico');
@@ -180,12 +204,12 @@ export const Orders: React.FC = () => {
             {/* Modal de detalhes */}
             {selectedOrder && (
                 <div
-                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '12px' }}
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: isMobile ? 0 : '12px' }}
                     onClick={() => setSelectedOrder(null)}
                 >
                     <div
                         className="modal-box-responsive"
-                        style={{ maxWidth: '1000px', maxHeight: '94dvh', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', width: '100%' }}
+                        style={{ maxWidth: isMobile ? '100%' : '1000px', height: isMobile ? '100dvh' : '94dvh', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', width: '100%', borderRadius: isMobile ? 0 : '16px' }}
                         onClick={e => e.stopPropagation()}
                     >
                         <OrderDetails
