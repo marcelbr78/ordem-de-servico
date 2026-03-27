@@ -63,7 +63,7 @@ export interface OrderPart {
 export interface Order {
     id: string;
     protocol: string;
-    status: 'ABERTA' | 'EM_DIAGNOSTICO' | 'AGUARDANDO_APROVACAO' | 'AGUARDANDO_PECA' | 'EM_REPARO' | 'TESTES' | 'FINALIZADA' | 'ENTREGUE' | 'CANCELADA';
+    status: 'aberta' | 'em_diagnostico' | 'aguardando_aprovacao' | 'aguardando_peca' | 'em_reparo' | 'testes' | 'finalizada' | 'entregue' | 'cancelada';
     priority: 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
     clientId: string;
     client?: Client;
@@ -85,6 +85,9 @@ export interface Order {
     services?: any[];
     total?: number;
     totalValue?: number;
+    warrantyDays?: number;
+    warrantyExpiresAt?: string;
+    receiptAt?: string;
 }
 
 export interface User {

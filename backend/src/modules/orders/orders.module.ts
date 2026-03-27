@@ -14,15 +14,14 @@ import { OrderServiceItem } from './entities/order-service-item.entity';
 import { OrderServiceItemsController } from './order-service-items.controller';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { ClientsModule } from '../clients/clients.module';
-import { InventoryModule } from '../inventory/inventory.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { SettingsModule } from '../settings/settings.module';
-import { FinanceModule } from '../finance/finance.module';
 import { OrderPdfService } from './pdf/order-pdf.service';
 import { TenantsModule } from '../tenants/tenants.module';
 import { PlansService } from '../tenants/plans.service';
 import { Plan } from '../tenants/entities/plan.entity';
 import { ConversationService } from './conversation.service';
+import { OrderNotificationService } from './order-notification.service';
 import { SmartPartsModule } from '../smartparts/smartparts.module';
 
 @Module({
@@ -31,12 +30,12 @@ import { SmartPartsModule } from '../smartparts/smartparts.module';
             OrderService, OrderEquipment, OrderHistory,
             OrderPhoto, OrderPart, OrderConversation, Plan, OrderServiceItem,
         ]),
-        WhatsappModule, ClientsModule, InventoryModule,
-        CloudinaryModule, SettingsModule, FinanceModule, TenantsModule,
+        WhatsappModule, ClientsModule,
+        CloudinaryModule, SettingsModule, TenantsModule,
         forwardRef(() => SmartPartsModule),
     ],
     controllers: [OrdersController, PublicOrdersController, OrderServiceItemsController],
-    providers: [OrdersService, LookupService, OrderPdfService, PlansService, ConversationService],
+    providers: [OrdersService, LookupService, OrderPdfService, PlansService, ConversationService, OrderNotificationService],
     exports: [OrdersService, ConversationService],
 })
 export class OrdersModule {}

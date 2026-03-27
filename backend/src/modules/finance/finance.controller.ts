@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -48,17 +48,23 @@ export class FinanceController {
     }
 
     @Get('order/:orderId')
-    findByOrder(@Param('orderId') orderId: string) {
-        return this.financeService.findByOrder(orderId);
+    findByOrder(@Param('orderId') orderId: string, @Request() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.financeService.findByOrder(orderId, tenantId);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() dto: Partial<CreateTransactionDto>) {
-        return this.financeService.update(id, dto);
+    update(@Param('id') id: string, @Body() dto: Partial<CreateTransactionDto>, @Request() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.financeService.update(id, dto, tenantId);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.financeService.remove(id);
+    remove(@Param('id') id: string, @Request() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.financeService.remove(id, tenantId);
     }
 }

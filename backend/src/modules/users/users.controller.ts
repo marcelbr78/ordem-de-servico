@@ -28,27 +28,28 @@ export class UsersController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.usersService.findOne(id);
+    findOne(@Param('id') id: string, @Request() req) {
+        return this.usersService.findOne(id, req.user?.tenantId);
     }
 
     @Patch(':id')
     //   @Roles(UserRole.ADMIN)
-    update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-        return this.usersService.update(id, updateUserDto);
+    update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req) {
+        return this.usersService.update(id, updateUserDto, req.user?.tenantId);
     }
 
     @Post(':id/reset-password')
-    async resetPassword(@Param('id') id: string) {
+    async resetPassword(@Param('id') id: string, @Request() req) {
+        const tenantId = req.user?.tenantId;
         // Gerar senha temporária aleatória de 8 chars
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
         let tempPassword = '';
         for (let i = 0; i < 8; i++) {
             tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-        await this.usersService.changePassword(id, tempPassword);
+        await this.usersService.changePassword(id, tempPassword, tenantId);
         // Forçar troca no próximo login
-        await this.usersService.update(id, { mustChangePassword: true } as any);
+        await this.usersService.update(id, { mustChangePassword: true } as any, tenantId);
         return { tempPassword, message: 'Senha temporária gerada. O usuário deverá trocar no próximo acesso.' };
     }
 

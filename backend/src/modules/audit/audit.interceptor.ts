@@ -36,7 +36,8 @@ export class AuditInterceptor implements NestInterceptor {
                             resource,
                             id,
                             details,
-                            req.ip || req.connection.remoteAddress
+                            req.ip || req.connection.remoteAddress,
+                            user?.tenantId || null
                         );
                     },
                     error: (err) => {

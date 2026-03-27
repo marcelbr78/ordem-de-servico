@@ -53,6 +53,16 @@ export class StockService {
 
     async consumeStock(orderId: string, items: { productId: string, quantity: number }[], manager?: EntityManager) {
         const run = async (em: EntityManager) => {
+            // Idempotência: evitar consumo duplo para a mesma OS
+            // Verificação dentro da transaction — protegida contra race condition
+            const existingExit = await em.findOne(StockMovement, {
+                where: { orderId, type: MovementType.EXIT },
+            });
+            if (existingExit) {
+                console.log(`[StockService] Consumo já realizado para OS ${orderId} — idempotência aplicada`);
+                return;
+            }
+
             for (const item of items) {
                 const product = await em.findOne(Product, { where: { id: item.productId } });
                 const balance = await this.getBalance(em, item.productId);
@@ -83,6 +93,16 @@ export class StockService {
 
     async reverseMovement(orderId: string, manager?: EntityManager) {
         const run = async (em: EntityManager) => {
+            // Idempotência: evitar reversão dupla para a mesma OS
+            // Verificação dentro da transaction — protegida contra race condition
+            const existingReverse = await em.findOne(StockMovement, {
+                where: { orderId, type: MovementType.REVERSE_EXIT },
+            });
+            if (existingReverse) {
+                console.log(`[StockService] Reversão já realizada para OS ${orderId} — idempotência aplicada`);
+                return;
+            }
+
             const movements = await em.find(StockMovement, { where: { orderId } });
 
             for (const mov of movements) {

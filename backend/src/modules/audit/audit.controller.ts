@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -12,8 +12,8 @@ export class AuditController {
     constructor(private readonly auditService: AuditService) { }
 
     @Get()
-    async findAll(@Query('limit') limit: number) {
-        return this.auditService.findAll(limit || 100);
+    async findAll(@Query('limit') limit: number, @Request() req) {
+        return this.auditService.findAll(limit || 100, req.user?.tenantId);
     }
 
     @Get('global')
@@ -23,7 +23,7 @@ export class AuditController {
     }
 
     @Get('resource')
-    async findByResource(@Query('resource') resource: string, @Query('id') id: string) {
-        return this.auditService.findByResource(resource, id);
+    async findByResource(@Query('resource') resource: string, @Query('id') id: string, @Request() req) {
+        return this.auditService.findByResource(resource, id, req.user?.tenantId);
     }
 }

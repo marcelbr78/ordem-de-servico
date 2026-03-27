@@ -8,10 +8,12 @@ import { PublicClientsController } from './public-clients.controller';
 import { Client } from './entities/client.entity';
 import { ClientContact } from './entities/client-contact.entity';
 import { ClientOsHistory } from './entities/client-os-history.entity';
+import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Client, ClientContact, ClientOsHistory]),
+        TenantsModule,
     ],
     controllers: [ClientsController, PublicClientsController],
     providers: [ClientsService, ContactsService, ClientOsHistoryService],

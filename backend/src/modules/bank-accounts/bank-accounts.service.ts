@@ -42,8 +42,8 @@ export class BankAccountsService {
         return this.bankAccountRepository.save(account);
     }
 
-    async updateFromRaw(id: string, raw: Record<string, unknown>): Promise<BankAccount> {
-        const account = await this.findOne(id);
+    async updateFromRaw(id: string, raw: Record<string, unknown>, tenantId?: string): Promise<BankAccount> {
+        const account = await this.findOne(id, tenantId);
         const data = sanitise(raw);
         Object.assign(account, data);
         return this.bankAccountRepository.save(account);
@@ -56,17 +56,18 @@ export class BankAccountsService {
         });
     }
 
-    async findOne(id: string): Promise<BankAccount> {
-        const account = await this.bankAccountRepository.findOne({ where: { id } });
+    async findOne(id: string, tenantId?: string): Promise<BankAccount> {
+        const where = tenantId ? { id, tenantId } : { id };
+        const account = await this.bankAccountRepository.findOne({ where });
         if (!account) {
             throw new NotFoundException('Conta bancária não encontrada');
         }
         return account;
     }
 
-    async remove(id: string): Promise<void> {
-        await this.findOne(id);
-        await this.bankAccountRepository.delete(id);
+    async remove(id: string, tenantId?: string): Promise<void> {
+        await this.findOne(id, tenantId);
+        await this.bankAccountRepository.delete(tenantId ? { id, tenantId } : id);
     }
 
     async updateBalance(id: string, amount: number): Promise<BankAccount> {

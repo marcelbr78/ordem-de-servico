@@ -85,11 +85,11 @@ export class UsersService implements OnModuleInit {
         await this.usersRepository.update(userId, { lastLogin: new Date() });
     }
 
-    async changePassword(userId: string, newPassword: string): Promise<void> {
+    async changePassword(userId: string, newPassword: string, tenantId?: string): Promise<void> {
         const salt = await bcrypt.genSalt();
         const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-        await this.usersRepository.update(userId, {
+        const criteria = tenantId ? { id: userId, tenantId } : userId;
+        await this.usersRepository.update(criteria, {
             password: hashedPassword,
             mustChangePassword: false,
             refreshTokenHash: null // Força novo login
@@ -107,17 +107,19 @@ export class UsersService implements OnModuleInit {
         return this.usersRepository.find({ where });
     }
 
-    async findOne(id: string): Promise<User> {
-        return this.usersRepository.findOne({ where: { id } });
+    async findOne(id: string, tenantId?: string): Promise<User> {
+        const where = tenantId ? { id, tenantId } : { id };
+        return this.usersRepository.findOne({ where });
     }
 
-    async update(id: string, updateUserDto: any): Promise<User> {
+    async update(id: string, updateUserDto: any, tenantId?: string): Promise<User> {
         if (updateUserDto.password) {
             const salt = await bcrypt.genSalt();
             updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
         }
-        await this.usersRepository.update(id, updateUserDto);
-        return this.findOne(id);
+        const criteria = tenantId ? { id, tenantId } : id;
+        await this.usersRepository.update(criteria, updateUserDto);
+        return this.findOne(id, tenantId);
     }
 
     async remove(id: string): Promise<void> {

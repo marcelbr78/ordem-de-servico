@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, NotFoundException, Req, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, NotFoundException, Req, Logger, Inject, forwardRef, Query } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { ConversationService } from './conversation.service';
@@ -19,8 +19,9 @@ export class PublicOrdersController {
     ) {}
 
     @Get('monitor')
-    findMonitor() {
-        return this.ordersService.findAllActive();
+    findMonitor(@Query('tenantId') tenantId?: string) {
+        if (!tenantId) return [];
+        return this.ordersService.findAllActive(tenantId);
     }
 
     // ── Webhook Evolution API — recebe mensagens do WhatsApp ────────

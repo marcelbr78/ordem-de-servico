@@ -2,7 +2,7 @@
  * OS4U Service Worker
  * Cache inteligente: assets estáticos em cache, API sempre na rede
  */
-const CACHE_NAME = 'os4u-v1';
+const CACHE_NAME = 'os4u-v2';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

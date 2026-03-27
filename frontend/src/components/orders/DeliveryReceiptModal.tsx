@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import {
     X, CheckCircle, Download, RefreshCw, Pen, Trash2,
-    User, Package, Calendar, DollarSign, Shield, FileText, AlertCircle,
+    User, Package, Calendar, DollarSign, Shield, FileText,
 } from 'lucide-react';
 
 // ── Tipos ────────────────────────────────────────────────────
@@ -127,7 +127,6 @@ export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, on
     const warrantyExpiry = new Date(); warrantyExpiry.setDate(warrantyExpiry.getDate() + warrantyDays);
 
     const submit = async () => {
-        if (!signatureData) { alert('Por favor, assine o recibo antes de confirmar.'); return; }
         setSaving(true);
         try {
             // Salvar assinatura e dados do recibo como metadado da OS
@@ -345,25 +344,35 @@ ${notes ? `<section><h3>Observações</h3><p style="font-size:12px;color:#374151
                     {step === 'sign' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div style={{ padding: '12px 14px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '10px', fontSize: '13px', color: '#93c5fd' }}>
-                                <strong>{signerName}</strong> — ao assinar abaixo, o cliente confirma ter recebido o equipamento em bom estado e está ciente das condições de garantia.
+                                <strong>{signerName}</strong> — confirme a entrega com assinatura digital abaixo, ou imprima o recibo para assinar no papel.
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '8px' }}>
-                                    ✍️ Assinatura do cliente
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>
+                                    ✍️ Assinatura digital <span style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>(opcional)</span>
                                 </label>
                                 <SignaturePad onChange={setSignatureData}/>
                             </div>
 
-                            {!signatureData && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: '#f59e0b' }}>
-                                    <AlertCircle size={13}/> Desenhe a assinatura no campo acima para continuar
-                                </div>
-                            )}
+                            {/* Separador */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}/>
+                                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>OU</span>
+                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}/>
+                            </div>
+
+                            {/* Botão imprimir no papel */}
+                            <button
+                                onClick={async () => { printReceipt(); await submit(); }}
+                                disabled={saving}
+                                style={{ padding: '11px', borderRadius: '9px', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24', fontWeight: 700, cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            >
+                                <Download size={14}/> Imprimir para assinar no papel
+                            </button>
 
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button onClick={() => setStep('review')} style={{ flex: 1, padding: '11px', borderRadius: '9px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontWeight: 600, cursor: 'pointer' }}>← Voltar</button>
-                                <button onClick={submit} disabled={saving || !signatureData} style={{ flex: 2, padding: '11px', borderRadius: '9px', background: signatureData ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', fontWeight: 700, cursor: signatureData ? 'pointer' : 'not-allowed', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: !signatureData ? 0.5 : saving ? 0.7 : 1 }}>
+                                <button onClick={submit} disabled={saving} style={{ flex: 2, padding: '11px', borderRadius: '9px', background: 'linear-gradient(135deg,#22c55e,#16a34a)', border: 'none', color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: saving ? 0.7 : 1 }}>
                                     {saving ? <><RefreshCw size={15} style={{ animation: 'spin 1s linear infinite' }}/> Salvando...</> : <><CheckCircle size={15}/> Confirmar Entrega</>}
                                 </button>
                             </div>

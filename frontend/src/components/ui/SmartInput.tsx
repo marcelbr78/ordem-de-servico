@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { Loader2, ChevronDown, History, Database } from 'lucide-react';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
 
@@ -15,12 +15,17 @@ interface SmartInputProps {
     inputStyle?: React.CSSProperties;
     minChars?: number;
     onOptionSelect?: (option: any) => void;
+    id?: string;
+    name?: string;
 }
 
 export const SmartInput: React.FC<SmartInputProps> = ({
     value, onChange, endpoint, extraParams = {}, placeholder, label,
     required, disabled, autoCapitalize = true, inputStyle, minChars = 1, onOptionSelect,
+    id, name,
 }) => {
+    const defaultId = useId();
+    const inputId = id || defaultId;
     const [focused, setFocused] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const { options, open, loading, search, close, loadInitial } = useAutocomplete(endpoint, extraParams, minChars);
@@ -35,7 +40,7 @@ export const SmartInput: React.FC<SmartInputProps> = ({
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let v = e.target.value;
-        if (autoCapitalize && v) v = v.charAt(0).toUpperCase() + v.slice(1);
+        if (autoCapitalize && v) v = v.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
         onChange(v);
         search(v);
     };
@@ -57,12 +62,14 @@ export const SmartInput: React.FC<SmartInputProps> = ({
     return (
         <div ref={containerRef} style={{ position: 'relative' }}>
             {label && (
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.7)', marginBottom: '6px' }}>
+                <label htmlFor={inputId} style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.7)', marginBottom: '6px' }}>
                     {label}{required && <span style={{ color: '#ef4444', marginLeft: '3px' }}>*</span>}
                 </label>
             )}
             <div style={{ position: 'relative' }}>
                 <input
+                    id={inputId}
+                    name={name}
                     value={value} onChange={handleChange} placeholder={placeholder}
                     disabled={disabled} required={required}
                     onFocus={() => { setFocused(true); if (!value && minChars === 0) loadInitial(); else if (value) search(value); }}

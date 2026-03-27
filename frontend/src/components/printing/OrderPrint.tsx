@@ -6,6 +6,7 @@ interface OrderPrintProps {
     order: any;
     settings: any;
     type: 'client' | 'store' | 'term';
+    transactions?: any[];
 }
 
 // Helpers
@@ -142,8 +143,8 @@ const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: a
     <div style={{ ...s.headerBox, padding: '6px 10px', marginBottom: '4px', alignItems: 'flex-start' }}>
         {/* Lado esquerdo — empresa */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            {settings?.logoUrl && (
-                <img src={settings.logoUrl} alt="Logo" style={{ height: '40px', maxWidth: '80px', objectFit: 'contain', flexShrink: 0 }} />
+            {settings?.company_logo_url && (
+                <img src={settings.company_logo_url} alt="Logo" style={{ height: '40px', maxWidth: '80px', objectFit: 'contain', flexShrink: 0 }} />
             )}
             <div style={{ minWidth: 0, overflow: 'hidden' }}>
                 <h1 style={{ fontSize: '14px', fontWeight: 'bold', margin: '0 0 1px 0', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -194,7 +195,7 @@ const HeaderA4 = ({ settings, order, title, compact }: { settings: any, order: a
     </div>
 );
 
-const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, settings: any, type: string, isCopy?: boolean }) => {
+const ReceiptContent = ({ order, settings, type, isCopy, transactions }: { order: any, settings: any, type: string, isCopy?: boolean, transactions?: any[] }) => {
     const isTerm = type === 'term';
 
     // Parse detailed fields from settings
@@ -291,7 +292,8 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                                             </div>
                                         )}
 
-                                        {fields.showChecklist && checklistData && Object.keys(checklistData).length > 0 && (
+                                                        {/* Checklist de Entrada — apenas na via de OS, não no termo de entrega */}
+                                        {fields.showChecklist && !isTerm && checklistData && Object.keys(checklistData).length > 0 && (
                                             <div style={{ fontSize: '9px', color: '#444', marginTop: '4px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
                                                 <strong style={{ display: 'block', marginBottom: '2px', color: '#111' }}>Checklist de Entrada:</strong>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -316,6 +318,24 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                                                 </div>
                                             </div>
                                         )}
+                                        {/* Checklist de Saída — apenas no Termo de Entrega */}
+                                        {fields.showChecklist && isTerm && (() => {
+                                            let items: { id: string; label: string }[] = [];
+                                            try { const p = JSON.parse(settings?.delivery_checklist || '[]'); if (Array.isArray(p) && p.length > 0) items = p; } catch {}
+                                            if (!items.length) return null;
+                                            return (
+                                                <div style={{ fontSize: '9px', color: '#444', marginTop: '4px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
+                                                    <strong style={{ display: 'block', marginBottom: '2px', color: '#111' }}>Checklist de Saída:</strong>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                        {items.map(item => (
+                                                            <span key={item.id} style={{ display: 'inline-block', background: '#fff', border: '1px solid #ccc', padding: '1px 3px', borderRadius: '3px', fontSize: '8px' }}>
+                                                                [ ] {item.label}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     
                                     {fields.showPassword !== false && (
@@ -392,11 +412,21 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
                 {/* FORMA DE PAGAMENTO */}
                 {fields.showPaymentMethod && (
                     <div style={{ ...cs.sectionBox, padding: '6px', fontSize: '10px', backgroundColor: '#f9f9f9' }}>
-                        <strong>Forma de Pagamento utilizada:</strong> 
-                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Dinheiro</span>
-                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Pix</span>
-                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Cartão (Débito/Crédito)</span>
-                        <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Outro</span>
+                        <strong>Forma de Pagamento utilizada:</strong>
+                        {transactions && transactions.length > 0 ? (
+                            // Mostra as formas de pagamento reais registradas
+                            <span style={{ marginLeft: '8px' }}>
+                                {[...new Set(transactions.filter((t: any) => t.type === 'INCOME').map((t: any) => t.paymentMethod).filter(Boolean))].join(', ') || '—'}
+                            </span>
+                        ) : (
+                            // Fallback: caixas para marcar manualmente
+                            <>
+                                <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Dinheiro</span>
+                                <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Pix</span>
+                                <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Cartão (Débito/Crédito)</span>
+                                <span style={{ marginLeft: '12px' }}>[&nbsp;&nbsp;&nbsp;] Outro</span>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -440,7 +470,7 @@ const ReceiptContent = ({ order, settings, type, isCopy }: { order: any, setting
     );
 };
 
-const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: any, type: string }) => {
+const StandardTemplateA4 = ({ order, settings, type, transactions }: { order: any, settings: any, type: string, transactions?: any[] }) => {
     // A4 Portrait: 210mm x 297mm. Half is ~148mm.
     const isTerm = type === 'term';
     return (
@@ -454,7 +484,7 @@ const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: a
                 boxSizing: 'border-box',
                 overflow: 'hidden'
             }}>
-                <ReceiptContent order={order} settings={settings} type={type} />
+                <ReceiptContent order={order} settings={settings} type={type} transactions={transactions} />
             </div>
 
             {/* Second Copy (Bottom - Only for Service Orders) */}
@@ -465,7 +495,7 @@ const StandardTemplateA4 = ({ order, settings, type }: { order: any, settings: a
                     boxSizing: 'border-box',
                     overflow: 'hidden'
                 }}>
-                    <ReceiptContent order={order} settings={settings} type={type} isCopy />
+                    <ReceiptContent order={order} settings={settings} type={type} isCopy transactions={transactions} />
                 </div>
             )}
         </div>
@@ -588,7 +618,7 @@ const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
-export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, settings, type }, ref) => {
+export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, settings, type, transactions }, ref) => {
     const format = settings?.print_format || 'a4'; // 'a4', '80mm', '58mm'
 
     return (
@@ -603,7 +633,7 @@ export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, 
             </style>
 
             {format === 'a4'
-                ? <StandardTemplateA4 order={order} settings={settings} type={type} />
+                ? <StandardTemplateA4 order={order} settings={settings} type={type} transactions={transactions} />
                 : <ThermalTemplate order={order} settings={settings} width={format} />
             }
         </div>

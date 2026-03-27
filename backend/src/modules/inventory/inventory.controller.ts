@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Patch, Delete, UseGuards, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Patch, Delete, UseGuards, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { Response } from 'express';
 import { InventoryService } from './inventory.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -51,8 +51,10 @@ export class InventoryController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.inventoryService.findOne(id);
+    findOne(@Param('id') id: string, @Req() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.inventoryService.findOne(id, tenantId);
     }
 
     @Get(':id/movements')
@@ -61,13 +63,17 @@ export class InventoryController {
     }
 
     @Put(':id')
-    update(@Param('id') id: string, @Body() dto: CreateProductDto) {
-        return this.inventoryService.update(id, dto);
+    update(@Param('id') id: string, @Body() dto: CreateProductDto, @Req() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.inventoryService.update(id, dto, tenantId);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.inventoryService.remove(id);
+    remove(@Param('id') id: string, @Req() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.inventoryService.remove(id, tenantId);
     }
 
     // Entrada manual de estoque

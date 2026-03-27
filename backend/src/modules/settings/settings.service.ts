@@ -33,7 +33,7 @@ export class SettingsService {
 
     async set(key: string, value: string, type: SettingType = SettingType.STRING, description?: string, isPublic: boolean = false, tenantId?: string): Promise<SystemSetting> {
         const where: any = { key };
-        if (tenantId) where.tenantId = tenantId;
+        if (tenantId !== undefined && tenantId !== null && tenantId !== '') where.tenantId = tenantId;
         let setting = await this.settingsRepository.findOne({ where });
         if (setting) {
             setting.value = value;

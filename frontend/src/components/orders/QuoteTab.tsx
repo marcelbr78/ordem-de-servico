@@ -190,8 +190,8 @@ export const QuoteTab: React.FC<{ order: Order }> = ({ order }) => {
     };
 
     const latest = quotes[0];
-    const isReadOnly = (latest && latest.status !== 'draft') || order.status === 'FINALIZADA' || order.status === 'ENTREGUE';
-    const canEdit = (!latest || latest.status === 'draft') && order.status !== 'FINALIZADA' && order.status !== 'ENTREGUE';
+    const isReadOnly = (latest && latest.status !== 'draft') || order.status === 'finalizada' || order.status === 'entregue';
+    const canEdit = (!latest || latest.status === 'draft') && order.status !== 'finalizada' && order.status !== 'entregue';
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

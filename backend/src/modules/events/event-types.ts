@@ -25,6 +25,11 @@ export interface WorkOrderStatusChangedPayload {
     tenantId?: string;
     userId?: string;
     timestamp: Date;
+    /** Dados de pagamento — presentes apenas quando status = ENTREGUE com pagamento */
+    paymentAmount?: number;
+    paymentMethod?: string;
+    bankAccountId?: string;
+    customerName?: string;
 }
 
 export interface QuoteUpdatedPayload {

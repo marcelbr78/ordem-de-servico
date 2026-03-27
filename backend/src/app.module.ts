@@ -71,6 +71,10 @@ import { PowerSequenceAnalysis } from './modules/power-sequence/entities/power-s
 import { BoardDiagnosisModule } from './modules/board-diagnosis/board-diagnosis.module';
 import { Board as BoardDiagnosisBoard } from './modules/board-diagnosis/entities/board.entity';
 import { KioskModule } from './modules/kiosk/kiosk.module';
+import { WarrantiesModule } from './modules/warranties/warranties.module';
+import { WarrantyReturn } from './modules/warranties/entities/warranty-return.entity';
+import { WarrantyRefund } from './modules/warranties/entities/warranty-refund.entity';
+import { TechnicalMemory } from './modules/warranties/entities/technical-memory.entity';
 import { SymptomCategory as BoardDiagnosisSymptomCategory } from './modules/board-diagnosis/entities/symptom-category.entity';
 import { Circuit as BoardDiagnosisCircuit } from './modules/board-diagnosis/entities/circuit.entity';
 import { PowerRail as BoardDiagnosisPowerRail } from './modules/board-diagnosis/entities/power-rail.entity';
@@ -100,7 +104,7 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
                         username: configService.get<string>('DB_USERNAME'),
                         password: configService.get<string>('DB_PASSWORD'),
                         database: configService.get<string>('DB_DATABASE'),
-                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderServiceItem, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag],
+                        entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderServiceItem, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag, WarrantyReturn, WarrantyRefund, TechnicalMemory],
                         synchronize: true, // Habilitado para garantir que as tabelas iniciais sejam criadas
                         migrations: ['dist/migrations/*.js'],
                         migrationsRun: true,
@@ -113,7 +117,7 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
                 return {
                     type: 'sqlite',
                     database: 'database.sqlite',
-                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderServiceItem, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag],
+                    entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderServiceItem, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag, WarrantyReturn, WarrantyRefund, TechnicalMemory],
                     synchronize: false,
                 };
             },
@@ -145,6 +149,7 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
         PowerSequenceModule,
         BoardDiagnosisModule,
         KioskModule,
+        WarrantiesModule,
     ],
 })
 export class AppModule implements NestModule {

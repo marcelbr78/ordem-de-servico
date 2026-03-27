@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards, Req, UseInterceptors, UploadedFile, Delete, Query, UsePipes, ValidationPipe, HttpException, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, UseGuards, Req, UseInterceptors, UploadedFile, Delete, Query, UsePipes, ValidationPipe, HttpException, Res, UnauthorizedException } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { OrdersService } from './orders.service';
@@ -40,8 +40,8 @@ export class OrdersController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.ordersService.findOne(id);
+    findOne(@Param('id') id: string, @Req() req) {
+        return this.ordersService.findOne(id, req.user?.tenantId);
     }
 
     @Get('client/:id')
@@ -50,15 +50,17 @@ export class OrdersController {
     }
 
     @Get('equipment/lookup/:serial')
-    lookupBySerial(@Param('serial') serial: string) {
-        return this.ordersService.lookupBySerial(serial);
+    lookupBySerial(@Param('serial') serial: string, @Req() req) {
+        return this.ordersService.lookupBySerial(serial, req.user?.tenantId);
     }
 
     @Patch(':id')
     @UsePipes(new ValidationPipe({ whitelist: false, forbidNonWhitelisted: false, transform: false }))
-    async update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    async update(@Param('id') id: string, @Body() body: Record<string, unknown>, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
         try {
-            return await this.ordersService.update(id, body as any);
+            return await this.ordersService.update(id, body as any, tenantId);
         } catch (err: any) {
             console.error('[Orders PATCH] Error updating order:', err?.message, err?.stack);
             throw err;
@@ -71,21 +73,28 @@ export class OrdersController {
         @Body() changeStatusDto: ChangeStatusDto,
         @Req() req
     ) {
-        return this.ordersService.changeStatus(id, changeStatusDto, req.user?.id, req.user?.tenantId);
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.ordersService.changeStatus(id, changeStatusDto, req.user.id, tenantId);
     }
 
     @Post(':id/images')
     @UseInterceptors(FileInterceptor('file'))
     async uploadImage(
         @Param('id') id: string,
-        @UploadedFile() file: Express.Multer.File
+        @UploadedFile() file: Express.Multer.File,
+        @Req() req,
     ) {
-        return this.ordersService.addPhoto(id, file);
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.ordersService.addPhoto(id, file, tenantId);
     }
 
     @Delete('images/:id')
-    async removeImage(@Param('id') id: string) {
-        return this.ordersService.removePhoto(id);
+    async removeImage(@Param('id') id: string, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.ordersService.removePhoto(id, tenantId);
     }
 
     @Post(':id/share')
@@ -106,10 +115,12 @@ export class OrdersController {
 
     @Post(':id/parts')
     @UsePipes(new ValidationPipe({ whitelist: false, forbidNonWhitelisted: false, transform: false }))
-    async addPart(@Param('id') id: string, @Body() partData: Record<string, unknown>) {
+    async addPart(@Param('id') id: string, @Body() partData: Record<string, unknown>, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
         try {
             console.log('[Orders addPart] orderId:', id, 'body:', JSON.stringify(partData));
-            return await this.ordersService.addPart(id, partData);
+            return await this.ordersService.addPart(id, partData, tenantId);
         } catch (err: any) {
             console.error('[Orders addPart] Error:', err?.message, err?.stack);
             throw err;
@@ -117,23 +128,31 @@ export class OrdersController {
     }
 
     @Delete('parts/:id')
-    removePart(@Param('id') id: string) {
-        return this.ordersService.removePart(id);
+    removePart(@Param('id') id: string, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.ordersService.removePart(id, tenantId);
     }
 
     @Patch('equipment/:id')
-    updateEquipment(@Param('id') id: string, @Body() body: any) {
-        return this.ordersService.updateEquipment(id, body);
+    updateEquipment(@Param('id') id: string, @Body() body: any, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.ordersService.updateEquipment(id, body, tenantId);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.ordersService.remove(id);
+    remove(@Param('id') id: string, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.ordersService.remove(id, tenantId);
     }
 
     @Get(':id/pdf')
-    async downloadPdf(@Param('id') id: string, @Res() res: Response) {
-        const order = await this.ordersService.findOne(id);
+    async downloadPdf(@Param('id') id: string, @Res() res: Response, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        const order = await this.ordersService.findOne(id, tenantId);
         const buffer = await this.pdfService.generateOrderPdf(order as any);
         res.set({
             'Content-Type': 'application/pdf',

@@ -9,6 +9,9 @@ export class AuditLog {
     @Column({ nullable: true })
     userId: string;
 
+    @Column({ nullable: true })
+    tenantId: string;
+
     @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn({ name: 'userId' })
     user: User;

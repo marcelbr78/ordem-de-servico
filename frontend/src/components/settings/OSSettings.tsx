@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Search, GitGraph } from 'lucide-react';
+import { Save, Search, GitGraph, ListChecks, Plus, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 
 // Fixed keys from backend enum
@@ -50,7 +50,22 @@ export const OSSettings: React.FC<OSSettingsProps> = ({ initialJson, onSave }) =
     const [flow, setFlow] = useState<Record<string, string[]>>(DEFAULT_FLOW);
     const [imeiProvider, setImeiProvider] = useState('imei.org');
     const [imeiToken, setImeiToken] = useState('');
-    const [activeTab, setActiveTab] = useState<'flow' | 'imei'>('flow');
+    const [activeTab, setActiveTab] = useState<'flow' | 'imei' | 'checklist'>('flow');
+    const [checklistItems, setChecklistItems] = useState<{ id: string; label: string }[]>([
+        { id: 'cam_front', label: 'Câmera Frontal' },
+        { id: 'cam_rear', label: 'Câmera Traseira' },
+        { id: 'charging', label: 'Carregamento' },
+        { id: 'screen', label: 'Tela' },
+        { id: 'touch', label: 'Touch' },
+        { id: 'audio', label: 'Som/Áudio' },
+        { id: 'calling', label: 'Ligação' },
+        { id: 'wifi', label: 'WiFi' },
+        { id: 'signal', label: 'Sinal/Rede' },
+        { id: 'face_id', label: 'FaceID/Biometria' },
+        { id: 'buttons', label: 'Botões' },
+        { id: 'battery', label: 'Bateria' },
+    ]);
+    const [newChecklistLabel, setNewChecklistLabel] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -79,6 +94,18 @@ export const OSSettings: React.FC<OSSettingsProps> = ({ initialJson, onSave }) =
             }
         };
         fetchImeiSettings();
+
+        // Fetch checklist items
+        api.get('/settings/delivery_checklist')
+            .then(res => {
+                if (res.data?.value) {
+                    try {
+                        const parsed = JSON.parse(res.data.value);
+                        if (Array.isArray(parsed) && parsed.length > 0) setChecklistItems(parsed);
+                    } catch {}
+                }
+            })
+            .catch(() => {});
     }, [initialJson]);
 
     const handleLabelChange = (key: string, value: string) => {
@@ -107,7 +134,8 @@ export const OSSettings: React.FC<OSSettingsProps> = ({ initialJson, onSave }) =
             await Promise.all([
                 onSave(json),
                 api.put('/settings/imei_api_provider', { value: imeiProvider }),
-                api.put('/settings/imei_api_token', { value: imeiToken })
+                api.put('/settings/imei_api_token', { value: imeiToken }),
+                api.put('/settings/delivery_checklist', { value: JSON.stringify(checklistItems) }),
             ]);
 
             setMessage({ type: 'success', text: 'Configurações de OS salvas com sucesso!' });
@@ -180,6 +208,20 @@ export const OSSettings: React.FC<OSSettingsProps> = ({ initialJson, onSave }) =
                 >
                     <Search size={16} /> Consulta IMEI
                 </button>
+                <button
+                    onClick={() => setActiveTab('checklist')}
+                    style={{
+                        padding: '10px 20px', borderRadius: '10px',
+                        background: activeTab === 'checklist' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                        color: activeTab === 'checklist' ? '#6366f1' : 'rgba(255,255,255,0.5)',
+                        cursor: 'pointer', fontSize: '14px', fontWeight: 600,
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        transition: 'all 0.2s',
+                        border: `1px solid ${activeTab === 'checklist' ? 'rgba(99, 102, 241, 0.4)' : 'rgba(255,255,255,0.05)'}`
+                    }}
+                >
+                    <ListChecks size={16} /> Checklist de Saída
+                </button>
             </div>
 
             {message && (
@@ -193,7 +235,69 @@ export const OSSettings: React.FC<OSSettingsProps> = ({ initialJson, onSave }) =
                 </div>
             )}
 
-            {activeTab === 'imei' ? (
+            {activeTab === 'checklist' ? (
+                <div style={{ background: 'rgba(99, 102, 241, 0.1)', borderRadius: '16px', padding: '24px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '8px' }}>
+                        <ListChecks size={18} color="#6366f1" /> Checklist de Saída
+                    </div>
+                    <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px' }}>
+                        Itens verificados antes de entregar o equipamento ao cliente. Aparecem no Termo de Entrega.
+                    </p>
+
+                    {/* Add new item */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                        <input
+                            value={newChecklistLabel}
+                            onChange={e => setNewChecklistLabel(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && newChecklistLabel.trim()) {
+                                    const id = newChecklistLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                                    setChecklistItems(prev => [...prev, { id: id + '_' + Date.now(), label: newChecklistLabel.trim() }]);
+                                    setNewChecklistLabel('');
+                                }
+                            }}
+                            placeholder="Novo item (ex: Microfone)"
+                            style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '14px', outline: 'none' }}
+                        />
+                        <button
+                            onClick={() => {
+                                if (!newChecklistLabel.trim()) return;
+                                const id = newChecklistLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                                setChecklistItems(prev => [...prev, { id: id + '_' + Date.now(), label: newChecklistLabel.trim() }]);
+                                setNewChecklistLabel('');
+                            }}
+                            style={{ padding: '10px 16px', borderRadius: '10px', background: 'rgba(99,102,241,0.3)', border: '1px solid rgba(99,102,241,0.5)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '14px' }}
+                        >
+                            <Plus size={16} /> Adicionar
+                        </button>
+                    </div>
+
+                    {/* List */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {checklistItems.map((item, i) => (
+                            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px' }}>
+                                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', width: '20px', textAlign: 'center', flexShrink: 0 }}>{i + 1}</span>
+                                <input
+                                    value={item.label}
+                                    onChange={e => setChecklistItems(prev => prev.map((it, idx) => idx === i ? { ...it, label: e.target.value } : it))}
+                                    style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '14px', outline: 'none' }}
+                                />
+                                <button
+                                    onClick={() => setChecklistItems(prev => prev.filter((_, idx) => idx !== i))}
+                                    style={{ padding: '6px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        ))}
+                        {checklistItems.length === 0 && (
+                            <div style={{ textAlign: 'center', padding: '24px', color: 'rgba(255,255,255,0.3)', fontSize: '14px' }}>
+                                Nenhum item. Adicione acima.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : activeTab === 'imei' ? (
                 /* API Lookup Configuration */
                 <div style={{ background: 'rgba(99, 102, 241, 0.1)', borderRadius: '16px', padding: '24px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '8px' }}>

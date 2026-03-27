@@ -16,11 +16,12 @@ import { AutomationsSettings } from '../components/settings/AutomationsSettings'
 import { PublicStatusSettings } from '../components/settings/PublicStatusSettings';
 import { AppearanceSettings } from '../components/settings/AppearanceSettings';
 import { TermsSettings } from '../components/settings/TermsSettings';
+import { HelpSettings } from '../components/settings/HelpSettings';
 import {
     Building2, Shield, Users, ClipboardList, Printer, Receipt,
     Bell, Tag, MessageCircle, Database, Wifi, RefreshCw,
     Plus, Edit3, UserX, UserCheck, Send, Trash2, X, Save,
-    DollarSign, Palette, CreditCard, MapPin, ChevronRight, Menu,
+    DollarSign, Palette, CreditCard, MapPin, ChevronRight, Menu, HelpCircle,
 } from 'lucide-react';
 
 interface SettingsMap { [key: string]: string; }
@@ -35,7 +36,7 @@ type TabKey = 'company' | 'os' | 'printing' | 'thermal' | 'services' | 'appearan
     'finance_config' |
     'notifications' | 'whatsapp' | 'wa_templates' | 'smtp' |
     'integrations' | 'automations' |
-    'fiscal' | 'terms' | 'public_status' | 'backup';
+    'fiscal' | 'terms' | 'public_status' | 'backup' | 'help';
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType; group: string }[] = [
     // ── Geral ──────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType; group: string
     { key: 'public_status', label: 'Status Público',       icon: MapPin,       group: 'Fiscal & Legal' },
     // ── Sistema ────────────────────────────────────────────────
     { key: 'backup',        label: 'Backup & Export',      icon: Database,     group: 'Sistema' },
+    { key: 'help',          label: '❓ Central de Ajuda',  icon: HelpCircle,   group: 'Sistema' },
 ];
 
 const inp: React.CSSProperties = {
@@ -756,6 +758,7 @@ export const Settings: React.FC = () => {
                         {activeTab === 'terms'         && <TermsSettings settings={settings} onSave={handleSave} />}
                         {activeTab === 'public_status' && <PublicStatusSettings settings={settings} onSave={handleSave} />}
                         {activeTab === 'backup'        && <BackupSettings />}
+                        {activeTab === 'help'          && <HelpSettings />}
                     </>
                 )}
             </div>

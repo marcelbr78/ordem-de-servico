@@ -99,8 +99,9 @@ export const CompanySettings: React.FC<CompanySettingsProps> = ({ settings, onSa
                 api.put(`/settings/${key}`, { value: String(value) })
             );
             await Promise.all(promises);
+            // Atualiza estado local do pai para cada chave
             for (const [key, value] of Object.entries(localData)) {
-                await onSave(key, String(value));
+                onSave(key, String(value)).catch(() => {});
             }
             setMessage({ type: 'success', text: 'Dados salvos com sucesso!' });
             setTimeout(() => setMessage(null), 3000);

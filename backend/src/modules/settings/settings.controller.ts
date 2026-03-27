@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Put, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Put, Request, NotFoundException } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SettingType } from './entities/setting.entity';
@@ -21,8 +21,19 @@ export class SettingsController {
     }
 
     @Get('public')
-    findPublic() {
-        return this.settingsService.findAll();
+    @UseGuards(JwtAuthGuard)
+    findPublic(@Request() req) {
+        const tenantId = req.user?.tenantId;
+        return this.settingsService.findAll(tenantId);
+    }
+
+    @Get(':key')
+    @UseGuards(JwtAuthGuard)
+    async findOne(@Param('key') key: string, @Request() req) {
+        const tenantId = req.user?.tenantId;
+        const value = await this.settingsService.findByKey(key, tenantId);
+        if (value === null) throw new NotFoundException(`Setting '${key}' not found`);
+        return { key, value };
     }
 
     // Compatibilidade: POST /settings com { key, value } no body

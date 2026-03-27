@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,16 +18,16 @@ export class ReportsController {
     @Get('overview')
     async getOverview(@Query('from') from: string, @Query('to') to: string, @Req() req: any) {
         const tenantId = req.user?.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant obrigatório');
+
         const dateFrom = from ? new Date(from) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
         const dateTo = to ? new Date(to) : new Date();
         dateTo.setHours(23, 59, 59);
 
-        const base = tenantId ? { tenantId } : {};
-
         // OS do período
         const orders = await this.ordersRepo
             .createQueryBuilder('o')
-            .where(tenantId ? 'o.tenantId = :tenantId' : '1=1', { tenantId })
+            .where('o.tenantId = :tenantId', { tenantId })
             .andWhere('o.entryDate >= :from', { from: dateFrom })
             .andWhere('o.entryDate <= :to', { to: dateTo })
             .andWhere('o.deletedAt IS NULL')
@@ -37,7 +37,8 @@ export class ReportsController {
         // Transações do período
         const txs = await this.txRepo
             .createQueryBuilder('t')
-            .where('t.createdAt >= :from', { from: dateFrom })
+            .where('t.tenantId = :tenantId', { tenantId })
+            .andWhere('t.createdAt >= :from', { from: dateFrom })
             .andWhere('t.createdAt <= :to', { to: dateTo })
             .getMany();
 
@@ -60,7 +61,7 @@ export class ReportsController {
         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const recentOrders = await this.ordersRepo
             .createQueryBuilder('o')
-            .where(tenantId ? 'o.tenantId = :tenantId' : '1=1', { tenantId })
+            .where('o.tenantId = :tenantId', { tenantId })
             .andWhere('o.entryDate >= :from', { from: thirtyDaysAgo })
             .andWhere('o.deletedAt IS NULL')
             .select(['o.entryDate', 'o.finalValue'])
@@ -91,7 +92,8 @@ export class ReportsController {
         const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5); sixMonthsAgo.setDate(1);
         const monthlyTxs = await this.txRepo
             .createQueryBuilder('t')
-            .where('t.createdAt >= :from', { from: sixMonthsAgo })
+            .where('t.tenantId = :tenantId', { tenantId })
+            .andWhere('t.createdAt >= :from', { from: sixMonthsAgo })
             .andWhere('t.type = :type', { type: TransactionType.INCOME })
             .getMany();
 
@@ -118,12 +120,14 @@ export class ReportsController {
     @Get('technicians')
     async getTechnicianRanking(@Query('from') from: string, @Query('to') to: string, @Req() req: any) {
         const tenantId = req.user?.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant obrigatório');
+
         const dateFrom = from ? new Date(from) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
         const dateTo   = to   ? new Date(to)   : new Date();
         dateTo.setHours(23, 59, 59);
 
         const orders = await this.ordersRepo.createQueryBuilder('o')
-            .where(tenantId ? 'o.tenantId = :tenantId' : '1=1', { tenantId })
+            .where('o.tenantId = :tenantId', { tenantId })
             .andWhere('o.entryDate >= :from', { from: dateFrom })
             .andWhere('o.entryDate <= :to',   { to: dateTo })
             .andWhere('o.deletedAt IS NULL')
@@ -151,12 +155,17 @@ export class ReportsController {
 
     @Get('parts')
     async getTopParts(@Query('from') from: string, @Query('to') to: string, @Req() req: any) {
+        const tenantId = req.user?.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant obrigatório');
+
         const dateFrom = from ? new Date(from) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
         const dateTo   = to   ? new Date(to)   : new Date(); dateTo.setHours(23, 59, 59);
 
         const parts = await this.partsRepo.createQueryBuilder('p')
             .leftJoinAndSelect('p.product', 'prod')
-            .where('p.createdAt >= :from', { from: dateFrom })
+            .innerJoin(OS, 'o', 'o.id = p.orderId')
+            .where('o.tenantId = :tenantId', { tenantId })
+            .andWhere('p.createdAt >= :from', { from: dateFrom })
             .andWhere('p.createdAt <= :to',   { to: dateTo })
             .getMany();
 
@@ -173,11 +182,13 @@ export class ReportsController {
     @Get('models')
     async getTopModels(@Query('from') from: string, @Query('to') to: string, @Req() req: any) {
         const tenantId = req.user?.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant obrigatório');
+
         const dateFrom = from ? new Date(from) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
         const dateTo   = to   ? new Date(to)   : new Date(); dateTo.setHours(23, 59, 59);
 
         const orders = await this.ordersRepo.createQueryBuilder('o')
-            .where(tenantId ? 'o.tenantId = :tenantId' : '1=1', { tenantId })
+            .where('o.tenantId = :tenantId', { tenantId })
             .andWhere('o.entryDate >= :from', { from: dateFrom })
             .andWhere('o.entryDate <= :to',   { to: dateTo })
             .andWhere('o.deletedAt IS NULL')
@@ -199,8 +210,10 @@ export class ReportsController {
     @Get('warranty-return')
     async getWarrantyReturn(@Query('from') from: string, @Query('to') to: string, @Req() req: any) {
         const tenantId = req.user?.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant obrigatório');
+
         const orders = await this.ordersRepo.createQueryBuilder('o')
-            .where(tenantId ? 'o.tenantId = :tenantId' : '1=1', { tenantId })
+            .where('o.tenantId = :tenantId', { tenantId })
             .andWhere('o.deletedAt IS NULL')
             .getMany();
         const total = orders.filter(o => o.status === OSStatus.ENTREGUE).length;

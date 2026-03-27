@@ -89,8 +89,9 @@ export class InventoryService {
         return query.orderBy('product.name', 'ASC').getMany();
     }
 
-    async findOne(id: string): Promise<Product> {
-        const product = await this.productRepository.findOne({ where: { id } });
+    async findOne(id: string, tenantId?: string): Promise<Product> {
+        const where = tenantId ? { id, tenantId } : { id };
+        const product = await this.productRepository.findOne({ where });
         if (!product) {
             throw new NotFoundException('Produto não encontrado');
         }
@@ -113,8 +114,9 @@ export class InventoryService {
         return product;
     }
 
-    async update(id: string, updateData: Partial<CreateProductDto>): Promise<Product> {
-        const product = await this.productRepository.findOne({ where: { id } });
+    async update(id: string, updateData: Partial<CreateProductDto>, tenantId?: string): Promise<Product> {
+        const where = tenantId ? { id, tenantId } : { id };
+        const product = await this.productRepository.findOne({ where });
         if (!product) {
             throw new NotFoundException('Produto não encontrado');
         }
@@ -128,8 +130,8 @@ export class InventoryService {
         return this.findOne(id);
     }
 
-    async remove(id: string): Promise<void> {
-        await this.productRepository.delete(id);
+    async remove(id: string, tenantId?: string): Promise<void> {
+        await this.productRepository.delete(tenantId ? { id, tenantId } : id);
     }
 
     async getSummary(tenantId?: string) {

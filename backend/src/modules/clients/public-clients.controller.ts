@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Client, ClientType, ClientStatus } from './entities/client.entity';
 import { ClientContact, ContactType } from './entities/client-contact.entity';
+import { TenantsService } from '../tenants/tenants.service';
 import { Response } from 'express';
 import * as path from 'path';
 
@@ -15,11 +16,18 @@ export class PublicClientsController {
         private clientsRepository: Repository<Client>,
         @InjectRepository(ClientContact)
         private contactsRepository: Repository<ClientContact>,
+        private readonly tenantsService: TenantsService,
     ) { }
 
     @Post('register')
     async selfRegister(@Body() body: any) {
         this.logger.log(`Self-register request: ${JSON.stringify(body)}`);
+
+        // Validate tenant
+        if (!body.tenantId || !body.tenantId.trim()) {
+            throw new BadRequestException('Tenant obrigatório');
+        }
+        await this.tenantsService.findById(body.tenantId); // lança NotFoundException se não existir
 
         // Validate required fields
         if (!body.nome || !body.nome.trim()) {
@@ -68,6 +76,7 @@ export class PublicClientsController {
             estado: body.estado ? body.estado.toUpperCase() : null,
             observacoes: body.observacoes || null,
             status: ClientStatus.ATIVO,
+            tenantId: body.tenantId,
         });
 
         try {

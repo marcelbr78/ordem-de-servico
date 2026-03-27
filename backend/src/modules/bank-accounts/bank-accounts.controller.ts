@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
 import { BankAccountsService } from './bank-accounts.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -23,17 +23,23 @@ export class BankAccountsController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.bankAccountsService.findOne(id);
+    findOne(@Param('id') id: string, @Request() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.bankAccountsService.findOne(id, tenantId);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() dto: Record<string, unknown>) {
-        return this.bankAccountsService.updateFromRaw(id, dto);
+    update(@Param('id') id: string, @Body() dto: Record<string, unknown>, @Request() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.bankAccountsService.updateFromRaw(id, dto, tenantId);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.bankAccountsService.remove(id);
+    remove(@Param('id') id: string, @Request() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.bankAccountsService.remove(id, tenantId);
     }
 }

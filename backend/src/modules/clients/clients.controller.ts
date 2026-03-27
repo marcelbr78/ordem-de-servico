@@ -11,6 +11,7 @@ import {
     HttpCode,
     HttpStatus,
     Req,
+    UnauthorizedException,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { ContactsService } from './contacts.service';
@@ -60,21 +61,27 @@ export class ClientsController {
 
     @Patch(':id')
     @RequirePermissions(Permission.CLIENT_UPDATE)
-    update(@Param('id') id: string, @Body() updateClientDto: UpdateClientDto) {
-        return this.clientsService.update(id, updateClientDto);
+    update(@Param('id') id: string, @Body() updateClientDto: UpdateClientDto, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.clientsService.update(id, updateClientDto, tenantId);
     }
 
     @Delete(':id')
     @RequirePermissions(Permission.CLIENT_DELETE)
     @HttpCode(HttpStatus.NO_CONTENT)
-    async remove(@Param('id') id: string) {
-        await this.clientsService.softDelete(id);
+    async remove(@Param('id') id: string, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        await this.clientsService.softDelete(id, tenantId);
     }
 
     @Patch(':id/reactivate')
     @RequirePermissions(Permission.CLIENT_UPDATE)
-    reactivate(@Param('id') id: string) {
-        return this.clientsService.reactivate(id);
+    reactivate(@Param('id') id: string, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.clientsService.reactivate(id, tenantId);
     }
 
     // ─── Contatos ──────────────────────────────────

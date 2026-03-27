@@ -124,8 +124,8 @@ export class ClientsService {
         return client;
     }
 
-    async update(id: string, updateClientDto: UpdateClientDto): Promise<Client> {
-        const client = await this.findOne(id);
+    async update(id: string, updateClientDto: UpdateClientDto, tenantId?: string): Promise<Client> {
+        const client = await this.findOne(id, tenantId);
         const { contatos: contatosDto, ...clientData } = updateClientDto;
 
         // 1. Sincronizar contatos se fornecidos
@@ -152,17 +152,17 @@ export class ClientsService {
         return this.clientsRepository.save(updatedClient);
     }
 
-    async softDelete(id: string): Promise<void> {
-        const client = await this.findOne(id);
+    async softDelete(id: string, tenantId?: string): Promise<void> {
+        const client = await this.findOne(id, tenantId);
         client.status = ClientStatus.INATIVO;
         await this.clientsRepository.save(client);
-        await this.clientsRepository.softDelete(id);
+        await this.clientsRepository.softDelete(tenantId ? { id, tenantId } : id);
     }
 
-    async reactivate(id: string): Promise<Client> {
-        await this.clientsRepository.restore(id);
+    async reactivate(id: string, tenantId?: string): Promise<Client> {
+        await this.clientsRepository.restore(tenantId ? { id, tenantId } : id);
         const client = await this.clientsRepository.findOne({
-            where: { id },
+            where: tenantId ? { id, tenantId } : { id },
         });
         if (!client) {
             throw new NotFoundException('Cliente não encontrado');

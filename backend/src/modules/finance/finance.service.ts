@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager } from 'typeorm';
+import { Repository, EntityManager, DataSource } from 'typeorm';
 import { Transaction, TransactionType, TransactionStatus } from './entities/transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { BankAccount } from '../bank-accounts/entities/bank-account.entity';
@@ -10,10 +10,34 @@ export class FinanceService {
     constructor(
         @InjectRepository(Transaction)
         private txRepo: Repository<Transaction>,
+        private dataSource: DataSource,
     ) {}
 
     async create(dto: CreateTransactionDto, tenantId?: string, manager?: EntityManager): Promise<any> {
-        const repo = manager ? manager.getRepository(Transaction) : this.txRepo;
+        // Idempotência: previne criação duplicada de pagamento de OS
+        // Protege tanto contra double-click quanto contra execução dupla no fluxo event-driven
+        if (dto.orderId && dto.category === 'Pagamento de OS' && dto.type === TransactionType.INCOME) {
+            const checkRepo = manager ? manager.getRepository(Transaction) : this.txRepo;
+            const existing = await checkRepo.findOne({
+                where: { orderId: dto.orderId, category: 'Pagamento de OS', type: TransactionType.INCOME },
+            });
+            if (existing) {
+                console.log(`[FinanceService] Pagamento já registrado para OS ${dto.orderId} — retornando existente (idempotência)`);
+                return existing;
+            }
+        }
+
+        if (manager) {
+            // Caso 1: manager externo (dentro de transaction do changeStatus) — comportamento atual
+            return this._executeCreate(dto, tenantId, manager);
+        } else {
+            // Caso 2: sem manager externo (event handler) — transaction interna via DataSource
+            return this.dataSource.transaction((txManager) => this._executeCreate(dto, tenantId, txManager));
+        }
+    }
+
+    private async _executeCreate(dto: CreateTransactionDto, tenantId: string | undefined, manager: EntityManager): Promise<any> {
+        const repo = manager.getRepository(Transaction);
         const status = (dto as any).status || ((dto as any).dueDate ? TransactionStatus.PENDING : TransactionStatus.PAID);
         const txData: any = {
             ...dto,
@@ -25,9 +49,10 @@ export class FinanceService {
         const saved: any = await repo.save(tx);
 
         // Atualiza saldo da conta bancária se pago e conta informada
-        if (saved.status === TransactionStatus.PAID && dto.bankAccountId && manager) {
+        if (saved.status === TransactionStatus.PAID && dto.bankAccountId) {
+            if (!tenantId) throw new UnauthorizedException('Tenant obrigatório');
             const bankRepo = manager.getRepository(BankAccount);
-            const account = await bankRepo.findOne({ where: { id: dto.bankAccountId } });
+            const account = await bankRepo.findOne({ where: { id: dto.bankAccountId, tenantId } });
             if (account) {
                 const delta = dto.type === TransactionType.INCOME ? +Number(dto.amount) : -Number(dto.amount);
                 account.currentBalance = Number(account.currentBalance) + delta;
@@ -37,15 +62,16 @@ export class FinanceService {
         return saved;
     }
 
-    async update(id: string, dto: Partial<CreateTransactionDto>): Promise<any> {
-        const tx = await this.txRepo.findOne({ where: { id } });
+    async update(id: string, dto: Partial<CreateTransactionDto>, tenantId?: string): Promise<any> {
+        const where = tenantId ? { id, tenantId } : { id };
+        const tx = await this.txRepo.findOne({ where });
         if (!tx) throw new Error('Transação não encontrada');
         Object.assign(tx, dto);
         return this.txRepo.save(tx);
     }
 
-    async remove(id: string): Promise<void> {
-        await this.txRepo.delete(id);
+    async remove(id: string, tenantId?: string): Promise<void> {
+        await this.txRepo.delete(tenantId ? { id, tenantId } : id);
     }
 
     async findAll(filters?: {
@@ -68,8 +94,9 @@ export class FinanceService {
         return qb.getMany();
     }
 
-    async findByOrder(orderId: string): Promise<any[]> {
-        return this.txRepo.find({ where: { orderId }, order: { createdAt: 'DESC' } });
+    async findByOrder(orderId: string, tenantId?: string): Promise<any[]> {
+        const where = tenantId ? { orderId, tenantId } : { orderId };
+        return this.txRepo.find({ where, order: { createdAt: 'DESC' } });
     }
 
     async getSummary(from?: string, to?: string, tenantId?: string): Promise<any> {
