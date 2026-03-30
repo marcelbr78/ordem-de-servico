@@ -83,6 +83,9 @@ const EmpresaFiscalSection: React.FC<Props> = ({ settings, onSave }) => {
                 ? d.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')
                 : '';
 
+            const ibge = d.codigo_municipio_ibge ? String(d.codigo_municipio_ibge) : '';
+            const crt = d.opcao_pelo_simples ? '1' : '3';
+
             await saveMany({
                 fiscal_cnpj: cnpjRaw,
                 fiscal_razao_social: d.razao_social || '',
@@ -93,11 +96,26 @@ const EmpresaFiscalSection: React.FC<Props> = ({ settings, onSave }) => {
                 fiscal_municipio: d.municipio || '',
                 fiscal_uf: d.uf || '',
                 fiscal_cep: cep,
-                fiscal_cod_ibge: d.codigo_municipio_ibge ? String(d.codigo_municipio_ibge) : '',
+                fiscal_cod_ibge: ibge,
                 fiscal_fone: fone,
-                // Detectar Simples Nacional
-                fiscal_crt: d.opcao_pelo_simples ? '1' : '3',
+                fiscal_crt: crt,
             });
+
+            // Sincroniza dados da empresa (company_*) com o mesmo CNPJ
+            const companySync: Record<string, string> = {
+                company_cnpj: cnpjRaw,
+                company_name: d.razao_social || '',
+                company_fantasy_name: d.nome_fantasia || d.razao_social || '',
+                company_phone: fone,
+                company_address_street: d.logradouro || '',
+                company_address_number: d.numero || '',
+                company_address_neighborhood: d.bairro || '',
+                company_address_city: d.municipio || '',
+                company_address_state: d.uf || '',
+                company_address_zip: cep,
+                company_ibge: ibge,
+            };
+            Object.entries(companySync).forEach(([k, v]) => { if (v) onSave(k, v).catch(() => {}); });
 
             setCnpjStatus('ok');
             setCnpjMsg(`✅ Dados preenchidos automaticamente: ${d.razao_social}`);
@@ -146,9 +164,11 @@ const EmpresaFiscalSection: React.FC<Props> = ({ settings, onSave }) => {
                                     .replace(/\.(\d{3})(\d)/, '.$1/$2')
                                     .replace(/(\d{4})(\d)/, '$1-$2');
                                 set('fiscal_cnpj', fmt);
-                                if (raw.length === 14) buscarCnpj(fmt);
                             }}
-                            onBlur={() => save('fiscal_cnpj')}
+                            onBlur={() => {
+                                save('fiscal_cnpj');
+                                buscarCnpj(val('fiscal_cnpj'));
+                            }}
                             style={{
                                 ...input,
                                 fontSize: '16px',
