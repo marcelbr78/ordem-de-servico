@@ -44,6 +44,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('@OS:token', access_token);
         localStorage.setItem('@OS:refreshToken', refresh_token);
         localStorage.setItem('@OS:user', JSON.stringify(userData));
+        if (userData.tenantId) {
+            localStorage.setItem('tenant_id', userData.tenantId);
+        }
 
         setUser(userData);
     }
@@ -52,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('@OS:token');
         localStorage.removeItem('@OS:refreshToken');
         localStorage.removeItem('@OS:user');
+        localStorage.removeItem('tenant_id');
         setUser(null);
     }
 
