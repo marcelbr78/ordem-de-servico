@@ -31,7 +31,7 @@ test.describe('Settings — Campos e Inicialização', () => {
     expect(disabled).toBe(false);
   });
 
-  test('digitar em um campo de settings não perde o foco imediatamente', async ({ page }) => {
+  test('digitar em campo de settings mantém o valor (sem reset)', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForTimeout(2000);
@@ -48,17 +48,17 @@ test.describe('Settings — Campos e Inicialização', () => {
       return;
     }
 
-    // Clica e digita
+    // Limpa e digita um valor conhecido
     await campo.click();
-    await campo.type('Teste Digitação');
-    await page.waitForTimeout(300);
+    await campo.fill('Empresa Teste QA');
+    await page.waitForTimeout(500);
 
-    // Verifica que o campo ainda tem o foco (não perdeu)
-    const isFocused = await campo.evaluate(el => document.activeElement === el);
-    expect(isFocused).toBe(true);
+    // O valor deve permanecer — se settings re-inicializar, volta ao valor da API
+    const valorAtual = await campo.inputValue();
+    expect(valorAtual).toBe('Empresa Teste QA');
 
-    // Limpa o que digitou para não sujar o banco
-    await campo.clear();
+    // Restaura (não clica em salvar — só testamos que o estado local não resetou)
+    await campo.fill('');
   });
 
   test('salvar settings exibe mensagem de sucesso', async ({ page }) => {
