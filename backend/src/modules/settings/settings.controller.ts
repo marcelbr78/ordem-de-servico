@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Put, Request, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Put, Request, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SettingType } from './entities/setting.entity';
@@ -44,6 +44,7 @@ export class SettingsController {
         @Request() req,
     ) {
         const tenantId = req.user?.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado — settings não podem ser salvas sem tenant');
         return this.settingsService.set(body.key, body.value, body.type, body.description, body.isPublic, tenantId);
     }
 
@@ -55,6 +56,7 @@ export class SettingsController {
         @Request() req,
     ) {
         const tenantId = req.user?.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado — settings não podem ser salvas sem tenant');
         return this.settingsService.set(key, body.value, body.type, body.description, body.isPublic, tenantId);
     }
 
