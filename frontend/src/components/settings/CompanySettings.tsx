@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Save, Search, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -28,8 +28,13 @@ export const CompanySettings: React.FC<CompanySettingsProps> = ({ settings, onSa
     const [loading, setLoading] = useState(false);
     const [cnpjLoading, setCnpjLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const initialized = useRef(false);
 
     useEffect(() => {
+        // Aguarda settings ter dados reais antes de inicializar (evita setar vazios no primeiro render com loading)
+        if (initialized.current) return;
+        if (Object.keys(settings).length === 0) return;
+        initialized.current = true;
         setLocalData({
             company_name: settings.company_name || '',
             company_fantasy_name: settings.company_fantasy_name || '',
@@ -68,20 +73,43 @@ export const CompanySettings: React.FC<CompanySettingsProps> = ({ settings, onSa
             const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
             if (!res.ok) throw new Error();
             const data = await res.json();
+            const phone = data.ddd_telefone_1 ? `(${data.ddd_telefone_1.slice(0,2)}) ${data.ddd_telefone_1.slice(2)}` : '';
+            const cep = data.cep?.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2') || '';
+            const ibge = data.codigo_municipio_ibge ? String(data.codigo_municipio_ibge) : '';
+            const crt = data.opcao_pelo_simples ? '1' : '3';
+
             setLocalData(prev => ({
                 ...prev,
                 company_name: data.razao_social || prev.company_name,
                 company_fantasy_name: data.nome_fantasia || prev.company_fantasy_name,
-                company_phone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.slice(0,2)}) ${data.ddd_telefone_1.slice(2)}` : prev.company_phone,
+                company_phone: phone || prev.company_phone,
                 company_address_street: data.logradouro || prev.company_address_street,
                 company_address_number: data.numero || prev.company_address_number,
                 company_address_complement: data.complemento || prev.company_address_complement,
                 company_address_neighborhood: data.bairro || prev.company_address_neighborhood,
                 company_address_city: data.municipio || prev.company_address_city,
                 company_address_state: data.uf || prev.company_address_state,
-                company_address_zip: data.cep?.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2') || prev.company_address_zip,
-                company_ibge: data.codigo_municipio_ibge ? String(data.codigo_municipio_ibge) : prev.company_ibge,
+                company_address_zip: cep || prev.company_address_zip,
+                company_ibge: ibge || prev.company_ibge,
             }));
+
+            // Sincroniza dados fiscais (fiscal_*) com o mesmo CNPJ
+            const fiscalSync: Record<string, string> = {
+                fiscal_cnpj: localData.company_cnpj,
+                fiscal_razao_social: data.razao_social || '',
+                fiscal_nome_fantasia: data.nome_fantasia || data.razao_social || '',
+                fiscal_fone: phone,
+                fiscal_logradouro: data.logradouro || '',
+                fiscal_numero: data.numero || '',
+                fiscal_bairro: data.bairro || '',
+                fiscal_municipio: data.municipio || '',
+                fiscal_uf: data.uf || '',
+                fiscal_cep: cep,
+                fiscal_cod_ibge: ibge,
+                fiscal_crt: crt,
+            };
+            Object.entries(fiscalSync).forEach(([k, v]) => { if (v) onSave(k, v).catch(() => {}); });
+
             setMessage({ type: 'success', text: 'Dados preenchidos automaticamente!' });
             setTimeout(() => setMessage(null), 3000);
         } catch {

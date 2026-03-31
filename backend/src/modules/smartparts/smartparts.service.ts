@@ -160,19 +160,26 @@ export class SmartPartsService {
             return;
         }
 
-        // Step C: If matched manually (no Ref Code), perform a stricter product name check
-        // If the user is chatting about something else, don't contaminate the active quote
+        // Step C: Se a mensagem tem preços extraíveis, processa diretamente (evita descartar respostas simples como "200")
+        const extractedEarly = this.extractPricesFromMessage(message);
+        if (extractedEarly.length > 0) {
+            this.logger.log(`[SmartParts] Preço detectado antecipadamente na msg de ${supplier.name} — processando diretamente`);
+            await this.processResponse(activeQuote, supplier, message);
+            return;
+        }
+
+        // Se não tem preço, aplica filtro de relevância para evitar contaminar cotação com chat não relacionado
         const relevance = this.isMessageRelevantToQuote(message, activeQuote.productName);
 
         if (relevance.type === 'greeting' && !message.match(/\d/)) {
-            // It's just a "blz" or "oi", we accept it as "Received"
+            // Saudação simples sem número ("blz", "oi") — registra como "recebido"
             this.logger.log(`Acknowledged (greeting) from ${supplier.name} for quote ${activeQuote.id}`);
             await this.registerResponse(activeQuote.id, supplier.id, -1, message);
             return;
         }
 
         if (relevance.type === 'greeting') {
-            // It might be about something else entirely (user manual chat)
+            // Mensagem curta com dígito mas sem preço reconhecível — ignora para não contaminar
             this.logger.warn(`Message from ${supplier.name} seems unrelated to ${activeQuote.productName}. Ignoring to prevent contamination.`);
             return;
         }

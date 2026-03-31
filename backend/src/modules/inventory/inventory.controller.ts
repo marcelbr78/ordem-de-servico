@@ -58,8 +58,10 @@ export class InventoryController {
     }
 
     @Get(':id/movements')
-    getProductMovements(@Param('id') id: string) {
-        return this.stockService.getMovements(id);
+    getProductMovements(@Param('id') id: string, @Req() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.stockService.getMovements(id, undefined, undefined, tenantId);
     }
 
     @Put(':id')
@@ -117,10 +119,12 @@ export class InventoryController {
 
     // Legado
     @Put(':id/:type/:quantity')
-    updateQuantity(@Param('id') id: string, @Param('type') type: 'IN' | 'OUT', @Param('quantity') quantity: string) {
+    updateQuantity(@Param('id') id: string, @Param('type') type: 'IN' | 'OUT', @Param('quantity') quantity: string, @Req() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
         const qty = parseInt(quantity);
-        if (type === 'IN') return this.stockService.manualEntry(id, qty);
-        return this.stockService.manualExit(id, qty);
+        if (type === 'IN') return this.stockService.manualEntry(id, qty, undefined, undefined, undefined, undefined, tenantId);
+        return this.stockService.manualExit(id, qty, undefined, tenantId);
     }
     @Post('import')
     async importProducts(@Body() body: { data: any[] }, @Req() req: any) {

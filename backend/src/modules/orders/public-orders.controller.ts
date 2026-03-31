@@ -97,9 +97,15 @@ export class PublicOrdersController {
         try { tenant = await this.tenantsService.findById(tenantId); } catch {}
 
         try {
+            // Carrega sem tenantId primeiro para rota pública (UUID é o token de acesso)
             const order = await this.ordersService.findOne(id);
             // Registra acesso do cliente ao link público (fire-and-forget)
             this.ordersService.recordPublicAccess(id).catch(() => {});
+            // Usa o tenantId da própria OS para carregar dados do tenant correto
+            const orderTenantId = (order as any).tenantId;
+            if (orderTenantId) {
+                try { tenant = await this.tenantsService.findById(orderTenantId); } catch {}
+            }
             return {
                 id: order.id,
                 protocol: order.protocol,

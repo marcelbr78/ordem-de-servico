@@ -72,7 +72,7 @@ export const SmartInput: React.FC<SmartInputProps> = ({
                     name={name}
                     value={value} onChange={handleChange} placeholder={placeholder}
                     disabled={disabled} required={required}
-                    onFocus={() => { setFocused(true); if (!value && minChars === 0) loadInitial(); else if (value) search(value); }}
+                    onFocus={() => { setFocused(true); if (!value && minChars === 0) loadInitial(); }}
                     onBlur={() => setTimeout(() => setFocused(false), 200)}
                     style={inp}
                     autoComplete="off"

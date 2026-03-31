@@ -6,8 +6,13 @@ interface Option { value: string; source?: string; id?: string; nome?: string; c
 const cache: Record<string, { ts: number; data: Option[] }> = {};
 const CACHE_TTL = 60000; // 1 min
 
+function getCacheTenantKey(): string {
+    // Inclui o tenant ativo na chave do cache para evitar contaminação entre tenants (shadow mode)
+    return localStorage.getItem('shadow_tenant_id') || localStorage.getItem('tenant_id') || 'default';
+}
+
 async function fetchOptions(endpoint: string, params: Record<string, string>): Promise<Option[]> {
-    const key = endpoint + JSON.stringify(params);
+    const key = getCacheTenantKey() + ':' + endpoint + JSON.stringify(params);
     if (cache[key] && Date.now() - cache[key].ts < CACHE_TTL) return cache[key].data;
     try {
         const res = await api.get(endpoint, { params });

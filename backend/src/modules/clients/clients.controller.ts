@@ -88,26 +88,37 @@ export class ClientsController {
 
     @Get(':id/contacts')
     @RequirePermissions(Permission.CLIENT_READ)
-    findContacts(@Param('id') id: string) {
+    async findContacts(@Param('id') id: string, @Req() req) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        await this.clientsService.findOne(id, tenantId); // valida ownership
         return this.contactsService.findAllByClient(id);
     }
 
     @Post(':id/contacts')
     @RequirePermissions(Permission.CLIENT_UPDATE)
-    createContact(
+    async createContact(
         @Param('id') id: string,
         @Body() dto: CreateContactDto,
+        @Req() req,
     ) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        await this.clientsService.findOne(id, tenantId); // valida ownership
         return this.contactsService.create(id, dto);
     }
 
     @Patch(':id/contacts/:contactId')
     @RequirePermissions(Permission.CLIENT_UPDATE)
-    updateContact(
+    async updateContact(
         @Param('id') id: string,
         @Param('contactId') contactId: string,
         @Body() dto: UpdateContactDto,
+        @Req() req,
     ) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        await this.clientsService.findOne(id, tenantId); // valida ownership
         return this.contactsService.update(id, contactId, dto);
     }
 
@@ -117,7 +128,11 @@ export class ClientsController {
     async removeContact(
         @Param('id') id: string,
         @Param('contactId') contactId: string,
+        @Req() req,
     ) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        await this.clientsService.findOne(id, tenantId); // valida ownership
         await this.contactsService.remove(id, contactId);
     }
 
@@ -125,7 +140,10 @@ export class ClientsController {
 
     @Get(':id/os-history')
     @RequirePermissions(Permission.CLIENT_READ)
-    findOsHistory(@Param('id') id: string) {
+    async findOsHistory(@Param('id') id: string, @Req() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        await this.clientsService.findOne(id, tenantId); // valida ownership
         return this.osHistoryService.findByClient(id);
     }
 

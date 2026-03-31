@@ -163,7 +163,18 @@ export class OrdersService {
 
     async changeStatus(id: string, dto: ChangeStatusDto, userId?: string, tenantId?: string): Promise<OrderService> {
         const order = await this.findOne(id, tenantId);
-        // Validacao de fluxo removida a pedido (Modo Liberdade)
+
+        // Validação de fluxo: bloqueia transições inválidas
+        // Para desabilitar por tenant, adicione a chave "os_modo_liberdade: true" em settings
+        const modoLiberdade = await this.settingsService.findByKey('os_modo_liberdade').catch(() => null);
+        if (!modoLiberdade || modoLiberdade !== 'true') {
+            const allowedNext = await this.getStatusFlow(order.status);
+            if (allowedNext.length > 0 && !allowedNext.includes(dto.status)) {
+                throw new BadRequestException(
+                    `Transição inválida: ${order.status} → ${dto.status}. Próximos permitidos: ${allowedNext.join(', ')}`
+                );
+            }
+        }
 
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
