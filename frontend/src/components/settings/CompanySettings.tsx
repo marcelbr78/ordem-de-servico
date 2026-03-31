@@ -31,7 +31,9 @@ export const CompanySettings: React.FC<CompanySettingsProps> = ({ settings, onSa
     const initialized = useRef(false);
 
     useEffect(() => {
+        // Aguarda settings ter dados reais antes de inicializar (evita setar vazios no primeiro render com loading)
         if (initialized.current) return;
+        if (Object.keys(settings).length === 0) return;
         initialized.current = true;
         setLocalData({
             company_name: settings.company_name || '',

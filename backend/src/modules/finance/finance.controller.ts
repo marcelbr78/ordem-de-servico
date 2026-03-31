@@ -10,7 +10,9 @@ export class FinanceController {
 
     @Post()
     create(@Body() dto: CreateTransactionDto, @Request() req) {
-        return this.financeService.create(dto, req.user?.tenantId);
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        return this.financeService.create(dto, tenantId);
     }
 
     @Get()

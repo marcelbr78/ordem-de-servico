@@ -140,7 +140,10 @@ export class ClientsController {
 
     @Get(':id/os-history')
     @RequirePermissions(Permission.CLIENT_READ)
-    findOsHistory(@Param('id') id: string) {
+    async findOsHistory(@Param('id') id: string, @Req() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('Tenant não identificado');
+        await this.clientsService.findOne(id, tenantId); // valida ownership
         return this.osHistoryService.findByClient(id);
     }
 

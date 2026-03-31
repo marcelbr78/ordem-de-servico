@@ -7,30 +7,10 @@ import { StockService } from '../../inventory/stock.service';
 import { OrderPart } from '../../orders/entities/order-part.entity';
 import { OrderService as OS } from '../../orders/entities/order-service.entity';
 
-/**
- * ─── FLAG DE ATIVAÇÃO ────────────────────────────────────────────────────────
- *
- * Manter false até concluir ETAPA 2 (idempotência).
- *
- * ⚠️ ETAPA 2 — OBRIGATÓRIA antes de ativar:
- *
- *   1. Idempotência consumeStock (FINALIZADA):
- *      Verificar se já existe StockMovement(type=EXIT, orderId) antes de consumir.
- *      Sem essa guarda, execução dupla consome estoque duas vezes.
- *
- *   2. Idempotência reverseMovement (CANCELADA):
- *      Verificar se já existe StockMovement(type=REVERSE_EXIT, orderId) antes de reverter.
- *      Sem essa guarda, execução dupla cria dois REVERSE_EXIT para cada EXIT original.
- *
- *   3. Decisão sobre finalValue:
- *      _handleStockEffects atualmente atualiza OS.finalValue dentro da transaction
- *      de changeStatus (atômico com o status). Este handler NÃO pode acessar essa
- *      transaction. Opções:
- *        a) Manter finalValue no changeStatus como _applyFinalValue() separado
- *           (permanece atômico, handler cuida apenas de estoque)   ← recomendado
- *        b) Mover para evento separado (eventual consistency no valor da OS)
- * ─────────────────────────────────────────────────────────────────────────────
- */
+// Idempotência implementada no StockService.consumeStock e reverseMovement:
+// consumeStock verifica StockMovement(type=EXIT, orderId) antes de executar.
+// reverseMovement verifica antes de criar REVERSE_EXIT.
+// Execuções duplicadas são ignoradas com segurança.
 const STOCK_EVENT_DRIVEN_ENABLED = true;
 
 @Injectable()
@@ -65,12 +45,6 @@ export class StockEventListener implements OnModuleInit {
     // ─── FINALIZADA: consumir estoque ──────────────────────────────────────
 
     private async _onFinalized(orderId: string): Promise<void> {
-        // TODO (ETAPA 2): adicionar guarda de idempotência antes de executar
-        // if (await this._hasExitMovement(orderId)) {
-        //     this.logger.log(`[Stock] Consumo já realizado para OS ${orderId} — ignorando`);
-        //     return;
-        // }
-
         try {
             const parts = await this.partsRepo.find({
                 where: { orderId },
@@ -94,12 +68,6 @@ export class StockEventListener implements OnModuleInit {
     // ─── CANCELADA: reverter estoque ───────────────────────────────────────
 
     private async _onCanceled(orderId: string): Promise<void> {
-        // TODO (ETAPA 2): adicionar guarda de idempotência antes de executar
-        // if (await this._hasReverseMovement(orderId)) {
-        //     this.logger.log(`[Stock] Reversão já realizada para OS ${orderId} — ignorando`);
-        //     return;
-        // }
-
         try {
             await this.stockService.reverseMovement(orderId);
             this.logger.log(`[Stock] Reversão de estoque executada via evento para OS ${orderId}`);
