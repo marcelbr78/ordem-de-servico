@@ -7,6 +7,45 @@ interface CompanySettingsProps {
     onSave: (key: string, value: string) => Promise<void>;
 }
 
+// ── styles fora do componente (evita recriar a cada render) ──
+const card: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(12px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '16px',
+    padding: '24px',
+};
+
+const inp: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'rgba(255,255,255,0.05)',
+    color: '#fff',
+    fontSize: '14px',
+    outline: 'none',
+    boxSizing: 'border-box',
+};
+
+const lbl: React.CSSProperties = {
+    display: 'block',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: '0.6px',
+    textTransform: 'uppercase',
+    marginBottom: '5px',
+};
+
+// Field fora do componente pai — evita recriar a cada render e perder foco dos inputs
+const Field = ({ label, children }: { label: string, children: React.ReactNode }) => (
+    <div>
+        <label style={lbl}>{label}</label>
+        {children}
+    </div>
+);
+
 export const CompanySettings: React.FC<CompanySettingsProps> = ({ settings, onSave }) => {
     const [localData, setLocalData] = useState({
         company_name: '',
@@ -123,11 +162,10 @@ export const CompanySettings: React.FC<CompanySettingsProps> = ({ settings, onSa
     const handleSaveAll = async () => {
         try {
             setLoading(true);
-            const promises = Object.entries(localData).map(([key, value]) =>
-                api.put(`/settings/${key}`, { value: String(value) })
-            );
-            await Promise.all(promises);
-            // Atualiza estado local do pai para cada chave
+            // Sequencial em vez de Promise.all — evita race condition no refresh do token
+            for (const [key, value] of Object.entries(localData)) {
+                await api.put(`/settings/${key}`, { value: String(value) });
+            }
             for (const [key, value] of Object.entries(localData)) {
                 onSave(key, String(value)).catch(() => {});
             }
@@ -139,44 +177,6 @@ export const CompanySettings: React.FC<CompanySettingsProps> = ({ settings, onSa
             setLoading(false);
         }
     };
-
-    // ── styles ──
-    const card: React.CSSProperties = {
-        background: 'rgba(255,255,255,0.05)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '16px',
-        padding: '24px',
-    };
-
-    const inp: React.CSSProperties = {
-        width: '100%',
-        padding: '10px 12px',
-        borderRadius: '8px',
-        border: '1px solid rgba(255,255,255,0.1)',
-        background: 'rgba(255,255,255,0.05)',
-        color: '#fff',
-        fontSize: '14px',
-        outline: 'none',
-        boxSizing: 'border-box',
-    };
-
-    const lbl: React.CSSProperties = {
-        display: 'block',
-        fontSize: '11px',
-        fontWeight: 600,
-        color: 'rgba(255,255,255,0.45)',
-        letterSpacing: '0.6px',
-        textTransform: 'uppercase',
-        marginBottom: '5px',
-    };
-
-    const Field = ({ label, children }: { label: string, children: React.ReactNode }) => (
-        <div>
-            <label style={lbl}>{label}</label>
-            {children}
-        </div>
-    );
 
     return (
         <div style={card}>
