@@ -70,8 +70,8 @@ export class BankAccountsService {
         await this.bankAccountRepository.delete(tenantId ? { id, tenantId } : id);
     }
 
-    async updateBalance(id: string, amount: number): Promise<BankAccount> {
-        const account = await this.findOne(id);
+    async updateBalance(id: string, amount: number, tenantId?: string): Promise<BankAccount> {
+        const account = await this.findOne(id, tenantId);
         account.currentBalance = Number(account.currentBalance) + amount;
         return this.bankAccountRepository.save(account);
     }

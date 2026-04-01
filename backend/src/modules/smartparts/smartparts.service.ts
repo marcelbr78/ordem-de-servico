@@ -242,7 +242,8 @@ export class SmartPartsService {
         if (d.includes('original') || d.includes('orig')) return 'original';
         if (d.includes('oled') && (d.includes('chin') || d.includes('aaaa') || d.includes('copy'))) return 'oled_china';
         if (d.includes('oled')) return 'oled';
-        if (d.includes('incell') || d.includes('in-cell') || d.includes('in cell')) return 'incell';
+        if (d.includes('incell') || d.includes('in-cell') || d.includes('in cell') || d === 'cel' || d.includes(' cel ') || d.startsWith('cel ') || d.endsWith(' cel')) return 'incell';
+        if (d.includes('led') || d.includes('lcd')) return 'generico';
         if (d.includes('amoled')) return 'amoled';
         if (d.includes('nacional') || d.includes('nac')) return 'nacional';
         if (d.includes('generico') || d.includes('genérico') || d.includes('copia') || d.includes('cópia')) return 'generico';
@@ -301,7 +302,7 @@ export class SmartPartsService {
             'valor', 'preco', 'preço', 'custa', 'cobro', 'faco', 'faço',
             'fica', 'sai por', 'sai a', 'por r$', 'r$',
             'reais', 'real', 'conto', 'pila',
-            'original', 'oled', 'china', 'nacional', 'premium',
+            'original', 'oled', 'china', 'nacional', 'premium', 'cel', 'led', 'lcd',
             'compativel', 'compatível', 'genuina', 'genuína',
             'mando', 'envio', 'entrego', 'posso mandar',
             'qualidade', 'garantia',

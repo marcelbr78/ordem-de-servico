@@ -1855,6 +1855,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onClose, onUp
             {showDeliveryReceipt && (
                 <DeliveryReceiptModal
                     order={order}
+                    settings={settings}
                     onClose={() => setShowDeliveryReceipt(false)}
                     onSuccess={() => { setShowDeliveryReceipt(false); }}
                 />

@@ -471,33 +471,15 @@ const ReceiptContent = ({ order, settings, type, isCopy, transactions }: { order
 };
 
 const StandardTemplateA4 = ({ order, settings, type, transactions }: { order: any, settings: any, type: string, transactions?: any[] }) => {
-    // A4 Portrait: 210mm x 297mm. Half is ~148mm.
-    const isTerm = type === 'term';
     return (
-        <div style={{ ...s.pageA4, padding: 0, height: '297mm', display: 'flex', flexDirection: 'column' }}>
-            {/* First Copy (Top or Full) */}
+        <div style={{ ...s.pageA4, padding: 0, minHeight: '297mm', display: 'flex', flexDirection: 'column' }}>
             <div style={{
-                flex: isTerm ? 1 : 'none',
-                height: isTerm ? '100%' : '148.5mm',
+                flex: 1,
                 padding: '15px 20px',
-                borderBottom: isTerm ? 'none' : '1px dashed #999',
                 boxSizing: 'border-box',
-                overflow: 'hidden'
             }}>
                 <ReceiptContent order={order} settings={settings} type={type} transactions={transactions} />
             </div>
-
-            {/* Second Copy (Bottom - Only for Service Orders) */}
-            {!isTerm && (
-                <div style={{
-                    height: '148.5mm',
-                    padding: '15px 20px',
-                    boxSizing: 'border-box',
-                    overflow: 'hidden'
-                }}>
-                    <ReceiptContent order={order} settings={settings} type={type} isCopy transactions={transactions} />
-                </div>
-            )}
         </div>
     );
 };
