@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
+
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutos
 
 interface User {
     id: string;
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         const storageToken = localStorage.getItem('@OS:token');
@@ -58,6 +61,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('tenant_id');
         setUser(null);
     }
+
+    const resetInactivityTimer = useCallback(() => {
+        if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+        inactivityTimer.current = setTimeout(() => {
+            signOut();
+        }, INACTIVITY_TIMEOUT);
+    }, []);
+
+    useEffect(() => {
+        if (!user) {
+            if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+            return;
+        }
+
+        const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+        events.forEach(e => window.addEventListener(e, resetInactivityTimer, { passive: true }));
+        resetInactivityTimer();
+
+        return () => {
+            if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+            events.forEach(e => window.removeEventListener(e, resetInactivityTimer));
+        };
+    }, [user, resetInactivityTimer]);
 
     return (
         <AuthContext.Provider value={{ signed: !!user, user, signIn, signOut, loading }}>

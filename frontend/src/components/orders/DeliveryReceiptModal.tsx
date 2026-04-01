@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import api from '../../services/api';
 import {
     X, CheckCircle, Download, RefreshCw, Pen, Trash2,
-    User, Package, Calendar, DollarSign, Shield, FileText,
+    FileText,
 } from 'lucide-react';
 
 // ── Tipos ────────────────────────────────────────────────────
@@ -10,6 +10,7 @@ interface DeliveryReceiptProps {
     order: any;
     onClose: () => void;
     onSuccess: () => void;
+    settings: Record<string, string>;
 }
 
 // ── Utils ────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ const SignaturePad: React.FC<{ onChange: (dataUrl: string | null) => void }> = (
 };
 
 // ── Componente principal ─────────────────────────────────────
-export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, onClose, onSuccess }) => {
+export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, onClose, onSuccess, settings }) => {
     const [step, setStep]           = useState<'review' | 'sign' | 'done'>('review');
     const [signatureData, setSignatureData] = useState<string | null>(null);
     const [signerName, setSignerName]       = useState(order?.client?.nome || '');
@@ -105,18 +106,6 @@ export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, on
     const [notes, setNotes]                 = useState('');
     const [saving, setSaving]               = useState(false);
     const [receiptId, setReceiptId]         = useState<string | null>(null);
-    const [settings, setSettings]           = useState<Record<string, string>>({});
-
-    useEffect(() => {
-        const keys = ['company_name', 'company_phone', 'company_address_street',
-            'company_address_city', 'company_address_state', 'terms_warranty', 'terms_delivery'];
-        Promise.all(keys.map(k => api.get(`/settings/${k}`).catch(() => ({ data: { value: '' } }))))
-            .then(results => {
-                const m: Record<string, string> = {};
-                keys.forEach((k, i) => { m[k] = results[i].data?.value || ''; });
-                setSettings(m);
-            });
-    }, []);
 
     // Dados do recibo
     const parts = order?.parts || [];
@@ -151,15 +140,37 @@ export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, on
     const printReceipt = () => {
         const win = window.open('', '_blank', 'width=800,height=700');
         if (!win) return;
-        const company = settings.company_name || 'Assistência Técnica';
+
+        const companyName = settings.print_use_fantasy_name === 'true'
+            ? (settings.company_fantasy_name || settings.company_name || 'Assistência Técnica')
+            : (settings.company_name || 'Assistência Técnica');
+
+        const showAddress = settings.print_show_address !== 'false';
+        const showCnpj    = settings.print_show_cnpj !== 'false';
+        const showPhone   = settings.print_show_phone !== 'false';
+        const showEmail   = settings.print_show_email !== 'false';
+
+        const addressLine = showAddress && settings.company_address_street
+            ? `${settings.company_address_street}${settings.company_address_number ? `, ${settings.company_address_number}` : ''}${settings.company_address_neighborhood ? ` - ${settings.company_address_neighborhood}` : ''}${settings.company_address_city ? ` - ${settings.company_address_city}/${settings.company_address_state}` : ''}`
+            : '';
+
+        const infoLine = [
+            showCnpj && settings.company_cnpj ? `CNPJ: ${settings.company_cnpj}` : '',
+            showPhone && settings.company_phone ? `Tel: ${settings.company_phone}` : '',
+            showEmail && settings.company_email ? settings.company_email : '',
+        ].filter(Boolean).join(' · ');
+
+        const termsText = settings.terms_delivery || settings.terms_warranty || 'Garantia de 90 dias para mão de obra.';
+
         const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Recibo de Entrega — ${order.protocol}</title>
+<html><head><meta charset="utf-8"><title>Termo de Entrega — ${order.protocol}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
   body { padding: 24px; font-size: 13px; color: #111; }
-  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 16px; }
-  .company { font-size: 18px; font-weight: 800; color: #1d4ed8; }
-  .title { font-size: 15px; font-weight: 700; text-align: right; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 16px; gap: 16px; }
+  .company { font-size: 17px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; }
+  .company-info { font-size: 10px; color: #555; margin-top: 3px; line-height: 1.4; }
+  .title { font-size: 15px; font-weight: 700; text-align: right; white-space: nowrap; }
   .badge { display: inline-block; background: #e0f2fe; color: #0369a1; font-weight: 700; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
   section { margin-bottom: 14px; }
   section h3 { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; background: #f1f5f9; padding: 5px 8px; border-radius: 4px; margin-bottom: 8px; }
@@ -170,8 +181,8 @@ export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, on
   th { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; padding: 5px 8px; text-align: left; border-bottom: 1px solid #e5e7eb; }
   td { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid #f3f4f6; }
   .total { text-align: right; font-size: 16px; font-weight: 800; color: #1d4ed8; margin-top: 6px; }
-  .terms { font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px; line-height: 1.5; }
-  .sig-block { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px; }
+  .terms { font-size: 10px; color: #555; border: 1px solid #eee; padding: 8px; border-radius: 4px; line-height: 1.5; white-space: pre-wrap; }
+  .sig-block { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
   .sig-line { border-top: 1px solid #374151; margin-top: 60px; padding-top: 4px; font-size: 10px; text-align: center; color: #6b7280; }
   .sig-img { margin: 0 auto; display: block; max-height: 80px; }
   .approved { background: #f0fdf4; border: 1px solid #22c55e; border-radius: 6px; padding: 8px 12px; color: #166534; font-size: 11px; margin-top: 8px; }
@@ -179,11 +190,13 @@ export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, on
 </style></head><body>
 <div class="header">
   <div>
-    <div class="company">${company}</div>
-    <div style="font-size:11px;color:#6b7280;margin-top:2px">${settings.company_phone || ''} · ${settings.company_address_city || ''}/${settings.company_address_state || ''}</div>
+    ${settings.company_logo_url ? `<img src="${settings.company_logo_url}" alt="Logo" style="height:40px;max-width:120px;object-fit:contain;display:block;margin-bottom:4px"/>` : ''}
+    <div class="company">${companyName}</div>
+    ${addressLine ? `<div class="company-info">${addressLine}</div>` : ''}
+    ${infoLine ? `<div class="company-info">${infoLine}</div>` : ''}
   </div>
-  <div>
-    <div class="title">RECIBO DE ENTREGA</div>
+  <div style="text-align:right">
+    <div class="title">${settings.print_header_text || 'TERMO DE ENTREGA'}</div>
     <div style="margin-top:4px"><span class="badge">#${order.protocol}</span></div>
     <div style="font-size:11px;color:#6b7280;margin-top:3px">${now()}</div>
   </div>
@@ -202,8 +215,8 @@ export const DeliveryReceiptModal: React.FC<DeliveryReceiptProps> = ({ order, on
   <div class="grid">
     <div class="field"><label>Equipamento</label><span>${equip ? `${equip.brand || equip.marca || '?'} ${equip.model || equip.modelo || '?'}` : '—'}</span></div>
     <div class="field"><label>Serial / IMEI</label><span>${equip?.serial || '—'}</span></div>
-    ${order?.reportedDefect ? `<div class="field" style="grid-column:1/-1"><label>Defeito</label><span>${order.reportedDefect}</span></div>` : ''}
-    ${order?.diagnosis ? `<div class="field" style="grid-column:1/-1"><label>Diagnóstico</label><span>${order.diagnosis}</span></div>` : ''}
+    ${order?.reportedDefect ? `<div class="field" style="grid-column:1/-1"><label>Defeito Relatado</label><span>${order.reportedDefect}</span></div>` : ''}
+    ${order?.diagnosis ? `<div class="field" style="grid-column:1/-1"><label>Diagnóstico / Serviço</label><span>${order.diagnosis}</span></div>` : ''}
   </div>
 </section>
 
@@ -224,10 +237,14 @@ ${parts.length > 0 ? `<section>
     <div class="field"><label>Dias de Garantia</label><span>${warrantyDays} dias</span></div>
     <div class="field"><label>Válida até</label><span>${warrantyExpiry.toLocaleDateString('pt-BR')}</span></div>
   </div>
-  ${settings.terms_warranty ? `<div class="terms">${settings.terms_warranty.slice(0, 400)}</div>` : ''}
 </section>
 
 ${notes ? `<section><h3>Observações</h3><p style="font-size:12px;color:#374151">${notes}</p></section>` : ''}
+
+<section>
+  <h3>Termos e Condições</h3>
+  <div class="terms">${termsText}</div>
+</section>
 
 <div class="approved">
   ✓ Equipamento retirado e em bom estado. O cliente declara estar ciente dos serviços realizados e das condições de garantia.
@@ -236,12 +253,11 @@ ${notes ? `<section><h3>Observações</h3><p style="font-size:12px;color:#374151
 <div class="sig-block">
   <div>
     <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px">Assinatura do Cliente</div>
-    ${signatureData ? `<img src="${signatureData}" class="sig-img"/>` : '<div class="sig-line">Assinatura</div>'}
-    <div style="font-size:10px;color:#6b7280;margin-top:4px;text-align:center">${signerName || '—'} · ${now()}</div>
+    ${signatureData ? `<img src="${signatureData}" class="sig-img"/>` : ''}
+    <div class="sig-line">${signerName || order?.client?.nome || '—'}</div>
   </div>
   <div>
-    <div class="sig-line">Responsável pela Entrega</div>
-    <div style="font-size:10px;color:#6b7280;margin-top:4px;text-align:center">${company}</div>
+    <div class="sig-line">Responsável pela Entrega — ${companyName}</div>
   </div>
 </div>
 </body></html>`;
