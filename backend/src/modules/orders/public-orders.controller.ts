@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Param, Body, NotFoundException, Req, Logger, Inject, forwardRef, Query } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { TenantsService } from '../tenants/tenants.service';
+import { SettingsService } from '../settings/settings.service';
 import { ConversationService } from './conversation.service';
 import { MessageChannel } from './entities/order-conversation.entity';
 import { Request } from 'express';
@@ -14,6 +15,7 @@ export class PublicOrdersController {
     constructor(
         private readonly ordersService: OrdersService,
         private readonly tenantsService: TenantsService,
+        private readonly settingsService: SettingsService,
         private readonly conversationService: ConversationService,
         @Inject(forwardRef(() => SmartPartsService)) private readonly smartPartsService: SmartPartsService,
     ) {}
@@ -106,6 +108,15 @@ export class PublicOrdersController {
             if (orderTenantId) {
                 try { tenant = await this.tenantsService.findById(orderTenantId); } catch {}
             }
+            // Carrega configurações de exibição da página pública
+            const [showPrice, showTimeline, showTechnician, customMessage, accentColor] = await Promise.all([
+                this.settingsService.findByKey('public_status_show_price', orderTenantId),
+                this.settingsService.findByKey('public_status_show_timeline', orderTenantId),
+                this.settingsService.findByKey('public_status_show_technician', orderTenantId),
+                this.settingsService.findByKey('public_status_custom_message', orderTenantId),
+                this.settingsService.findByKey('public_status_accent_color', orderTenantId),
+            ]);
+
             return {
                 id: order.id,
                 protocol: order.protocol,
@@ -124,6 +135,14 @@ export class PublicOrdersController {
                 shopPhone: tenant?.phone || '',
                 // Mostrar orçamento somente se aguardando aprovação
                 showBudget: order.status === OSStatus.AGUARDANDO_APROVACAO,
+                // Configurações de exibição da página pública
+                publicSettings: {
+                    showPrice:       showPrice !== 'false',
+                    showTimeline:    showTimeline !== 'false',
+                    showTechnician:  showTechnician === 'true',
+                    customMessage:   customMessage || '',
+                    accentColor:     accentColor || '#3b82f6',
+                },
             };
         } catch {
             throw new NotFoundException('Ordem de Serviço não encontrada.');

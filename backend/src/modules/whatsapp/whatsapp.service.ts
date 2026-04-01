@@ -142,11 +142,6 @@ export class WhatsappService {
                 `${apiUrl}/message/sendText/${instance}`,
                 {
                     number: resolvedJid,
-                    options: {
-                        delay: 1200,
-                        presence: 'composing',
-                        linkPreview: false,
-                    },
                     textMessage: {
                         text: message,
                     },
@@ -170,72 +165,18 @@ export class WhatsappService {
     }
 
     async sendButtons(to: string, title: string, description: string, buttons: any[], footer?: string, tenantId?: string): Promise<void> {
-        const { apiUrl, apiKey, instance } = await this.getConfig(tenantId);
-
-        if (!apiUrl || !apiKey || !instance) {
-            this.logger.warn('WhatsApp integration not configured. Skipping buttons.');
-            return;
+        // Mensagens interativas (sendButtons) não exibem conteúdo no aparelho do remetente (instância conectada).
+        // Solução: enviar sempre como texto formatado — funciona para todos os destinatários.
+        let textMsg = `*${title}*\n\n${description}`;
+        for (const b of buttons) {
+            if (b.type === 'url') {
+                textMsg += `\n\n🔗 *${b.displayText}:* ${b.url}`;
+            } else {
+                textMsg += `\n\n✅ *${b.displayText}*`;
+            }
         }
-
-        try {
-            let cleanNumber = to.replace(/\D/g, '');
-            
-            // Auto-adição do DDI 55 (Brasil) caso o número tenha 10 ou 11 dígitos
-            if (cleanNumber.length === 10 || cleanNumber.length === 11) {
-                cleanNumber = `55${cleanNumber}`;
-            }
-            let resolvedJid = `${cleanNumber}@s.whatsapp.net`;
-
-            // Try to resolve JID
-            try {
-                const checkRes = await axios.post(
-                    `${apiUrl}/chat/whatsappNumbers/${instance}`,
-                    { numbers: [cleanNumber] },
-                    {
-                        headers: { apikey: apiKey, 'Content-Type': 'application/json' },
-                        timeout: 15000,
-                    },
-                );
-                const result = Array.isArray(checkRes.data) ? checkRes.data[0] : null;
-                if (result?.exists && result?.jid) {
-                    resolvedJid = result.jid;
-                }
-            } catch (err) {
-                this.logger.warn(`Could not verify number ${cleanNumber} for buttons: ${err.message}`);
-            }
-
-            this.logger.log(`Sending WhatsApp Buttons to ${resolvedJid} via instance ${instance}`);
-
-            await axios.post(
-                `${apiUrl}/message/sendButtons/${instance}`,
-                {
-                    number: resolvedJid,
-                    title,
-                    description,
-                    footer: footer || '',
-                    buttons,
-                },
-                {
-                    headers: { apikey: apiKey, 'Content-Type': 'application/json' },
-                    timeout: API_TIMEOUT,
-                },
-            );
-            this.logger.log(`WhatsApp Buttons sent successfully to ${resolvedJid}`);
-        } catch (error) {
-            this.logger.error(`Failed to send WhatsApp Buttons to ${to}: ${error.message}`);
-            // Fallback: If buttons fail, try sending as text
-            this.logger.warn(`Falling back to text message for ${to}`);
-            let textMsg = `*${title}*\n\n${description}`;
-            if (footer) textMsg += `\n\n_${footer}_`;
-            for (const b of buttons) {
-                if (b.type === 'url') {
-                    textMsg += `\n\n🔗 *${b.displayText}:* ${b.url}`;
-                } else {
-                    textMsg += `\n\n✅ *${b.displayText}*`;
-                }
-            }
-            await this.sendMessage(to, textMsg, tenantId);
-        }
+        if (footer) textMsg += `\n\n_${footer}_`;
+        await this.sendMessage(to, textMsg, tenantId);
     }
 
     async sendOSCreated(to: string, protocol: string, equipment: string, statusUrl?: string, tenantId?: string): Promise<void> {

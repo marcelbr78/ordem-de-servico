@@ -29,6 +29,7 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
     const [showPhone, setShowPhone] = useState(settings.print_show_phone !== 'false');
     const [showEmail, setShowEmail] = useState(settings.print_show_email !== 'false');
     const [useFantasy, setUseFantasy] = useState(settings.print_use_fantasy_name === 'true');
+    const [twoPerPage, setTwoPerPage] = useState(settings.print_double_up === 'true');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [activeSubTab, setActiveSubTab] = useState<'general' | 'detailed'>('general');
@@ -64,6 +65,7 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
         setShowPhone(settings.print_show_phone !== 'false');
         setShowEmail(settings.print_show_email !== 'false');
         setUseFantasy(settings.print_use_fantasy_name === 'true');
+        setTwoPerPage(settings.print_double_up === 'true');
 
         // Parse detailed fields
         try {
@@ -90,6 +92,7 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
             await api.put('/settings/print_show_phone', { value: String(showPhone) });
             await api.put('/settings/print_show_email', { value: String(showEmail) });
             await api.put('/settings/print_use_fantasy_name', { value: String(useFantasy) });
+            await api.put('/settings/print_double_up', { value: String(twoPerPage) });
 
             // Save detailed fields
             await api.put('/settings/print_fields_client', { value: JSON.stringify(fields.client) });
@@ -105,6 +108,7 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
             await onSave('print_show_phone', String(showPhone));
             await onSave('print_show_email', String(showEmail));
             await onSave('print_use_fantasy_name', String(useFantasy));
+            await onSave('print_double_up', String(twoPerPage));
 
             setMessage({ type: 'success', text: 'Configurações de impressão salvas!' });
             setTimeout(() => setMessage(null), 3000);
@@ -218,6 +222,32 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
                                     </div>
                                 </label>
                             ))}
+
+                            {/* 2 vias por folha — só disponível no formato A4 */}
+                            {format === 'a4' && (
+                                <label style={{
+                                    display: 'flex', alignItems: 'flex-start', gap: '12px',
+                                    padding: '12px', borderRadius: '8px', cursor: 'pointer',
+                                    background: twoPerPage ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.03)',
+                                    border: twoPerPage ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.05)',
+                                    transition: 'all 0.2s', marginTop: '4px'
+                                }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={twoPerPage}
+                                        onChange={e => setTwoPerPage(e.target.checked)}
+                                        style={{ marginTop: '4px' }}
+                                    />
+                                    <div>
+                                        <div style={{ fontWeight: 600, fontSize: '14px', color: twoPerPage ? '#34d399' : '#fff' }}>
+                                            ✂ 2 vias por folha
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                                            Imprime 2 cópias da OS em uma folha A4. Corte ao meio e entregue uma ao cliente.
+                                        </div>
+                                    </div>
+                                </label>
+                            )}
                         </div>
                     </div>
 
@@ -312,7 +342,7 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
                             maxWidth: '600px',
                             background: '#fff',
                             color: '#000',
-                            padding: '24px',
+                            padding: twoPerPage && format === 'a4' ? '12px 24px' : '24px',
                             boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
                             fontFamily: 'Arial, sans-serif',
                             fontSize: '11px',
@@ -392,6 +422,18 @@ export const PrintingSettings: React.FC<PrintingSettingsProps> = ({ settings, on
                                     <div style={{ flex: 1, borderTop: '1px solid #000', textAlign: 'center', paddingTop: '5px', fontSize: '9px' }}>ASSINATURA DO CLIENTE</div>
                                     <div style={{ flex: 1, borderTop: '1px solid #000', textAlign: 'center', paddingTop: '5px', fontSize: '9px' }}>ASSINATURA TÉCNICA</div>
                                 </div>
+                            )}
+
+                            {/* Preview da linha de corte quando 2 vias por folha */}
+                            {twoPerPage && format === 'a4' && (
+                                <>
+                                    <div style={{ borderTop: '2px dashed #bbb', margin: '16px -24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <span style={{ fontSize: '9px', color: '#aaa', background: '#fff', padding: '0 8px' }}>✂ corte aqui</span>
+                                    </div>
+                                    <div style={{ fontSize: '9px', color: '#aaa', textAlign: 'center', marginBottom: '8px' }}>
+                                        [2ª via idêntica abaixo]
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>

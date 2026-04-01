@@ -68,6 +68,11 @@ export const PublicStatus: React.FC = () => {
 
     const currentStep = order ? ALL_STEPS.indexOf(order.status) : -1;
     const cfg = order ? (STATUS[order.status] || STATUS.aberta) : null;
+    // Usa finalValue se disponível (peças/serviços lançados), senão estimatedValue
+    const displayValue = order ? (Number(order.finalValue) > 0 ? Number(order.finalValue) : Number(order.estimatedValue) || 0) : 0;
+    // Configurações de exibição vindas do backend
+    const pub = order?.publicSettings ?? { showPrice: true, showTimeline: true, showTechnician: false, customMessage: '', accentColor: '#3b82f6' };
+    const accentColor = pub.accentColor || '#3b82f6';
 
     return (
         <div style={{ minHeight: '100dvh', background: '#0a0a0c', color: '#fff', fontFamily: 'system-ui, sans-serif', padding: '16px' }}>
@@ -75,7 +80,7 @@ export const PublicStatus: React.FC = () => {
 
                 {/* Logo / Header */}
                 <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
-                    <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #3b82f6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                    <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: `linear-gradient(135deg, ${accentColor}, #7c3aed)`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                         <Smartphone size={26} color="#fff" />
                     </div>
                     <h1 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 4px' }}>Status da OS</h1>
@@ -117,6 +122,13 @@ export const PublicStatus: React.FC = () => {
                 {order && cfg && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
+                        {/* Mensagem personalizada da loja */}
+                        {pub.customMessage && (
+                            <div style={{ background: `${accentColor}12`, border: `1px solid ${accentColor}30`, borderRadius: '12px', padding: '12px 16px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', fontStyle: 'italic', textAlign: 'center' }}>
+                                {pub.customMessage}
+                            </div>
+                        )}
+
                         {/* Card de status */}
                         <div style={{ background: '#16161a', border: `1px solid ${cfg.color}40`, borderRadius: '16px', padding: '20px', borderTop: `3px solid ${cfg.color}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -146,7 +158,7 @@ export const PublicStatus: React.FC = () => {
                         </div>
 
                         {/* Timeline de progresso */}
-                        {order.status !== 'cancelada' && (
+                        {order.status !== 'cancelada' && pub.showTimeline && (
                             <div style={{ background: '#16161a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '20px' }}>
                                 <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', margin: '0 0 16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Progresso</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
@@ -178,14 +190,14 @@ export const PublicStatus: React.FC = () => {
                         )}
 
                         {/* Diagnóstico / orçamento */}
-                        {(order.diagnosis || order.estimatedValue > 0) && (
+                        {(order.diagnosis || (pub.showPrice && displayValue > 0)) && (
                             <div style={{ background: '#16161a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '20px' }}>
                                 <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Diagnóstico</p>
                                 {order.diagnosis && <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)', margin: '0 0 12px', lineHeight: 1.6 }}>{order.diagnosis}</p>}
-                                {order.estimatedValue > 0 && (
+                                {pub.showPrice && displayValue > 0 && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
                                         <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>Valor do Serviço</span>
-                                        <span style={{ fontSize: '15px', fontWeight: 800, color: '#22c55e' }}>{fmtCurrency(order.estimatedValue)}</span>
+                                        <span style={{ fontSize: '15px', fontWeight: 800, color: '#22c55e' }}>{fmtCurrency(displayValue)}</span>
                                     </div>
                                 )}
                             </div>
@@ -199,7 +211,7 @@ export const PublicStatus: React.FC = () => {
                                     <p style={{ fontSize: '15px', fontWeight: 700, color: '#f59e0b', margin: 0 }}>Aprovação Necessária</p>
                                 </div>
                                 <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', margin: '0 0 16px', lineHeight: 1.6 }}>
-                                    O diagnóstico foi concluído. Deseja aprovar o serviço pelo valor de <strong style={{ color: '#22c55e' }}>{fmtCurrency(order.estimatedValue)}</strong>?
+                                    O diagnóstico foi concluído. Deseja aprovar o serviço pelo valor de <strong style={{ color: '#22c55e' }}>{fmtCurrency(displayValue)}</strong>?
                                 </p>
 
                                 {!showApprovalForm ? (

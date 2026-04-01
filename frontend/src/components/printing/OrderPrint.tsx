@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import React, { forwardRef } from 'react';
 import QRCode from "react-qr-code";
 
 // Interfaces
@@ -484,6 +484,34 @@ const StandardTemplateA4 = ({ order, settings, type, transactions }: { order: an
     );
 };
 
+const SplitA4Template = ({ order, settings, type, transactions }: { order: any, settings: any, type: string, transactions?: any[] }) => {
+    const halfStyle: React.CSSProperties = {
+        height: '148mm',
+        padding: '8px 15px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+    };
+
+    return (
+        <div style={{ ...s.pageA4, padding: 0, height: '297mm', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* 1ª via */}
+            <div style={halfStyle}>
+                <ReceiptContent order={order} settings={settings} type={type} transactions={transactions} />
+            </div>
+
+            {/* Linha de corte */}
+            <div style={{ borderTop: '2px dashed #999', margin: '0 15px', flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '8px', color: '#999', background: 'white', padding: '0 8px', position: 'absolute' }}>✂ corte aqui</span>
+            </div>
+
+            {/* 2ª via */}
+            <div style={halfStyle}>
+                <ReceiptContent order={order} settings={settings} type={type} isCopy transactions={transactions} />
+            </div>
+        </div>
+    );
+};
+
 // ─── THERMAL COMPONENTS ──────────────────────────────────────────────────────
 
 const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any, width: string }) => {
@@ -602,12 +630,13 @@ const ThermalTemplate = ({ order, settings, width }: { order: any, settings: any
 
 export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, settings, type, transactions }, ref) => {
     const format = settings?.print_format || 'a4'; // 'a4', '80mm', '58mm'
+    const doubleUp = settings?.print_double_up === 'true';
 
     return (
         <div ref={ref} style={{ backgroundColor: 'white', color: 'black', fontFamily: 'Arial, sans-serif' }}>
             <style type="text/css" media="print">
                 {`
-                    @page { size: auto; margin: ${format === 'a4' ? '0' : '0'}; }
+                    @page { size: A4 portrait; margin: 0; }
                     body { background-color: white !important; -webkit-print-color-adjust: exact; }
                     * { color: black !important; border-color: black !important; }
                     .print-hidden { display: none !important; }
@@ -615,7 +644,9 @@ export const OrderPrint = forwardRef<HTMLDivElement, OrderPrintProps>(({ order, 
             </style>
 
             {format === 'a4'
-                ? <StandardTemplateA4 order={order} settings={settings} type={type} transactions={transactions} />
+                ? (doubleUp
+                    ? <SplitA4Template order={order} settings={settings} type={type} transactions={transactions} />
+                    : <StandardTemplateA4 order={order} settings={settings} type={type} transactions={transactions} />)
                 : <ThermalTemplate order={order} settings={settings} width={format} />
             }
         </div>
