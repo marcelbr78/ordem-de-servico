@@ -10,6 +10,7 @@ import { LandingPage } from './pages/LandingPage';
 import { SignupPage } from './pages/SignupPage';
 import { PricingPage } from './pages/PricingPage';
 import { PublicStatus } from './pages/PublicStatus';
+import { PublicStatusPixel } from './pages/PublicStatusPixel';
 import { MonitorDashboard } from './pages/MonitorDashboard';
 import { Kiosk } from './pages/public/Kiosk';
 import { MasterLogin } from './pages/MasterLogin';
@@ -116,6 +117,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/status" element={<PublicStatus />} />
           <Route path="/status/:id" element={<PublicStatus />} />
+          <Route path="/status-pixel" element={<PublicStatusPixel />} />
+          <Route path="/status-pixel/:id" element={<PublicStatusPixel />} />
           <Route path="/monitor" element={<MonitorDashboard />} />
           <Route path="/kiosk/:slug" element={<Kiosk />} />
           <Route path="/kiosk" element={<Kiosk />} />

@@ -59,3 +59,19 @@ postgres_data/
 *.bak
 tmp_v*/
 *.zip
+
+# ── Backups de banco de dados ────────────────────────────────────
+backup*.sql
+dump*.sql
+*_producao.sql
+*_staging.sql
+
+# ── Scripts temporários e utilitários ───────────────────────────
+backend/err.txt
+backend/test_*.js
+backend/dump_render.js
+backend/pull_live_db.js
+frontend/errors.txt
+frontend/fix.js
+frontend/fix_all.js
+frontend/fix_quotes.cjs
