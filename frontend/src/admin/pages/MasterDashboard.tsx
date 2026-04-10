@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 import type { AdminDashboardMetrics } from '../../services/adminService';
 import { Users, DollarSign, Activity, TrendingUp, ShoppingBag, ArrowUpRight, TrendingDown } from 'lucide-react';
@@ -8,7 +9,7 @@ import {
 } from 'recharts';
 
 // ── KPI Card ──────────────────────────────────────────────────
-const MetricCard = ({ title, value, icon: Icon, color, bg, trend, trendLabel }: {
+const MetricCard = ({ title, value, icon: Icon, color, bg, trend, trendLabel, onClick }: {
     title: string;
     value: string | number;
     icon: React.ElementType;
@@ -16,8 +17,15 @@ const MetricCard = ({ title, value, icon: Icon, color, bg, trend, trendLabel }: 
     bg: string;
     trend?: number;
     trendLabel?: string;
+    onClick?: () => void;
 }) => (
-    <div className="glass-card" style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', overflow: 'hidden' }}>
+    <div 
+        className="glass-card" 
+        onClick={onClick}
+        style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.2s, boxShadow 0.2s' }}
+        onMouseEnter={e => { if (onClick) { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 16px rgba(0,0,0,0.2)'; } }}
+        onMouseLeave={e => { if (onClick) { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; } }}
+    >
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: `linear-gradient(90deg, ${color}, transparent)` }} />
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div style={{ width: '48px', height: '48px', background: bg, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -175,6 +183,7 @@ const ActivityFeed = ({ events }: { events: ActivityEvent[] }) => (
 
 // ── Main Dashboard ─────────────────────────────────────────────
 export const MasterDashboard: React.FC = () => {
+    const navigate = useNavigate();
     const [metrics, setMetrics] = useState<AdminDashboardMetrics | null>(null);
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
     const [tenants, setTenants] = useState<{ name?: string; storeName?: string; createdAt: string; status: string }[]>([]);
@@ -237,12 +246,12 @@ export const MasterDashboard: React.FC = () => {
         })() : null;
 
     const kpiCards = [
-        { title: 'MRR Ativo', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(mrr), icon: DollarSign, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', trend: mrrTrend ?? undefined, trendLabel: 'Receita recorrente mensal' },
-        { title: 'Total Lojas', value: totalTenants, icon: ShoppingBag, color: 'var(--accent-primary)', bg: 'rgba(59,130,246,0.12)', trendLabel: `${activeTenants} lojas ativas` },
-        { title: 'Lojas Ativas', value: activeTenants, icon: Activity, color: '#10b981', bg: 'rgba(16,185,129,0.12)', trendLabel: 'Assinaturas em dia' },
-        { title: 'Usuários Globais', value: globalUsers, icon: Users, color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', trendLabel: 'Cadastrados na plataforma' },
-        { title: 'Churn Rate', value: `${churnRate}%`, icon: TrendingDown, color: suspendedCount > 0 ? '#ef4444' : '#10b981', bg: suspendedCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)', trendLabel: `${suspendedCount} loja(s) suspensa(s)` },
-        { title: 'Previsão 3 meses', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(forecastMrr), icon: TrendingUp, color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', trendLabel: 'MRR projetado via regressão linear' },
+        { title: 'MRR Ativo', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(mrr), icon: DollarSign, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', trend: mrrTrend ?? undefined, trendLabel: 'Receita recorrente mensal', onClick: () => navigate('/masteradmin/billing') },
+        { title: 'Total Lojas', value: totalTenants, icon: ShoppingBag, color: 'var(--accent-primary)', bg: 'rgba(59,130,246,0.12)', trendLabel: `${activeTenants} lojas ativas`, onClick: () => navigate('/masteradmin/tenants') },
+        { title: 'Lojas Ativas', value: activeTenants, icon: Activity, color: '#10b981', bg: 'rgba(16,185,129,0.12)', trendLabel: 'Assinaturas em dia', onClick: () => navigate('/masteradmin/tenants') },
+        { title: 'Usuários Globais', value: globalUsers, icon: Users, color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', trendLabel: 'Cadastrados na plataforma', onClick: () => navigate('/masteradmin/tenants') },
+        { title: 'Churn Rate', value: `${churnRate}%`, icon: TrendingDown, color: suspendedCount > 0 ? '#ef4444' : '#10b981', bg: suspendedCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)', trendLabel: `${suspendedCount} loja(s) suspensa(s)`, onClick: () => navigate('/masteradmin/analytics') },
+        { title: 'Previsão 3 meses', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(forecastMrr), icon: TrendingUp, color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', trendLabel: 'MRR projetado via regressão linear', onClick: () => navigate('/masteradmin/analytics') },
     ];
 
     const platformUsage = [

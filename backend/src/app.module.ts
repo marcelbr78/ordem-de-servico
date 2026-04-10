@@ -118,7 +118,7 @@ import { RepairCase as BoardDiagnosisRepairCase } from './modules/board-diagnosi
                     type: 'sqlite',
                     database: 'database.sqlite',
                     entities: [User, Client, ClientContact, ClientOsHistory, OrderService, OrderEquipment, OrderHistory, OrderPhoto, OrderPart, OrderServiceItem, OrderConversation, Diagnosis, Product, StockBalance, StockMovement, Transaction, AuditLog, Supplier, Quote, QuoteResponse, SystemSetting, BankAccount, FiscalNota, FiscalProduto, FiscalServico, FiscalCliente, Tenant, SaasModuleEntity, TenantModuleEntity, Plan, Subscription, DiagnosticPattern, RepairPricePattern, DiagnosticBoard, PowerSequenceStep, PowerSequenceAnalysis, BoardDiagnosisBoard, BoardDiagnosisSymptomCategory, BoardDiagnosisCircuit, BoardDiagnosisPowerRail, BoardDiagnosisSession, BoardDiagnosisStep, BoardDiagnosisRepairCase, SupportTicket, TicketMessage, Broadcast, FeatureFlag, WarrantyReturn, WarrantyRefund, TechnicalMemory],
-                    synchronize: false,
+                    synchronize: true,
                 };
             },
         }),

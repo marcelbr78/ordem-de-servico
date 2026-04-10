@@ -28,7 +28,7 @@ export class RepairCase {
     @Column({ type: 'text', nullable: true })
     symptom: string;
 
-    @Column({ type: 'jsonb', nullable: true })
+    @Column({ type: 'simple-json', nullable: true })
     measurements_summary: any;
 
     @Column({ nullable: true })

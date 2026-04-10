@@ -6,6 +6,7 @@ import {
     Settings, ScrollText, Landmark, Blocks, Cpu,
     ChevronLeft, ChevronRight, Box, Activity, CreditCard, Award,
     LayoutGrid, UserPlus, Brain, Store, BarChart2, Kanban, Calendar, Shield, Receipt, Truck, Monitor,
+    Heart, TrendingUp, MessageSquare, Megaphone, Rocket, ShieldAlert, ToggleRight, Server, GitMerge, Sliders
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -66,8 +67,18 @@ const SAAS_LINKS = [
     { name: 'Billing', path: '/masteradmin/billing', icon: CreditCard },
     { name: 'Planos', path: '/masteradmin/plans', icon: LayoutGrid },
     { name: 'Signups', path: '/masteradmin/signups', icon: UserPlus },
+    { name: 'Onboarding', path: '/masteradmin/onboarding', icon: Rocket },
     { name: 'AI Insights', path: '/masteradmin/insights', icon: Brain },
+    { name: 'Analytics', path: '/masteradmin/analytics', icon: TrendingUp },
+    { name: 'Health', path: '/masteradmin/health', icon: Heart },
+    { name: 'Support', path: '/masteradmin/support', icon: MessageSquare },
+    { name: 'Comunicados', path: '/masteradmin/broadcasts', icon: Megaphone },
+    { name: 'Evolution', path: '/masteradmin/evolution', icon: GitMerge },
     { name: 'Kiosk', path: '/masteradmin/kiosk', icon: Monitor },
+    { name: 'Features', path: '/masteradmin/feature-flags', icon: ToggleRight },
+    { name: 'Infra', path: '/masteradmin/infra', icon: Server },
+    { name: 'Master Ajustes', path: '/masteradmin/settings', icon: Sliders },
+    { name: 'Auditoria', path: '/masteradmin/audit', icon: ShieldAlert },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, isDesktop, collapsed, onClose, onToggleCollapse }) => {
