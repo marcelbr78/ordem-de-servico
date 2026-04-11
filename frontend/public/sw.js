@@ -37,10 +37,9 @@ self.addEventListener('fetch', (event) => {
     }
 
     // API — sempre rede (nunca cache)
-    if (url.pathname.startsWith('/api') || 
-        url.pathname.startsWith('/whatsapp') || 
-        url.pathname.startsWith('/auth') || 
-        url.hostname.includes('onrender.com') ||
+    if (url.pathname.startsWith('/api') ||
+        url.pathname.startsWith('/whatsapp') ||
+        url.pathname.startsWith('/auth') ||
         url.hostname.includes('os4u-backend')) {
         event.respondWith(fetch(event.request));
         return;
